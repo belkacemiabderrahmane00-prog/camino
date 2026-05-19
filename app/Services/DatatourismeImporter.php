@@ -173,8 +173,31 @@ class DatatourismeImporter
             return $label;
         }
         if (is_array($label)) {
+            if (isset($label['fr'])) {
+                $fr = $label['fr'];
+                return is_array($fr) ? ($fr[0] ?? null) : $fr;
+            }
             $fr = collect($label)->first(fn ($v) => (is_array($v) && ($v['@language'] ?? '') === 'fr') || is_string($v));
-            return is_array($fr) ? ($fr['@value'] ?? null) : $fr;
+            return is_array($fr) ? ($fr['@value'] ?? ($fr[0] ?? null)) : $fr;
+        }
+
+        return null;
+    }
+
+    private function extractGeo(array $data): ?array
+    {
+        $geo = $data['schema:geo'] ?? $data['geo'] ?? null;
+        if (is_array($geo) && isset($geo['schema:latitude'])) {
+            return $geo;
+        }
+
+        $locations = $data['isLocatedAt'] ?? [];
+        if (is_array($locations)) {
+            $loc = isset($locations[0]) ? $locations[0] : $locations;
+            $geo = $loc['schema:geo'] ?? $loc['geo'] ?? null;
+            if (is_array($geo)) {
+                return $geo;
+            }
         }
 
         return null;
@@ -182,12 +205,9 @@ class DatatourismeImporter
 
     private function extractLat(array $data): ?float
     {
-        $geo = $data['schema:geo'] ?? $data['geo'] ?? $data['geo:lat'] ?? null;
-        if (is_numeric($geo)) {
-            return (float) $geo;
-        }
-        if (is_array($geo)) {
-            $lat = $geo['latitude'] ?? $geo['geo:lat'] ?? $geo['@value'] ?? null;
+        $geo = $this->extractGeo($data);
+        if ($geo) {
+            $lat = $geo['schema:latitude'] ?? $geo['latitude'] ?? $geo['geo:lat'] ?? null;
             return $lat !== null ? (float) $lat : null;
         }
 
@@ -198,12 +218,9 @@ class DatatourismeImporter
 
     private function extractLng(array $data): ?float
     {
-        $geo = $data['schema:geo'] ?? $data['geo'] ?? $data['geo:long'] ?? null;
-        if (is_numeric($geo)) {
-            return (float) $geo;
-        }
-        if (is_array($geo)) {
-            $lng = $geo['longitude'] ?? $geo['geo:long'] ?? $geo['@value'] ?? null;
+        $geo = $this->extractGeo($data);
+        if ($geo) {
+            $lng = $geo['schema:longitude'] ?? $geo['longitude'] ?? $geo['geo:long'] ?? null;
             return $lng !== null ? (float) $lng : null;
         }
 
@@ -214,15 +231,28 @@ class DatatourismeImporter
 
     private function extractAddress(array $data): ?string
     {
-        $addr = $data['schema:address'] ?? $data['address'] ?? $data['isLocatedAt'] ?? null;
+        $addr = $data['schema:address'] ?? $data['address'] ?? null;
+
+        if (! $addr) {
+            $locations = $data['isLocatedAt'] ?? [];
+            $loc = is_array($locations) ? ($locations[0] ?? $locations) : null;
+            if (is_array($loc)) {
+                $addrList = $loc['schema:address'] ?? $loc['address'] ?? null;
+                $addr = is_array($addrList) ? ($addrList[0] ?? $addrList) : $addrList;
+            }
+        }
+
         if (is_string($addr)) {
             return $addr;
         }
         if (is_array($addr)) {
-            $parts = array_filter([
-                $addr['streetAddress'] ?? $addr['schema:streetAddress'] ?? null,
-                ($addr['postalCode'] ?? $addr['schema:postalCode'] ?? null) . ' ' . ($addr['addressLocality'] ?? $addr['schema:addressLocality'] ?? null),
-            ]);
+            $street = $addr['schema:streetAddress'] ?? $addr['streetAddress'] ?? null;
+            if (is_array($street)) {
+                $street = $street[0] ?? null;
+            }
+            $postal = $addr['schema:postalCode'] ?? $addr['postalCode'] ?? '';
+            $city = $addr['schema:addressLocality'] ?? $addr['addressLocality'] ?? '';
+            $parts = array_filter([$street, trim("$postal $city")]);
 
             return implode(', ', $parts) ?: null;
         }
@@ -236,8 +266,14 @@ class DatatourismeImporter
         if (is_string($desc)) {
             return $desc;
         }
-        if (is_array($desc) && isset($desc['@value'])) {
-            return $desc['@value'];
+        if (is_array($desc)) {
+            if (isset($desc['fr'])) {
+                $fr = $desc['fr'];
+                return is_array($fr) ? ($fr[0] ?? null) : $fr;
+            }
+            if (isset($desc['@value'])) {
+                return $desc['@value'];
+            }
         }
 
         return null;
@@ -290,8 +326,15 @@ class DatatourismeImporter
         $tags = [];
         foreach ($themes as $t) {
             $label = is_array($t) ? ($t['rdfs:label'] ?? $t['name'] ?? null) : $t;
-            if ($label) {
-                $tags[] = is_string($label) ? $label : ($label['@value'] ?? '');
+            if (is_string($label)) {
+                $tags[] = $label;
+            } elseif (is_array($label)) {
+                if (isset($label['fr'])) {
+                    $fr = $label['fr'];
+                    $tags[] = is_array($fr) ? ($fr[0] ?? '') : $fr;
+                } elseif (isset($label['@value'])) {
+                    $tags[] = $label['@value'];
+                }
             }
         }
 
