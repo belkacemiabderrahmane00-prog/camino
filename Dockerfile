@@ -1,4 +1,4 @@
-FROM php:8.2-apache
+FROM php:8.4-apache
 
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
@@ -16,6 +16,8 @@ RUN echo '<Directory /var/www/html/public>\n    AllowOverride All\n</Directory>'
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
@@ -35,4 +37,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 EXPOSE 80
 
-CMD php artisan config:cache && php artisan route:cache && php artisan view:cache && apache2-foreground
+RUN sed -ri -e 's/Listen 80/Listen ${PORT:-80}/g' /etc/apache2/ports.conf
+RUN sed -ri -e 's/<VirtualHost \*:80>/<VirtualHost *:${PORT:-80}>/g' /etc/apache2/sites-available/*.conf
+
+CMD php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && apache2-foreground
