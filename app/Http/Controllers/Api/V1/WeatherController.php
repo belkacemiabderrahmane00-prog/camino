@@ -25,6 +25,7 @@ class WeatherController extends Controller
             'days' => $forecast['days'],
             'hours' => array_slice($forecast['hours'], 0, 24),
             'available' => $forecast['available'],
+            'error' => $forecast['available'] ? null : $weather->lastError,
         ]);
     }
 }

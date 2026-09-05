@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Log;
  */
 class WeatherService
 {
+    /** Dernière erreur rencontrée (diagnostic, exposée par l'API météo quand la prévision est indisponible). */
+    public ?string $lastError = null;
+
     /** Codes WMO → libellé français + icône Material Symbols + indicateur "temps à intérieur". */
     private const CODES = [
         0 => ['Ciel dégagé', 'clear_day', false],
@@ -73,12 +76,16 @@ class WeatherService
                         'timezone' => config('app.timezone', 'Europe/Paris'),
                     ]);
             } catch (\Throwable $e) {
+                $this->lastError = get_class($e) . ': ' . mb_substr($e->getMessage(), 0, 160);
                 Log::warning('Weather unavailable: ' . $e->getMessage());
 
                 return $this->unavailable();
             }
 
             if (! $response->ok()) {
+                $this->lastError = 'HTTP ' . $response->status() . ' ' . mb_substr($response->body(), 0, 160);
+                Log::warning('Weather unavailable: ' . $this->lastError);
+
                 return $this->unavailable();
             }
 
