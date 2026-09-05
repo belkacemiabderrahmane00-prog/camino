@@ -21,6 +21,15 @@ Route::post('/parcours/ajouter-lieu/{place}', [ItineraryController::class, 'addP
 Route::delete('/parcours/retirer-lieu/{place}', [ItineraryController::class, 'removePlace'])->name('itineraries.remove-place');
 Route::post('/parcours/vider-lieux', [ItineraryController::class, 'clearPlaces'])->name('itineraries.clear-places');
 Route::get('/parcours/suivre', [ItineraryController::class, 'navigate'])->name('itineraries.navigate');
+Route::post('/parcours/variante/{key}', [ItineraryController::class, 'chooseVariant'])->name('itineraries.variant')->where('key', 'mix|culture|detente');
+Route::post('/parcours/etape/{index}/retirer', [ItineraryController::class, 'editRemove'])->name('itineraries.step-remove')->whereNumber('index');
+Route::post('/parcours/etape/{index}/deplacer', [ItineraryController::class, 'editMove'])->name('itineraries.step-move')->whereNumber('index');
+Route::post('/parcours/etape/{index}/remplacer', [ItineraryController::class, 'editReplace'])->name('itineraries.step-replace')->whereNumber('index');
+Route::post('/parcours/etape/{index}/verrouiller', [ItineraryController::class, 'editLock'])->name('itineraries.step-lock')->whereNumber('index');
+Route::post('/parcours/etape/{index}/duree', [ItineraryController::class, 'editDuration'])->name('itineraries.step-duration')->whereNumber('index');
+Route::get('/p/{token}', [ItineraryController::class, 'shared'])->name('itineraries.shared');
+Route::post('/p/{token}/ouvrir', [ItineraryController::class, 'sharedOpen'])->name('itineraries.shared-open');
+Route::get('/p/{token}/gpx', [ItineraryController::class, 'sharedGpx'])->name('itineraries.shared-gpx');
 
 Route::get('/lieux/{place}', [PlaceController::class, 'show'])->name('places.show');
 Route::post('/lieux/{place}/signaler', [PlaceController::class, 'report'])->name('places.report');
@@ -40,6 +49,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/mes-parcours/{itinerary}', [ItineraryController::class, 'show'])->name('itineraries.show');
     Route::post('/mes-parcours/{itinerary}/revoir', [ItineraryController::class, 'replay'])->name('itineraries.replay');
     Route::get('/mes-parcours/{itinerary}/suivre', [ItineraryController::class, 'navigateSaved'])->name('itineraries.navigate-saved');
+    Route::post('/mes-parcours/{itinerary}/partager', [ItineraryController::class, 'share'])->name('itineraries.share');
+    Route::get('/mes-parcours/{itinerary}/gpx', [ItineraryController::class, 'gpx'])->name('itineraries.gpx');
     Route::delete('/mes-parcours/{itinerary}', [ItineraryController::class, 'destroy'])->name('itineraries.destroy');
 
     // Communauté (façon Waze)

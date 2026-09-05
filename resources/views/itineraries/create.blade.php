@@ -191,6 +191,7 @@
                 </div>
 
                 <button type="submit" class="btn btn-lg btn-primary w-full" :disabled="submitting"><span class="material-symbols-outlined" :class="submitting && 'animate-spin'" x-text="submitting ? 'progress_activity' : 'auto_awesome'"></span><span x-text="submitting ? 'Calcul des trajets réels…' : '{{ $hasResult ? 'Recalculer' : 'Générer mon parcours' }}'"></span></button>
+                <button type="submit" name="surprise" value="1" class="btn btn-md btn-soft w-full" :disabled="submitting"><span class="material-symbols-outlined" style="font-size:18px">casino</span>Surprends-moi</button>
                 </div>
 
                 {{-- Assistant mobile : précédent / suivant --}}
@@ -210,6 +211,23 @@
                         $startsAt = \Illuminate\Support\Carbon::parse($result['starts_at']);
                         $endsAt = \Illuminate\Support\Carbon::parse($result['ends_at']);
                     @endphp
+                    @if(!empty($result['variants']) && count($result['variants']) > 1)
+                        <div class="mb-3">
+                            <p class="eyebrow mb-2">Trois propositions, même départ</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                @foreach($result['variants'] as $v)
+                                    <form method="POST" action="{{ route('itineraries.variant', $v['key']) }}">@csrf
+                                        <button type="submit" class="w-full text-left rounded-2xl border-2 p-3 transition {{ $v['active'] ? 'border-ink bg-white shadow-card' : 'border-transparent bg-white/70 hover:bg-white' }}" @disabled($v['active'])>
+                                            <span class="material-symbols-outlined {{ $v['active'] ? 'text-coral' : 'text-ink-muted' }}">{{ $v['icon'] }}</span>
+                                            <p class="font-semibold text-sm leading-tight mt-1">{{ $v['label'] }}</p>
+                                            <p class="text-[11px] text-ink-muted mt-0.5">{{ $v['steps'] }} lieux · {{ floor($v['minutes'] / 60) }} h{{ $v['minutes'] % 60 ? str_pad($v['minutes'] % 60, 2, '0', STR_PAD_LEFT) : '' }} · {{ number_format($v['km'], 1, ',', ' ') }} km</p>
+                                            <p class="text-[10px] text-ink-muted mt-1 line-clamp-2 hidden sm:block">{{ implode(' · ', $v['titles']) }}</p>
+                                        </button>
+                                    </form>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                     <div class="card overflow-hidden">
                         <div id="itinerary-map" class="h-[320px] sm:h-[440px]"></div>
                         <div class="p-5 sm:p-6">
@@ -291,6 +309,24 @@
                                                 </div>
                                             </div>
                                         </a>
+                                        @if(!empty($step['conflict']))
+                                            <p class="mt-1.5 text-[11px] text-coral-dark bg-coral-soft rounded-xl px-3 py-1.5 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">warning</span>La visite finirait après la fermeture ({{ $step['hours']['closes'] ?? '' }}).</p>
+                                        @endif
+                                        {{-- Outils d'édition de l'étape --}}
+                                        @php $i = $loop->index; $last = $loop->last; @endphp
+                                        <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                            <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="up"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="Monter" @disabled($loop->first)><span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span></button></form>
+                                            <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="down"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="Descendre" @disabled($last)><span class="material-symbols-outlined" style="font-size:18px">arrow_downward</span></button></form>
+                                            <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="-15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="15 min de moins" @disabled($step['visit_minutes'] <= 15)><span class="material-symbols-outlined" style="font-size:18px">remove</span></button></form>
+                                            <span class="text-[11px] font-semibold tabular-nums">{{ $step['visit_minutes'] }} min</span>
+                                            <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="15 min de plus"><span class="material-symbols-outlined" style="font-size:18px">add</span></button></form>
+                                            <span class="flex-1"></span>
+                                            @if(!$lunch)
+                                                <form method="POST" action="{{ route('itineraries.step-lock', $i) }}">@csrf<button class="btn btn-icon !h-8 !w-8 {{ !empty($step['locked']) ? 'btn-ink' : 'btn-ghost' }}" title="{{ !empty($step['locked']) ? 'Déverrouiller' : 'Garder ce lieu au recalcul' }}"><span class="material-symbols-outlined {{ !empty($step['locked']) ? 'filled' : '' }}" style="font-size:18px">{{ !empty($step['locked']) ? 'lock' : 'lock_open' }}</span></button></form>
+                                            @endif
+                                            <form method="POST" action="{{ route('itineraries.step-replace', $i) }}">@csrf<button class="btn btn-icon btn-ghost !h-8 !w-8" title="Remplacer par un lieu similaire"><span class="material-symbols-outlined" style="font-size:18px">swap_horiz</span></button></form>
+                                            <form method="POST" action="{{ route('itineraries.step-remove', $i) }}">@csrf<button class="btn btn-icon btn-ghost !h-8 !w-8 hover:text-coral" title="Retirer" @disabled(count($steps) <= 1)><span class="material-symbols-outlined" style="font-size:18px">close</span></button></form>
+                                        </div>
                                         @if(!empty($step['alternative']))
                                             <a href="{{ route('places.show', $step['alternative']['place_id']) }}" class="mt-1.5 flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 hover:bg-sky-100">
                                                 <span class="material-symbols-outlined" style="font-size:16px">umbrella</span>

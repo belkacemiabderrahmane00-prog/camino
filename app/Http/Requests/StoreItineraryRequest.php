@@ -34,6 +34,7 @@ class StoreItineraryRequest extends FormRequest
             'starts_at' => ['nullable', 'date_format:H:i'],
             'use_weather' => ['nullable', 'boolean'],
             'with_lunch' => ['nullable', 'boolean'],
+            'surprise' => ['nullable', 'boolean'],
         ];
     }
 

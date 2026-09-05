@@ -10,6 +10,13 @@
                 @if($v2)
                     <p class="text-sm text-ink-muted mt-1">{{ $result['start']['label'] ?? '' }}{{ !empty($result['end']['label']) ? ' → ' . $result['end']['label'] : '' }}{{ !empty($result['date']) ? ' · ' . \Illuminate\Support\Carbon::parse($result['date'])->translatedFormat('j F') : '' }} · {{ ($result['mode'] ?? 'walk') === 'bike' ? 'à vélo' : 'à pied' }} · {{ floor($result['total_minutes'] / 60) }} h {{ str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT) }} · {{ number_format($result['total_distance_km'], 1, ',', ' ') }} km · {{ number_format($result['total_cost_eur'], 0) }} €</p>
                 @endif
+                @if(session('share_url'))
+                    <div class="mt-4 rounded-2xl bg-teal-soft p-3 text-sm" x-data="{ copied: false }">
+                        <p class="font-semibold text-teal-dark mb-1.5">Lien de partage</p>
+                        <div class="flex gap-2"><input type="text" readonly value="{{ session('share_url') }}" class="field !py-2 text-xs flex-1 min-w-0" @click="$el.select()"><button type="button" @click="navigator.clipboard.writeText('{{ session('share_url') }}'); copied = true" class="btn btn-sm btn-ink shrink-0" x-text="copied ? 'Copié' : 'Copier'"></button></div>
+                        <p class="text-[11px] text-ink-muted mt-1.5">Toute personne avec ce lien voit le parcours et peut le suivre dans CAMINO.</p>
+                    </div>
+                @endif
                 <ol class="mt-6 space-y-3">
                     @foreach($steps as $i => $step)
                         <li>
@@ -27,6 +34,8 @@
                 <div class="mt-6 flex flex-wrap gap-2">
                     @if($v2)<a href="{{ route('itineraries.navigate-saved', $itinerary) }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Suivre le parcours</a>@endif
                     <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">replay</span>Rouvrir dans le générateur</button></form>
+                    <form method="POST" action="{{ route('itineraries.share', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button></form>
+                    <a href="{{ route('itineraries.gpx', $itinerary) }}" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">download</span>GPX</a>
                     <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-md btn-ghost text-ink-muted">Supprimer</button></form>
                 </div>
             </div>

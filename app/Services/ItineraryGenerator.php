@@ -64,6 +64,12 @@ class ItineraryGenerator
         $withLunch = (bool) ($options['with_lunch'] ?? false);
         $alerts = (array) ($options['alerts'] ?? []);
         $restaurants = ($options['restaurants'] ?? null) instanceof Collection ? $options['restaurants'] : collect();
+        $strictTime = (bool) ($options['strict_time'] ?? true);
+        $visitOverrides = (array) ($options['visit_overrides'] ?? []);
+        $required = array_map('intval', (array) ($options['required'] ?? []));
+        $scoreAdjust = (array) ($options['score_adjust'] ?? []);
+        $jitter = (float) ($options['jitter'] ?? 0);
+        $shortlistIds = array_map('intval', (array) ($options['shortlist_ids'] ?? []));
 
         $start = $options['start'] ?? null;
         if (! $start || ! isset($start['lat'], $start['lng'])) {
@@ -151,18 +157,38 @@ class ItineraryGenerator
             }
             $distanceKm = $this->routing->haversineKm((float) $start['lat'], (float) $start['lng'], (float) $p->lat, (float) $p->lng);
             $score -= $distanceKm * ($mode === RoutingService::MODE_BIKE ? 0.15 : 0.45);
+            $score += (float) ($scoreAdjust[$slug] ?? 0);
+            if ($jitter > 0) {
+                $score += (mt_rand(-1000, 1000) / 1000) * $jitter;
+            }
+            if (in_array((int) $p->id, $required, true)) {
+                $score += 5.0;
+            }
             $row['score'] = $score;
             $row['distance_km'] = $distanceKm;
-            $row['visit'] = (int) ($p->visit_duration_min ?: 60);
+            $row['visit'] = max(15, (int) ($visitOverrides[$p->id] ?? ($p->visit_duration_min ?: 60)));
+            $row['required'] = in_array((int) $p->id, $required, true);
             $row['cost'] = $this->estimateCost($p);
             $row['kind'] = 'visit';
         }
         unset($row);
 
         // Liste courte pour la matrice de temps (le calcul TSP se fait dessus).
-        if (! $preserveOrder) {
+        if ($shortlistIds !== []) {
+            $byId = [];
+            foreach ($rows as $r) {
+                $byId[(int) $r['place']->id] = $r;
+            }
+            $rows = array_values(array_filter(array_map(fn ($id) => $byId[$id] ?? null, $shortlistIds)));
+        } elseif (! $preserveOrder) {
             usort($rows, fn ($a, $b) => $b['score'] <=> $a['score']);
-            $rows = array_slice($rows, 0, self::SHORTLIST);
+            $keep = array_slice($rows, 0, self::SHORTLIST);
+            foreach ($rows as $r) {
+                if ($r['required'] && ! in_array($r, $keep, true)) {
+                    $keep[] = $r;
+                }
+            }
+            $rows = $keep;
         } else {
             $rows = array_slice($rows, 0, 15);
         }
@@ -197,14 +223,21 @@ class ItineraryGenerator
         $T = $matrix['minutes'];
         $K = $matrix['km'];
 
-        $ctx = ['T' => $T, 'nodes' => $nodes, 'startMin' => $startMin, 'budget' => $timeBudget, 'endIdx' => $endIdx];
+        $requiredIdx = [];
+        foreach ($rows as $i => $r) {
+            if ($r['required']) {
+                $requiredIdx[] = $i + 1;
+            }
+        }
+        $ctx = ['T' => $T, 'nodes' => $nodes, 'startMin' => $startMin, 'budget' => $timeBudget, 'endIdx' => $endIdx, 'required' => $requiredIdx];
+        $lenient = $preserveOrder && ! $strictTime;
 
         // --- 4. Planification -----------------------------------------------------------------------
         $skippedBudget = 0;
         $trimmedForOrder = false;
         if ($preserveOrder) {
             $sequence = range(1, count($rows));
-            while ($sequence !== [] && ! $this->simulate($sequence, $ctx)['feasible']) {
+            while ($strictTime && $sequence !== [] && ! $this->simulate($sequence, $ctx)['feasible']) {
                 array_pop($sequence);
                 $trimmedForOrder = true;
             }
@@ -251,7 +284,7 @@ class ItineraryGenerator
                 $ctx['T'][end($sequence)][$endIdx] = (int) $legs[count($legs) - 1]['duration_min'];
             }
         }
-        $sim = $this->simulate($sequence, $ctx);
+        $sim = $this->simulate($sequence, $ctx, $lenient);
         $unusedIndoor = array_values(array_filter(array_keys($rows), fn ($i) => ! in_array($i + 1, $sequence, true) && in_array($rows[$i]['slug'], self::INDOOR, true) && $rows[$i]['slug'] !== 'restauration'));
 
         $steps = [];
@@ -290,6 +323,8 @@ class ItineraryGenerator
                 'travel_minutes' => (int) $leg['duration_min'],
                 'travel_km' => round((float) $leg['distance_km'], 2),
                 'wait_minutes' => $s['wait'],
+                'conflict' => $s['conflict'] ?? false,
+                'locked' => $node['required'] ?? false,
                 'arrive_at' => $arrive->format('H:i'),
                 'start_visit_at' => $date->copy()->addMinutes($s['begin'])->format('H:i'),
                 'leave_at' => $date->copy()->addMinutes($s['leave'])->format('H:i'),
@@ -326,12 +361,23 @@ class ItineraryGenerator
         if ($weather && $weather['indoor_recommended']) {
             $warnings[] = sprintf('Météo : %s (%d %% de pluie). Les lieux couverts sont privilégiés et chaque étape en extérieur a un plan B.', $weather['label'], $weather['rain_probability']);
         }
+        if ($lenient && $sim['total'] > $timeBudget) {
+            $warnings[] = 'Ce parcours dépasse ton temps disponible de ' . ($sim['total'] - $timeBudget) . ' min.';
+        }
+        foreach ($steps as $st) {
+            if ($st['conflict']) {
+                $warnings[] = $st['title'] . ' : la visite finirait après la fermeture (' . $st['hours']['closes'] . ').';
+            }
+        }
         $unknown = count(array_filter($steps, fn ($s) => $s['hours']['status'] === 'unknown'));
         if ($unknown > 0) {
             $warnings[] = $unknown . ' étape(s) sans horaires connus : vérifie avant de partir.';
         }
 
-        return $this->result($start, $end, $loop, $startsAt, $mode, $steps, $route, $weather, $warnings, round($totalCost, 2), $sim, $finalLeg, $matrix['source'] ?? 'estimate');
+        $out = $this->result($start, $end, $loop, $startsAt, $mode, $steps, $route, $weather, $warnings, round($totalCost, 2), $sim, $finalLeg, $matrix['source'] ?? 'estimate');
+        $out['shortlist_ids'] = array_map(fn ($r) => (int) $r['place']->id, $rows);
+
+        return $out;
     }
 
     public function estimateCost(Place $place): float
@@ -371,6 +417,29 @@ class ItineraryGenerator
             }
         }
         $skippedBudget = 0;
+        // Lieux imposés (verrouillés) : insérés d'abord, à la position de moindre détour.
+        foreach ($ctx['required'] ?? [] as $idx) {
+            if (isset($used[$idx])) {
+                continue;
+            }
+            $bestSeq = null;
+            $bestTotal = null;
+            for ($pos = 0; $pos <= count($sequence); $pos++) {
+                $candidate = $sequence;
+                array_splice($candidate, $pos, 0, [$idx]);
+                $sim = $this->simulate($candidate, $ctx);
+                if ($sim['feasible'] && ($bestTotal === null || $sim['total'] < $bestTotal)) {
+                    $bestSeq = $candidate;
+                    $bestTotal = $sim['total'];
+                }
+            }
+            if ($bestSeq !== null) {
+                $sequence = $bestSeq;
+                $used[$idx] = true;
+                $perCategory[$rows[$idx - 1]['slug']] = ($perCategory[$rows[$idx - 1]['slug']] ?? 0) + 1;
+                $spent += $rows[$idx - 1]['cost'];
+            }
+        }
         $base = $this->simulate($sequence, $ctx);
         $factor = 1.0;
 
@@ -514,7 +583,7 @@ class ItineraryGenerator
      * @param array<int,int> $sequence indices dans la matrice (1..n)
      * @return array{feasible:bool,total:int,travel:int,wait:int,end:int,steps:array<int,array{arrive:int,begin:int,leave:int,wait:int}>}
      */
-    private function simulate(array $sequence, array $ctx): array
+    private function simulate(array $sequence, array $ctx, bool $lenient = false): array
     {
         $T = $ctx['T'];
         $t = $ctx['startMin'];
@@ -529,23 +598,27 @@ class ItineraryGenerator
             $travel += $leg;
             $arrive = $t;
             $w = 0;
+            $conflict = false;
             $h = $node['hours'];
             if ($h['status'] === 'open') {
                 if ($t < $h['opens']) {
                     $w = $h['opens'] - $t;
-                    if ($w > self::MAX_WAIT_MIN) {
+                    if ($w > self::MAX_WAIT_MIN && ! $lenient) {
                         return ['feasible' => false, 'total' => PHP_INT_MAX, 'travel' => $travel, 'wait' => $wait, 'end' => $t, 'steps' => []];
                     }
                     $t = $h['opens'];
                 }
                 if ($h['closes'] !== null && $t + $node['visit'] > $h['closes'] + 5) {
-                    return ['feasible' => false, 'total' => PHP_INT_MAX, 'travel' => $travel, 'wait' => $wait, 'end' => $t, 'steps' => []];
+                    if (! $lenient) {
+                        return ['feasible' => false, 'total' => PHP_INT_MAX, 'travel' => $travel, 'wait' => $wait, 'end' => $t, 'steps' => []];
+                    }
+                    $conflict = true;
                 }
             }
             $wait += $w;
             $begin = $t;
             $t += $node['visit'];
-            $steps[] = ['arrive' => $arrive, 'begin' => $begin, 'leave' => $t, 'wait' => $w];
+            $steps[] = ['arrive' => $arrive, 'begin' => $begin, 'leave' => $t, 'wait' => $w, 'conflict' => $conflict];
             $prev = $idx;
         }
         if ($ctx['endIdx'] !== null && $sequence !== []) {
