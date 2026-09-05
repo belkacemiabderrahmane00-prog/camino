@@ -24,6 +24,9 @@ class DatatourismeImporter
         'PointOfInterest' => 'lieu-culturel',
     ];
 
+    /** @var array<string,int|null> cache slug => id (évite une requête par fichier) */
+    private array $categoryCache = [];
+
     public function __construct(
         private readonly string $zipPath,
         private readonly bool $dryRun = false,
@@ -293,8 +296,8 @@ class DatatourismeImporter
                 str_contains($title, 'forêt') ||
                 str_contains($title, 'foret')
             ) {
-                if ($cat = Category::where('slug', 'parc-jardin')->first()) {
-                    return $cat->id;
+                if ($id = $this->categoryId('parc-jardin')) {
+                    return $id;
                 }
             }
         }
@@ -308,13 +311,20 @@ class DatatourismeImporter
             $short = str_contains($str, '#') ? substr($str, strrpos($str, '#') + 1) : class_basename($str);
             $slug = self::TYPE_TO_CATEGORY[$short] ?? null;
             if ($slug) {
-                $cat = Category::where('slug', $slug)->first();
-
-                return $cat?->id;
+                return $this->categoryId($slug);
             }
         }
 
-        return Category::where('slug', 'lieu-culturel')->first()?->id;
+        return $this->categoryId('lieu-culturel');
+    }
+
+    private function categoryId(string $slug): ?int
+    {
+        if (! array_key_exists($slug, $this->categoryCache)) {
+            $this->categoryCache[$slug] = Category::where('slug', $slug)->value('id');
+        }
+
+        return $this->categoryCache[$slug];
     }
 
     private function extractTags(array $data): array
