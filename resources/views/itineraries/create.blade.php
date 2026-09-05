@@ -15,6 +15,9 @@
         'mode' => old('mode', $params['mode'] ?? 'walk'),
         'duration' => (int) old('duration_minutes', $params['duration_minutes'] ?? 180),
         'paris' => ['lat' => $defaultStart['lat'], 'lng' => $defaultStart['lng']],
+        'step' => 1,
+        'showForm' => ! $hasResult,
+        'hasResult' => $hasResult,
     ];
     $mobIcon = ($result['mode'] ?? 'walk') === 'bike' ? 'directions_bike' : 'directions_walk';
 @endphp
@@ -31,8 +34,15 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start" x-data="itineraryForm(@js($initial))">
             {{-- ============================================================ Formulaire --}}
-            <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-6 lg:sticky lg:top-24 min-w-0" @submit="beforeSubmit">
+            <div x-show="hasResult && showForm" x-cloak @click="showForm = false" class="lg:hidden fixed inset-0 z-[1150] bg-ink/40 backdrop-blur-sm"></div>
+            <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-6 lg:sticky lg:top-24 min-w-0 {{ $hasResult ? 'max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-[1200] max-lg:max-h-[90vh] max-lg:overflow-y-auto max-lg:rounded-b-none max-lg:shadow-float' : '' }}" :class="{ 'hidden lg:block': hasResult && !showForm }" @submit="beforeSubmit">
                 @csrf
+                @if($hasResult)
+                    <div class="lg:hidden flex items-center justify-between -mt-1">
+                        <p class="font-semibold">Modifier le parcours</p>
+                        <button type="button" @click="showForm = false" class="btn btn-icon btn-ghost" aria-label="Fermer"><span class="material-symbols-outlined">close</span></button>
+                    </div>
+                @endif
                 <input type="hidden" name="start_lat" :value="startMode === 'paris' ? '' : (start.lat ?? '')">
                 <input type="hidden" name="start_lng" :value="startMode === 'paris' ? '' : (start.lng ?? '')">
                 <input type="hidden" name="start_label" :value="startMode === 'paris' ? '' : (start.label || (startMode === 'me' ? 'Ma position' : 'Point sur la carte'))">
@@ -59,6 +69,8 @@
                     <div class="rounded-2xl bg-coral-soft text-coral-dark px-4 py-3 text-sm space-y-0.5">@foreach($errors->all() as $e)<p>{{ $e }}</p>@endforeach</div>
                 @endif
 
+                <div class="space-y-6" :class="{ 'hidden lg:block': step !== 1 }">
+                <p class="lg:hidden eyebrow">Étape 1 sur 3 · D'où et jusqu'où</p>
                 {{-- Départ --}}
                 <div>
                     <p class="label flex items-center gap-1.5"><span class="material-symbols-outlined text-coral" style="font-size:16px">trip_origin</span>Départ</p>
@@ -109,6 +121,9 @@
                     <p x-show="endMode === 'loop'" x-cloak class="mt-1.5 text-xs text-ink-muted">Le retour au point de départ est compté dans le temps disponible.</p>
                 </div>
 
+                </div>
+                <div class="space-y-6" :class="{ 'hidden lg:block': step !== 2 }">
+                <p class="lg:hidden eyebrow">Étape 2 sur 3 · Quand et combien de temps</p>
                 {{-- Quand --}}
                 <div>
                     <p class="label flex items-center gap-1.5"><span class="material-symbols-outlined text-ink" style="font-size:16px">calendar_month</span>Quand</p>
@@ -142,6 +157,9 @@
                     </div>
                 </div>
 
+                </div>
+                <div class="space-y-6" :class="{ 'hidden lg:block': step !== 3 }">
+                <p class="lg:hidden eyebrow">Étape 3 sur 3 · Tes envies</p>
                 {{-- Envies --}}
                 <div>
                     <p class="label">Envies</p>
@@ -173,11 +191,20 @@
                 </div>
 
                 <button type="submit" class="btn btn-lg btn-primary w-full" :disabled="submitting"><span class="material-symbols-outlined" :class="submitting && 'animate-spin'" x-text="submitting ? 'progress_activity' : 'auto_awesome'"></span><span x-text="submitting ? 'Calcul des trajets réels…' : '{{ $hasResult ? 'Recalculer' : 'Générer mon parcours' }}'"></span></button>
+                </div>
+
+                {{-- Assistant mobile : précédent / suivant --}}
+                <div class="lg:hidden flex items-center gap-2 pt-1">
+                    <button type="button" x-show="step > 1" @click="step--" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>Retour</button>
+                    <div class="flex-1 flex justify-center gap-1.5"><template x-for="i in 3" :key="i"><span class="h-1.5 rounded-full transition-all" :class="i === step ? 'w-6 bg-coral' : 'w-2 bg-ink/15'"></span></template></div>
+                    <button type="button" x-show="step < 3" @click="step++; $el.closest('form').scrollTo({ top: 0 })" class="btn btn-md btn-ink">Suivant<span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span></button>
+                </div>
             </form>
 
             {{-- ============================================================ Résultat --}}
             <div class="min-w-0">
                 @if($result && $hasResult)
+                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>Modifier les critères</button>
                     @php
                         $v3 = ($result['version'] ?? 2) >= 3;
                         $startsAt = \Illuminate\Support\Carbon::parse($result['starts_at']);
@@ -301,6 +328,7 @@
                         </div>
                     </div>
                 @elseif($result)
+                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>Modifier les critères</button>
                     <div class="card p-8 text-center">
                         <span class="material-symbols-outlined text-4xl text-ink-muted">explore_off</span>
                         <p class="mt-3 font-semibold">Aucun parcours possible avec ces paramètres.</p>

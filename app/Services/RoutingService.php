@@ -80,7 +80,7 @@ class RoutingService
         $n = count($points);
         $costing = self::COSTING[$mode] ?? 'pedestrian';
         $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], $points);
-        $cacheKey = 'routing:matrix:' . md5($costing . json_encode($locations));
+        $cacheKey = 'routing:matrix:v2:' . md5($costing . json_encode($locations));
 
         // L'instance publique limite chaque appel à 100 paires : on découpe en blocs 10 × 10 envoyés en parallèle.
         // L'instance publique limite chaque appel à 100 paires source × cible et n'aime pas les rafales :
@@ -183,7 +183,7 @@ class RoutingService
     {
         $costing = self::COSTING[$mode] ?? 'pedestrian';
         $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], array_values($points));
-        $cacheKey = 'routing:' . md5($endpoint . $costing . json_encode($locations));
+        $cacheKey = 'routing:v2:' . md5($endpoint . $costing . json_encode($locations));
 
         return Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($endpoint, $locations, $costing) {
             try {
