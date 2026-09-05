@@ -1,4 +1,4 @@
-@props(['place', 'class' => 'h-40', 'sizes' => null])
+@props(['place', 'class' => 'h-40', 'sizes' => null, 'eager' => false])
 @php
     $slug = $place->category->slug ?? 'default';
     $palette = [
@@ -10,7 +10,7 @@
     $icons = ['musee' => 'palette', 'monument' => 'account_balance', 'parc-jardin' => 'park', 'lieu-culturel' => 'theater_comedy', 'restauration' => 'restaurant', 'evenement-culturel' => 'celebration', 'street-art' => 'brush', 'itineraire' => 'route'];
 @endphp
 @if($place->cover_image_url)
-    <img src="{{ $place->coverThumb($class === 'h-full' ? 1200 : 800) }}" alt="{{ $place->title }}" loading="lazy" {{ $attributes->merge(['class' => 'w-full object-cover ' . $class]) }}>
+    <img src="{{ $place->coverThumb($class === 'h-full' ? 1200 : 800) }}" alt="{{ $place->title }}" loading="{{ $eager ? 'eager' : 'lazy' }}" {{ $attributes->merge(['class' => 'w-full object-cover ' . $class]) }}>
 @else
     <div {{ $attributes->merge(['class' => 'w-full placeholder-cover flex items-center justify-center ' . $class]) }} style="--c1: {{ $c1 }}; --c2: {{ $c2 }};">
         <span class="material-symbols-outlined text-white/70" style="font-size:40px;font-variation-settings:'wght' 300">{{ $icons[$slug] ?? 'place' }}</span>

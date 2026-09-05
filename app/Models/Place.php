@@ -141,9 +141,18 @@ class Place extends Model
         if (! $url) {
             return null;
         }
-        // Special:FilePath redirige vers la miniature Commons de la largeur demandée (hôte thumb.wikimedia.org).
-        if (preg_match('~^https?://upload\.wikimedia\.org/wikipedia/commons/[0-9a-f]/[0-9a-f]{2}/([^/?#]+)$~i', $url, $m)) {
-            return 'https://commons.wikimedia.org/wiki/Special:FilePath/' . $m[1] . '?width=' . $width;
+        // Commons ne sert plus que quelques largeurs prédéfinies : on prend la première ≥ à la largeur demandée.
+        if (preg_match('~^https?://upload\.wikimedia\.org/wikipedia/commons/([0-9a-f])/([0-9a-f]{2})/([^/?#]+)$~i', $url, $m)) {
+            $allowed = [250, 330, 500, 960, 1280];
+            $chosen = $allowed[count($allowed) - 1];
+            foreach ($allowed as $w) {
+                if ($w >= $width) {
+                    $chosen = $w;
+                    break;
+                }
+            }
+
+            return sprintf('https://upload.wikimedia.org/wikipedia/commons/thumb/%s/%s/%s/%dpx-%s', $m[1], $m[2], $m[3], $chosen, $m[3]);
         }
 
         return $url;

@@ -39,7 +39,7 @@
                 <div class="grid grid-cols-2 gap-3 sm:gap-4">
                     @foreach($featured->take(4) as $i => $place)
                         <a href="{{ route('places.show', $place) }}" class="group relative overflow-hidden rounded-3xl shadow-card {{ $i === 0 ? 'row-span-2 h-72 sm:h-96' : 'h-36 sm:h-44' }} {{ $i === 3 ? '-mt-6' : '' }}">
-                            <x-cover :place="$place" class="h-full group-hover:scale-105 transition-transform duration-500" />
+                            <x-cover :place="$place" :eager="true" class="h-full group-hover:scale-105 transition-transform duration-500" />
                             <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent"></div>
                             <div class="absolute bottom-3 left-3 right-3 text-white">
                                 <p class="text-[10px] uppercase tracking-widest opacity-80">{{ $place->category->name ?? '' }}</p>

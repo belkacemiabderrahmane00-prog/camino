@@ -1,7 +1,10 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import L from 'leaflet';
 
+// Leaflet est embarqué dans le bundle (pas de dépendance à un CDN externe au chargement).
+window.L = L;
 window.Alpine = Alpine;
 
 /**
