@@ -13,4 +13,14 @@ Route::prefix('v1')->group(function () {
     Route::get('weather', [WeatherController::class, 'show']);
 
     Route::post('itineraries/generate', [ItineraryController::class, 'generate']);
+
+    // Diagnostic : dernières lignes du journal applicatif (clé dérivée de APP_KEY).
+    Route::get('diag/log', function (\Illuminate\Http\Request $request) {
+        abort_unless(hash_equals(substr(sha1((string) config('app.key')), 0, 16), (string) $request->query('key')), 404);
+        $files = glob(storage_path('logs/laravel*.log')) ?: [];
+        rsort($files);
+        $lines = $files ? array_slice(file($files[0]), -150) : ['(aucun journal)'];
+
+        return response(implode('', $lines), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+    });
 });

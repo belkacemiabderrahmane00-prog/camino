@@ -94,7 +94,14 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        // En production, stderr (logs Render) + fichier journalier (consultable via /api/v1/diag/log).
         'stderr' => [
+            'driver' => 'stack',
+            'channels' => ['stderr_raw', 'daily'],
+            'ignore_exceptions' => false,
+        ],
+
+        'stderr_raw' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
