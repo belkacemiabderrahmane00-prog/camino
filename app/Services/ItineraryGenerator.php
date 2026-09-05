@@ -22,7 +22,7 @@ class ItineraryGenerator
 
     private const OUTDOOR = ['parc-jardin', 'street-art', 'itineraire'];
 
-    private const MAX_PER_CATEGORY = ['restauration' => 1, 'default' => 3];
+    private const MAX_PER_CATEGORY = ['restauration' => 1, 'default' => 2];
 
     public function __construct(
         private readonly RoutingService $routing,
