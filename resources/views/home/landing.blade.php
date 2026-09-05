@@ -366,20 +366,28 @@
         function heroPhone() {
             const C = window.Camino;
             return {
-                places: @js($heroPlaces), current: null, rot: -3, map: null, idx: 0,
+                places: @js($heroPlaces), current: null, rot: -3, idx: 0,
                 init() {
                     if (!window.L || !this.$refs.map) return;
+                    const el = this.$refs.map;
+                    let started = false;
+                    const start = () => { if (started) return; started = true; this.boot(el); };
+                    if (el.clientHeight > 0) start();
+                    else if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (el.clientHeight > 0) { ro.disconnect(); start(); } }); ro.observe(el); }
+                    else setTimeout(start, 300);
+                },
+                boot(el) {
                     const center = [48.858, 2.345];
                     const mobile = window.innerWidth < 1024;
-                    this.map = L.map(this.$refs.map, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView(center, 13);
-                    C.tileLayer().addTo(this.map);
+                    const map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView(center, 13);
+                    C.tileLayer().addTo(map);
                     const pts = this.places.filter(p => p.lat && p.lng);
                     pts.forEach((p, i) => setTimeout(() => {
-                        const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.slug, { size: 30 }) }).addTo(this.map);
+                        const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.slug, { size: 30 }) }).addTo(map);
                         const el = m.getElement(); if (el) el.querySelector('.camino-pin')?.classList.add('pin-pop');
                     }, 600 + i * 220));
                     // Lent panoramique + carte de lieu qui tourne en boucle
-                    let t = 0; setInterval(() => { t += 0.004; this.map.panTo([center[0] + Math.sin(t) * 0.012, center[1] + Math.cos(t * 0.8) * 0.02], { animate: true, duration: 1.5, easeLinearity: 0.2 }); }, 1600);
+                    let t = 0; setInterval(() => { t += 0.004; map.panTo([center[0] + Math.sin(t) * 0.012, center[1] + Math.cos(t * 0.8) * 0.02], { animate: true, duration: 1.5, easeLinearity: 0.2 }); }, 1600);
                     if (pts.length) { this.current = pts[0]; setInterval(() => { this.idx = (this.idx + 1) % pts.length; this.current = null; setTimeout(() => this.current = pts[this.idx], 80); }, 3800); }
                 },
                 tilt(e) { if (window.innerWidth < 1024) return; this.rot = -3 + ((e.clientX / window.innerWidth) - 0.5) * 6; },

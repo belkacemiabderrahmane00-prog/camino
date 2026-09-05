@@ -186,8 +186,9 @@
     <script>
         function caminoMap() {
             const C = window.Camino;
+            let map = null; // instance Leaflet gardée hors du proxy réactif d'Alpine
             return {
-                map: null, markers: {}, alertMarkers: [], places: [], alerts: [], loading: false, selected: null, selectedAlert: null,
+                markers: {}, alertMarkers: [], places: [], alerts: [], loading: false, selected: null, selectedAlert: null,
                 query: @js(request('q', '')), filter: @js(request('filtre', 'all')), budget: '', listMode: 'places', sheet: false,
                 apiPois: @js(url('/api/v1/pois')), apiAlerts: @js(url('/api/v1/alerts')),
                 filters: [
@@ -203,30 +204,38 @@
                 ],
                 init() {
                     if (!window.L) return;
-                    const params = new URLSearchParams(window.location.search);
-                    const lat = parseFloat(params.get('lat')) || 48.8566, lng = parseFloat(params.get('lng')) || 2.3522, z = parseInt(params.get('z')) || 13;
-                    this.map = L.map('camino-map', { zoomControl: false, attributionControl: true }).setView([lat, lng], z);
-                    C.tileLayer().addTo(this.map);
-                    this.map.on('moveend', C.debounce(() => this.load(), 250));
-                    // Le conteneur peut changer de taille après l'init (polices, en-tête, mobile) : on recale Leaflet.
-                    const fix = () => { this.map.invalidateSize(); this.load(); };
-                    if (window.ResizeObserver) new ResizeObserver(C.debounce(fix, 150)).observe(document.getElementById('camino-map'));
-                    window.addEventListener('load', () => setTimeout(fix, 50));
-                    this.load();
-                    if (params.get('locate')) this.locate();
+                    const el = document.getElementById('camino-map');
+                    const start = () => {
+                        if (map) return;
+                        const params = new URLSearchParams(window.location.search);
+                        const lat = parseFloat(params.get('lat')) || 48.8566, lng = parseFloat(params.get('lng')) || 2.3522, z = parseInt(params.get('z')) || 13;
+                        map = L.map(el, { zoomControl: false, attributionControl: true }).setView([lat, lng], z);
+                        C.tileLayer().addTo(map);
+                        map.on('moveend', C.debounce(() => this.load(), 250));
+                        // Le conteneur peut encore changer de taille (polices, en-tête, mobile) : on recale Leaflet.
+                        const fix = () => { map.invalidateSize(); this.load(); };
+                        if (window.ResizeObserver) new ResizeObserver(C.debounce(fix, 150)).observe(el);
+                        window.addEventListener('load', () => setTimeout(fix, 50));
+                        this.load();
+                        if (params.get('locate')) this.locate();
+                    };
+                    // Leaflet n'est initialisé que lorsque le conteneur a une taille (la feuille de style peut arriver après le script).
+                    if (el.clientHeight > 0) start();
+                    else if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (el.clientHeight > 0) { ro.disconnect(); start(); } }); ro.observe(el); }
+                    else setTimeout(start, 300);
                 },
                 style(p) { return C.categoryStyle(p.category ? p.category.slug : null); },
-                center() { const c = this.map.getCenter(); return { lat: c.lat, lng: c.lng }; },
-                zoomIn() { this.map.zoomIn(); }, zoomOut() { this.map.zoomOut(); },
+                center() { if (!map) return {}; const c = map.getCenter(); return { lat: c.lat, lng: c.lng }; },
+                zoomIn() { map.zoomIn(); }, zoomOut() { map.zoomOut(); },
                 openPlace(p) {
                     this.selectedAlert = null; this.selected = p;
                     document.getElementById('camino-map').classList.add('map-3d');
-                    this.map.flyTo([p.lat, p.lng], Math.max(this.map.getZoom(), 15), { duration: 0.8 });
+                    map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 15), { duration: 0.8 });
                 },
                 openAlert(a) {
                     this.selected = null; this.selectedAlert = a;
                     document.getElementById('camino-map').classList.add('map-3d');
-                    this.map.flyTo([a.lat, a.lng], Math.max(this.map.getZoom(), 15), { duration: 0.8 });
+                    map.flyTo([a.lat, a.lng], Math.max(map.getZoom(), 15), { duration: 0.8 });
                 },
                 closeSheet() { this.selected = null; this.selectedAlert = null; document.getElementById('camino-map').classList.remove('map-3d'); },
                 priceLabel(p) { return p.is_free ? 'Gratuit' : (p.price_level ? '€'.repeat(p.price_level) : 'Tarif non renseigné'); },
@@ -239,12 +248,12 @@
                     return n >= 120 ? '120+ lieux (zoome pour affiner)' : `${n} lieu${n > 1 ? 'x' : ''}`;
                 },
                 async locate() {
-                    try { const p = await C.locate(); this.map.setView([p.lat, p.lng], 15); L.circleMarker([p.lat, p.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#0F8B8D', fillOpacity: 1 }).addTo(this.map); }
+                    try { const p = await C.locate(); map.setView([p.lat, p.lng], 15); L.circleMarker([p.lat, p.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#0F8B8D', fillOpacity: 1 }).addTo(map); }
                     catch (e) { alert('Impossible de récupérer ta position.'); }
                 },
                 async load() {
-                    if (!this.map) return;
-                    const b = this.map.getBounds();
+                    if (!map || map.getSize().x === 0) return;
+                    const b = map.getBounds();
                     const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
                     const params = new URLSearchParams({ bbox, limit: '120' });
                     const f = this.filters.find(x => x.key === this.filter);
@@ -266,12 +275,12 @@
                     this.places.forEach(p => {
                         if (!p.lat || !p.lng) return;
                         const st = this.style(p);
-                        const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.category ? p.category.slug : null) }).addTo(this.map);
+                        const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.category ? p.category.slug : null) }).addTo(map);
                         m.on('click', () => this.openPlace(p));
                         this.markers[p.id] = m;
                     });
                     this.alerts.forEach(a => {
-                        const m = L.marker([a.lat, a.lng], { icon: C.alertIcon(a.color, a.icon), zIndexOffset: 500 }).addTo(this.map);
+                        const m = L.marker([a.lat, a.lng], { icon: C.alertIcon(a.color, a.icon), zIndexOffset: 500 }).addTo(map);
                         m.on('click', () => this.openAlert(a));
                         this.alertMarkers.push(m);
                     });
