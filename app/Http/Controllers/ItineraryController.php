@@ -29,8 +29,8 @@ class ItineraryController extends Controller
     /** Variantes proposées à partir de la même liste de candidats. */
     private const VARIANTS = [
         'mix' => ['label' => 'Équilibré', 'icon' => 'balance', 'adjust' => []],
-        'culture' => ['label' => 'Culture', 'icon' => 'palette', 'adjust' => ['musee' => 1.6, 'monument' => 1.2, 'lieu-culturel' => 1.0, 'parc-jardin' => -0.8, 'street-art' => -0.5]],
-        'detente' => ['label' => 'Détente', 'icon' => 'park', 'adjust' => ['parc-jardin' => 1.8, 'street-art' => 1.0, 'itineraire' => 0.8, 'musee' => -0.8, 'monument' => -0.3]],
+        'culture' => ['label' => 'Culture', 'icon' => 'palette', 'adjust' => ['musee' => 2.5, 'monument' => 1.5, 'lieu-culturel' => 1.5, 'parc-jardin' => -10, 'street-art' => -10, 'itineraire' => -10]],
+        'detente' => ['label' => 'Détente', 'icon' => 'park', 'adjust' => ['parc-jardin' => 3.0, 'street-art' => 2.0, 'itineraire' => 1.5, 'musee' => -10, 'lieu-culturel' => -4, 'monument' => -1.5]],
     ];
 
     public function __construct(

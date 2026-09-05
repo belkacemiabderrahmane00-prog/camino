@@ -456,7 +456,7 @@ class ItineraryGenerator
                     $ctx['nodes'][$i]['short'] = true;
                 }
                 $cap = self::MAX_PER_CATEGORY[$row['slug']] ?? self::MAX_PER_CATEGORY['default'];
-                if (($perCategory[$row['slug']] ?? 0) >= $cap) {
+                if (($perCategory[$row['slug']] ?? 0) >= $cap || $row['score'] < -5) {
                     continue;
                 }
                 if ($budgetEur !== null && $spent + $row['cost'] > $budgetEur) {
