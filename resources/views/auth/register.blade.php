@@ -15,7 +15,7 @@
             <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" class="field">
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
-        <div class="grid sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
                 <label class="label" for="password">Mot de passe</label>
                 <input id="password" type="password" name="password" required autocomplete="new-password" class="field">

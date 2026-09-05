@@ -29,7 +29,7 @@
             @endforelse
         </div>
 
-        <div x-show="tab === 'photos'" x-cloak class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div x-show="tab === 'photos'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             @forelse($pendingPhotos as $photo)
                 <div class="card overflow-hidden">
                     <img src="{{ $photo->url }}" alt="" class="w-full h-48 object-cover">

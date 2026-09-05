@@ -13,7 +13,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full">
-    <div class="min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
+    <div class="min-h-screen grid grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
         {{-- Visuel --}}
         <aside class="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden">
             <img src="{{ asset('images/photo_paris.avif') }}" alt="" class="absolute inset-0 h-full w-full object-cover">

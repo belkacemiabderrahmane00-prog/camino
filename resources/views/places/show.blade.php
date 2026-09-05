@@ -100,7 +100,7 @@
     </section>
 
     {{-- ============================================================ Corps --}}
-    <section class="max-w-5xl mx-auto px-4 sm:px-6 mt-8 grid lg:grid-cols-[1fr_340px] gap-6">
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 mt-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
         <div class="space-y-6 min-w-0">
             {{-- Description --}}
             <div class="card p-6 sm:p-8">

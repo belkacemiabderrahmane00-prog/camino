@@ -74,7 +74,7 @@
                 </div>
 
                 {{-- Stats : défilement horizontal sur mobile --}}
-                <div class="mt-5 flex sm:grid sm:grid-cols-6 gap-2 overflow-x-auto hide-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 text-center">
+                <div class="mt-5 flex sm:grid grid-cols-1 sm:grid-cols-6 gap-2 overflow-x-auto hide-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 text-center">
                     @foreach([
                         ['itineraries', 'Parcours', 'route'], ['km', 'km', 'directions_walk'], ['favorites', 'Favoris', 'favorite'],
                         ['reviews', 'Avis', 'rate_review'], ['photos', 'Photos', 'photo_camera'], ['alerts', 'Alertes', 'campaign'],
@@ -110,7 +110,7 @@
 
             {{-- ============================================================ Profil --}}
             <div x-show="tab === 'profil'" class="space-y-4">
-                <div class="card p-5 sm:p-8 grid md:grid-cols-[200px_1fr] gap-6">
+                <div class="card p-5 sm:p-8 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
                     <div class="text-center">
                         <p class="label text-left">Photo de profil</p>
                         <div class="relative inline-block">
@@ -136,7 +136,7 @@
                         @endif
                     </div>
                     <div class="space-y-4">
-                        <div class="grid sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><label class="label" for="name">Prénom ou pseudo</label><input id="name" name="name" value="{{ old('name', $user->name) }}" required maxlength="60" class="field"><x-input-error :messages="$errors->get('name')" class="mt-1" /></div>
                             <div><label class="label" for="city">Ma ville</label><input id="city" name="city" value="{{ old('city', $user->city) }}" maxlength="80" class="field" placeholder="Paris, Montreuil, Versailles…"></div>
                         </div>
@@ -157,7 +157,7 @@
                     </div>
                 </div>
 
-                <div class="grid sm:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     @foreach([
                         [route('map.index'), 'map', 'Explorer la carte', 'Les lieux autour de toi'],
                         [route('itineraries.create'), 'auto_awesome', 'Générer un parcours', 'Selon ta mobilité'],
@@ -173,7 +173,7 @@
 
             {{-- ============================================================ Goûts --}}
             <div x-show="tab === 'gouts'" x-cloak class="space-y-4">
-                <div class="card p-5 sm:p-8 grid md:grid-cols-[1fr_260px] gap-6">
+                <div class="card p-5 sm:p-8 grid grid-cols-1 md:grid-cols-[1fr_260px] gap-6">
                     <div>
                         <p class="eyebrow mb-1">Mon profil culturel</p>
                         <h2 class="display text-2xl">{{ $persona[0] }}</h2>
@@ -249,7 +249,7 @@
                 </div>
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="card p-5 sm:p-6">
                     <div class="flex items-center justify-between mb-3"><p class="eyebrow">Derniers parcours</p><a href="{{ route('itineraries.index') }}" class="text-xs font-semibold hover:text-coral">Tout voir</a></div>
                     <div class="space-y-2">
@@ -283,7 +283,7 @@
         <div x-show="tab === 'compte'" x-cloak class="space-y-4 mt-4">
             <div class="card p-5 sm:p-8">
                 <p class="eyebrow mb-1">Adresse e-mail</p>
-                <form method="POST" action="{{ route('profile.update') }}" class="mt-2 grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+                <form method="POST" action="{{ route('profile.update') }}" class="mt-2 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
                     @csrf @method('PATCH')
                     <input type="hidden" name="name" value="{{ $user->name }}"><input type="hidden" name="bio" value="{{ $user->bio }}"><input type="hidden" name="city" value="{{ $user->city }}"><input type="hidden" name="mobility" value="{{ $user->mobility ?? 'walk' }}">
                     @foreach((array) ($user->interests ?? []) as $slug)<input type="hidden" name="interests[]" value="{{ $slug }}">@endforeach

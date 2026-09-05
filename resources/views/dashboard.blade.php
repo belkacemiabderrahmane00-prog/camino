@@ -6,8 +6,8 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6 sm:space-y-8">
 
         {{-- ============================================================ Bonjour + météo --}}
-        <div class="grid lg:grid-cols-[1.4fr_1fr] gap-4">
-            <div class="rounded-4xl bg-ink text-white p-5 sm:p-8 relative overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
+            <div class="rounded-4xl bg-ink text-white p-5 sm:p-8 relative overflow-hidden min-w-0">
                 <div class="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-coral/40 blur-3xl"></div>
                 <div class="absolute -left-10 -bottom-20 h-56 w-56 rounded-full bg-teal/40 blur-3xl"></div>
                 <div class="relative flex items-center gap-4">
@@ -22,8 +22,8 @@
                     <div class="min-w-0 flex-1">
                         <p class="eyebrow">Niveau {{ $level['index'] }} · {{ $level['name'] }}</p>
                         <h1 class="display text-2xl sm:text-4xl mt-0.5 truncate">{{ $greeting }}, {{ $user->name }}</h1>
-                        <div class="mt-2 flex items-center gap-2">
-                            <div class="h-1.5 flex-1 max-w-[220px] rounded-full bg-white/15 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-coral to-sun" style="width: {{ $level['progress'] }}%"></div></div>
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <div class="h-1.5 flex-1 min-w-[120px] max-w-[220px] rounded-full bg-white/15 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-coral to-sun" style="width: {{ $level['progress'] }}%"></div></div>
                             <span class="text-[11px] text-white/70">{{ $level['points'] }} pts{{ $level['next'] ? ' · ' . ($level['next'] - $level['points']) . ' avant le niveau ' . ($level['index'] + 1) : '' }}</span>
                         </div>
                     </div>
@@ -89,7 +89,7 @@
 
         {{-- ============================================================ Reprendre --}}
         @if($lastItinerary || $selection->isNotEmpty())
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 @if($lastItinerary)
                     @php $r = $lastItinerary->result_json ?? []; $steps = $r['steps'] ?? []; @endphp
                     <a href="{{ route('itineraries.show', $lastItinerary) }}" class="card card-hover p-4 sm:p-5 flex gap-4">
@@ -125,7 +125,7 @@
         {{-- ============================================================ Pour toi --}}
         <div>
             <x-section-heading eyebrow="Pour toi" title="Sélection du moment" :subtitle="$reason" :href="route('map.index')" link-label="Explorer" />
-            <div class="flex gap-3 overflow-x-auto snap-x hide-scrollbar -mx-4 px-4 pb-2 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 xl:grid-cols-3 sm:gap-4 sm:overflow-visible">
+            <div class="flex gap-3 overflow-x-auto snap-x hide-scrollbar -mx-4 px-4 pb-2 sm:mx-0 sm:px-0 sm:grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4 sm:overflow-visible">
                 @foreach($recommended as $place)
                     <div class="snap-start shrink-0 w-64 sm:w-auto"><x-place-card :place="$place" /></div>
                 @endforeach
@@ -133,7 +133,7 @@
         </div>
 
         {{-- ============================================================ En direct + événements --}}
-        <div class="grid lg:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="card p-5">
                 <div class="flex items-center justify-between mb-3"><p class="eyebrow">En direct autour de toi</p><a href="{{ route('map.index') }}" class="text-xs font-semibold hover:text-coral">Carte</a></div>
                 <div class="space-y-1">
@@ -163,7 +163,7 @@
         </div>
 
         {{-- ============================================================ Favoris + parcours --}}
-        <div class="grid lg:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
                 <x-section-heading eyebrow="Ma collection" title="Favoris récents" :href="route('places.favorites')" class="mb-3" />
                 @if($favorites->isNotEmpty())

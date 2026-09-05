@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <div class="grid lg:grid-cols-[400px_1fr] gap-6 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 items-start">
             {{-- ============================================================ Formulaire --}}
             <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-5 lg:sticky lg:top-24"
                   x-data="{
@@ -229,7 +229,7 @@
                         <div class="mx-auto h-16 w-16 rounded-3xl bg-coral-soft text-coral flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:32px">auto_awesome</span></div>
                         <h2 class="display text-2xl mt-4">Prêt quand tu l'es.</h2>
                         <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">Règle ton temps, ton budget et tes envies à gauche. CAMINO choisit les lieux, optimise l'ordre et affiche le tracé réel avec les horaires de chaque étape.</p>
-                        <div class="mt-6 grid sm:grid-cols-3 gap-3 text-left text-sm">
+                        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-sm">
                             @foreach([['cloud', 'Météo intégrée', 'S\'il pleut, on privilégie les lieux couverts.'], ['route', 'Trajets réels', 'Rues et distances OpenStreetMap, à pied ou à vélo.'], ['auto_awesome', 'Personnalisé', 'Tes favoris et avis affinent les choix.']] as [$i, $t, $d])
                                 <div class="rounded-2xl bg-paper p-4"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-2">{{ $t }}</p><p class="text-xs text-ink-muted mt-1">{{ $d }}</p></div>
                             @endforeach

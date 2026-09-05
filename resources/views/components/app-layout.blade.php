@@ -35,7 +35,7 @@
     >
         <div class="{{ $fullscreen ? 'pointer-events-none' : '' }}">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-3">
-                <div class="glass rounded-full pl-3 sm:pl-4 pr-2 py-2 flex items-center gap-2 sm:gap-3 pointer-events-auto overflow-hidden">
+                <div class="glass rounded-full pl-3 sm:pl-4 pr-2 py-2 flex items-center gap-2 sm:gap-3 pointer-events-auto">
                     <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="CAMINO — accueil">
                         <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card group-hover:rotate-6 transition-transform">
                             <span class="material-symbols-outlined filled" style="font-size:18px">location_on</span>

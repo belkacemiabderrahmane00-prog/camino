@@ -241,7 +241,7 @@
 
     {{-- ================================================================ Générateur express --}}
     <section id="generateur" class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 scroll-mt-24 reveal">
-        <div class="rounded-4xl bg-ink text-white p-6 sm:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-8 items-center relative overflow-hidden">
+        <div class="rounded-4xl bg-ink text-white p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-8 items-center relative overflow-hidden">
             <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
             <div class="absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-teal/30 blur-3xl"></div>
             <div class="relative">
@@ -305,7 +305,7 @@
 
     {{-- ================================================================ L'app dans ta poche --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 reveal">
-        <div class="rounded-4xl bg-ink text-white relative overflow-hidden grid lg:grid-cols-[1fr_1.05fr] items-center">
+        <div class="rounded-4xl bg-ink text-white relative overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] items-center">
             <div class="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-coral/30 blur-3xl"></div>
             <div class="absolute -right-10 -bottom-24 h-96 w-96 rounded-full bg-teal/25 blur-3xl"></div>
             <div class="absolute inset-0 opacity-[0.12]" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 26px 26px;"></div>
@@ -380,7 +380,7 @@
     </section>
 
     {{-- ================================================================ Événements + alertes --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
         <div class="reveal">
             <x-section-heading eyebrow="En ce moment" title="Événements à venir" :href="route('map.index', ['filtre' => 'evenements'])" />
             <div class="space-y-3">
@@ -430,7 +430,7 @@
     {{-- ================================================================ Comment ça marche --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24">
         <div class="reveal"><x-section-heading eyebrow="Simple comme bonjour" title="Comment ça marche" /></div>
-        <div class="grid md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             @foreach([
                 ['explore', 'Explore', 'Filtre par envie, budget ou distance. Les événements et alertes de la communauté apparaissent en temps réel.'],
                 ['auto_awesome', 'Génère', 'Ton temps, ton budget, tes envies : CAMINO optimise l\'ordre et calcule les trajets réels, météo comprise.'],

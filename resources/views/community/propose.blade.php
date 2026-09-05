@@ -15,7 +15,7 @@
             <p class="mt-2 text-sm text-ink-muted max-w-2xl">Un atelier d'artisan, une galerie associative, une fresque, une librairie culturelle… Ajoute ce que la carte ne connaît pas encore. L'équipe valide avant publication.</p>
         </div>
 
-        <form method="POST" action="{{ route('community.propose.store') }}" class="grid lg:grid-cols-[1fr_1fr] gap-6">
+        <form method="POST" action="{{ route('community.propose.store') }}" class="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
             @csrf
             <div class="card p-5 sm:p-6 space-y-4">
                 <div><label class="label" for="title">Nom du lieu</label><input id="title" name="title" value="{{ old('title') }}" required maxlength="120" class="field" placeholder="Ex. Atelier des Lumières du Marais"></div>
