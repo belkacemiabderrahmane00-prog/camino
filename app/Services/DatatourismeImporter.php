@@ -27,6 +27,14 @@ class DatatourismeImporter
     /** @var array<string,int|null> cache slug => id (évite une requête par fichier) */
     private array $categoryCache = [];
 
+    private const UPSERT_CHUNK = 500;
+
+    /** Colonnes mises à jour lorsqu'un lieu existe déjà (les enrichissements média sont conservés). */
+    private const UPSERT_UPDATE_COLUMNS = [
+        'title', 'slug', 'description', 'category_id', 'lat', 'lng', 'address',
+        'is_free', 'price_level', 'tags', 'sources', 'updated_at',
+    ];
+
     public function __construct(
         private readonly string $zipPath,
         private readonly bool $dryRun = false,
@@ -47,14 +55,13 @@ class DatatourismeImporter
         }
 
         $jsonFiles = $this->findJsonFiles($objectsDir);
-        $total = count($jsonFiles);
 
-        foreach ($jsonFiles as $i => $filePath) {
+        // Dédoublonnage par external_id (un même objet peut apparaître plusieurs fois dans le flux).
+        $rows = [];
+        foreach ($jsonFiles as $filePath) {
             $result = $this->importFile($filePath);
-            if ($result === 'created') {
-                $stats['created']++;
-            } elseif ($result === 'updated') {
-                $stats['updated']++;
+            if (is_array($result)) {
+                $rows[$result['external_id']] = $result;
             } elseif ($result === 'skipped') {
                 $stats['skipped']++;
             } else {
@@ -63,6 +70,23 @@ class DatatourismeImporter
         }
 
         $this->removeDir($tempDir);
+
+        if ($this->dryRun) {
+            $stats['skipped'] += count($rows);
+
+            return $stats;
+        }
+
+        // Upsert par lots (1 requête par lot au lieu de 2 requêtes par lieu).
+        foreach (array_chunk(array_values($rows), self::UPSERT_CHUNK) as $chunk) {
+            $ids = array_column($chunk, 'external_id');
+            $existing = Place::query()->whereIn('external_id', $ids)->count();
+
+            Place::query()->upsert($chunk, ['external_id'], self::UPSERT_UPDATE_COLUMNS);
+
+            $stats['updated'] += $existing;
+            $stats['created'] += count($chunk) - $existing;
+        }
 
         return $stats;
     }
@@ -95,7 +119,13 @@ class DatatourismeImporter
         return $files;
     }
 
-    private function importFile(string $filePath): string
+    /**
+     * Lit un fichier JSON-LD et retourne la ligne à insérer (ou 'skipped' / 'error').
+     * Les colonnes JSON sont encodées ici car l'upsert ne passe pas par les casts Eloquent.
+     *
+     * @return array<string,mixed>|string
+     */
+    private function importFile(string $filePath): array|string
     {
         $raw = file_get_contents($filePath);
         $data = json_decode($raw, true);
@@ -132,28 +162,14 @@ class DatatourismeImporter
             'is_free' => $isFree,
             'price_level' => $priceLevel,
             'visit_duration_min' => 90,
-            'tags' => $tags,
+            'tags' => json_encode(array_values($tags), JSON_UNESCAPED_UNICODE),
             'cover_image_url' => $coverUrl,
-            'gallery' => [],
-            'sources' => ['datatourisme'],
+            'gallery' => '[]',
+            'sources' => json_encode(['datatourisme']),
             'external_id' => $externalId,
         ];
 
-        if ($this->dryRun) {
-            return 'skipped';
-        }
-
-        $place = Place::query()->where('external_id', $externalId)->first();
-
-        if ($place) {
-            $place->update($payload);
-
-            return 'updated';
-        }
-
-        Place::create($payload);
-
-        return 'created';
+        return $payload;
     }
 
     private function extractId(array $data): string
