@@ -9,7 +9,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#F6F3EC">
+    <meta name="theme-color" content="#FF5A3C">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CAMINO">
     <meta name="description" content="{{ $description }}">
     <title>{{ $title ? $title . ' · CAMINO' : 'CAMINO — GPS culturel intelligent' }}</title>
     @stack('meta')
@@ -32,7 +36,7 @@
         <div class="{{ $fullscreen ? 'pointer-events-none' : '' }}">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-3">
                 <div class="glass rounded-full pl-4 pr-2 py-2 flex items-center gap-3 pointer-events-auto">
-                    <a href="{{ route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="CAMINO — accueil">
+                    <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="CAMINO — accueil">
                         <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card group-hover:rotate-6 transition-transform">
                             <span class="material-symbols-outlined filled" style="font-size:18px">location_on</span>
                         </span>
@@ -65,9 +69,11 @@
                             </a>
                             <div class="relative" @click.outside="user = false">
                                 <button @click="user = !user" class="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-ink/5 transition" aria-label="Menu utilisateur">
-                                    <span class="h-8 w-8 rounded-full bg-teal text-white flex items-center justify-center text-sm font-bold">
-                                        {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
-                                    </span>
+                                    @if(auth()->user()->avatar_url)
+                                        <img src="{{ auth()->user()->avatar_url }}" alt="" class="h-8 w-8 rounded-full object-cover">
+                                    @else
+                                        <span class="h-8 w-8 rounded-full bg-teal text-white flex items-center justify-center text-sm font-bold">{{ auth()->user()->initial }}</span>
+                                    @endif
                                     <span class="hidden sm:block text-sm font-medium max-w-[120px] truncate">{{ auth()->user()->name }}</span>
                                     <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">expand_more</span>
                                 </button>
@@ -189,14 +195,16 @@
         <div class="mx-3 mb-3 glass rounded-3xl px-2 py-1.5 grid grid-cols-5 text-[10px] font-semibold">
             @php
                 $tabs = [
-                    ['route' => 'home', 'icon' => 'home', 'label' => 'Accueil', 'active' => request()->routeIs('home')],
+                    auth()->check()
+                        ? ['route' => 'dashboard', 'icon' => 'home', 'label' => 'Accueil', 'active' => request()->routeIs('dashboard')]
+                        : ['route' => 'home', 'icon' => 'home', 'label' => 'Accueil', 'active' => request()->routeIs('home')],
                     ['route' => 'map.index', 'icon' => 'map', 'label' => 'Carte', 'active' => request()->routeIs('map.*')],
                     ['route' => 'itineraries.create', 'icon' => 'route', 'label' => 'Parcours', 'active' => request()->routeIs('itineraries.*')],
                     auth()->check()
                         ? ['route' => 'places.favorites', 'icon' => 'favorite', 'label' => 'Favoris', 'active' => request()->routeIs('places.favorites')]
                         : ['route' => 'login', 'icon' => 'login', 'label' => 'Connexion', 'active' => request()->routeIs('login')],
                     auth()->check()
-                        ? ['route' => 'dashboard', 'icon' => 'person', 'label' => 'Moi', 'active' => request()->routeIs('dashboard') || request()->routeIs('profile.*')]
+                        ? ['route' => 'profile.edit', 'icon' => 'person', 'label' => 'Profil', 'active' => request()->routeIs('profile.*')]
                         : ['route' => 'register', 'icon' => 'person_add', 'label' => 'Compte', 'active' => request()->routeIs('register')],
                 ];
             @endphp

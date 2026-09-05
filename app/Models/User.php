@@ -20,6 +20,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'bio',
+        'interests',
+        'mobility',
+        'city',
     ];
 
     /**
@@ -30,6 +34,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'avatar',
     ];
 
     /**
@@ -43,6 +48,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'interests' => 'array',
         ];
     }
 
@@ -69,6 +75,17 @@ class User extends Authenticatable
     public function photos()
     {
         return $this->hasMany(PlacePhoto::class);
+    }
+
+    /** URL de la photo de profil (ou null : on affiche l'initiale). */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_mime ? route('users.avatar', [$this, 'v' => $this->updated_at?->timestamp]) : null;
+    }
+
+    public function getInitialAttribute(): string
+    {
+        return mb_strtoupper(mb_substr($this->name, 0, 1));
     }
 
     public function submittedPlaces()

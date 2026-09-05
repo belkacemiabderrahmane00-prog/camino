@@ -58,6 +58,11 @@ class UserPreferenceService
             }
         }
 
+        // Centres d'intérêt déclarés dans le profil : signal explicite.
+        foreach ((array) ($user->interests ?? []) as $slug) {
+            $scores[$slug] = ($scores[$slug] ?? 0) + 4;
+        }
+
         $max = $scores === [] ? 0 : max(array_map('abs', $scores));
         $weights = [];
         foreach ($scores as $slug => $score) {

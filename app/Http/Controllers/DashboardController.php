@@ -20,6 +20,10 @@ class DashboardController extends Controller
     /** Page publique d'accueil. */
     public function landing()
     {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
         $start = config('camino.default_start');
         $forecast = $this->weather->forecast((float) $start['lat'], (float) $start['lng']);
 
@@ -43,7 +47,14 @@ class DashboardController extends Controller
 
         $events = Place::upcomingEvents()->with('category')->limit(4)->get();
 
+        $marquee = Cache::remember('landing:marquee', now()->addHours(3), function () {
+            return Place::visible()->with('category')->whereNotNull('cover_image_url')
+                ->whereHas('category', fn ($q) => $q->whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art']))
+                ->inRandomOrder()->limit(18)->get();
+        });
+
         return view('home.landing', [
+            'marquee' => $marquee,
             'forecast' => $forecast,
             'stats' => $stats,
             'featured' => $featured,

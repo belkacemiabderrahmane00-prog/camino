@@ -25,6 +25,7 @@ Route::get('/lieux/{place}', [PlaceController::class, 'show'])->name('places.sho
 Route::post('/lieux/{place}/signaler', [PlaceController::class, 'report'])->name('places.report');
 
 Route::get('/photos/{photo}', [CommunityController::class, 'showPhoto'])->name('photos.show');
+Route::get('/avatar/{user}', [ProfileController::class, 'avatar'])->name('users.avatar');
 
 // ------------------------------------------------------------------ Connecté
 Route::middleware('auth')->group(function () {

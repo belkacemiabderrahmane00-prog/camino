@@ -1,0 +1,14 @@
+{
+  "name": "CAMINO — GPS culturel intelligent",
+  "short_name": "CAMINO",
+  "description": "Carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.",
+  "start_url": "/carte?source=pwa",
+  "display": "standalone",
+  "background_color": "#F6F3EC",
+  "theme_color": "#FF5A3C",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

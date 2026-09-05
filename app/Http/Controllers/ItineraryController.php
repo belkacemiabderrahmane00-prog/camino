@@ -64,6 +64,9 @@ class ItineraryController extends Controller
         $freeOnly = ! empty($data['free_only']);
         $mode = $data['mode'] ?? 'walk';
         $interests = array_values($data['interests'] ?? []);
+        if ($interests === [] && Auth::check() && ! empty(Auth::user()->interests)) {
+            $interests = array_values((array) Auth::user()->interests);
+        }
         $tags = array_values($data['tags'] ?? []);
         $radiusKm = (int) ($data['radius_km'] ?? self::DEFAULT_RADIUS_KM);
         if ($mode === 'bike') {
