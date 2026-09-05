@@ -1,8 +1,8 @@
 @php
     $current = $forecast['current'] ?? null;
-    $rows = $marquee->chunk((int) ceil(max(1, $marquee->count()) / 2));
-    $spot = $marquee->take(8)->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'category' => $p->category->name ?? '', 'slug' => $p->category->slug ?? null, 'cover' => $p->coverThumb(1200), 'address' => $p->address, 'lat' => (float) $p->lat, 'lng' => (float) $p->lng, 'free' => (bool) $p->is_free, 'rating' => isset($p->reviews_avg_rating) && $p->reviews_avg_rating ? round((float) $p->reviews_avg_rating, 1) : null, 'url' => route('places.show', $p)])->values();
-    $heroPlaces = $featured->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'category' => $p->category->name ?? '', 'slug' => $p->category->slug ?? null, 'cover' => $p->coverThumb(500), 'lat' => (float) $p->lat, 'lng' => (float) $p->lng, 'free' => (bool) $p->is_free, 'url' => route('places.show', $p)])->values();
+    $demoPlaces = $heroPlaces->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'category' => $p->category->name ?? '', 'slug' => $p->category->slug ?? null, 'cover' => $p->coverThumb(500), 'address' => $p->address, 'lat' => (float) $p->lat, 'lng' => (float) $p->lng, 'free' => (bool) $p->is_free, 'minutes' => $p->visit_duration_min ?? 60, 'url' => route('places.show', $p)])->values();
+    $demoFocus = $demoPlaces->first();
+    $demoRoute = $demoPlaces->take(3)->values();
 @endphp
 <x-app-layout description="CAMINO, le GPS culturel qui rend la ville fun : carte vivante, parcours générés selon ta météo et ton budget, bons plans de la communauté.">
 
@@ -10,144 +10,216 @@
     <section class="relative lg:min-h-[92vh] -mt-[4.6rem] flex items-center overflow-hidden grain">
         <div class="absolute inset-0 -z-10 bg-ink">
             <img src="{{ asset('images/photo_paris.avif') }}" alt="" class="kenburns hero-photo absolute inset-0 h-full w-full object-cover opacity-90" fetchpriority="high">
-            <div class="absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/55 to-ink/20"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/55 to-ink/25"></div>
             <div class="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-paper to-transparent"></div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-16 lg:pt-32 lg:pb-24 w-full grid lg:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-10 items-center"
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-14 lg:pt-32 lg:pb-24 w-full grid lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-10 items-center"
              x-data="{ words: ['autrement.', 'à pied.', 'gratuitement.', 'sous le soleil.', 'entre amis.', 'sans plan.'], i: 0, flip: false }"
              x-init="setInterval(() => { i = (i + 1) % words.length; flip = !flip; }, 2400)">
             <div class="text-white animate-fade-up">
-                <div class="flex flex-wrap items-center gap-2 mb-6">
+                <div class="flex flex-wrap items-center gap-2 mb-5">
                     <span class="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] border border-white/15">
                         <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full rounded-full bg-coral opacity-75 animate-ping"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-coral"></span></span>
                         En direct · Île-de-France
                     </span>
                     @if($current)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-xs border border-white/15">
-                            <span class="material-symbols-outlined filled text-sun" style="font-size:16px">{{ $current['icon'] }}</span>{{ round($current['temp']) }}° · {{ $current['label'] }} à Paris
-                        </span>
+                        <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-xs border border-white/15 hover:bg-white/20 transition">
+                            <span class="material-symbols-outlined filled text-sun" style="font-size:16px">{{ $current['icon'] }}</span>{{ round($current['temp']) }}° · {{ $advice['title'] }}
+                        </button>
                     @endif
                 </div>
 
-                <h1 class="display text-[46px] sm:text-6xl lg:text-[76px] leading-[1.02]">
+                <h1 class="display text-[44px] sm:text-6xl lg:text-[76px] leading-[1.02]">
                     Explore la ville<br>
                     <span class="text-coral italic" :class="flip ? 'word-a' : 'word-b'" x-text="words[i]">autrement.</span>
                 </h1>
-                <p class="mt-6 text-lg sm:text-xl text-white/80 max-w-xl">
-                    {{ number_format($stats['places'], 0, ',', ' ') }} lieux qui valent le détour, une carte qui bouge en temps réel, et un parcours calculé en 10 secondes selon ton temps, ton budget et la météo. La ville comme un terrain de jeu.
+                <p class="mt-5 text-base sm:text-xl text-white/80 max-w-xl">
+                    {{ number_format($stats['places'], 0, ',', ' ') }} lieux qui valent le détour, une carte qui bouge en temps réel, un parcours calculé en 10 secondes selon ton temps, ton budget et la météo.
                 </p>
 
-                <div class="mt-8 flex flex-wrap gap-3">
+                <div class="mt-7 flex flex-wrap gap-3">
                     <a href="{{ route('map.index') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">map</span>Ouvrir la carte</a>
                     <a href="#generateur" class="btn btn-lg bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20"><span class="material-symbols-outlined">auto_awesome</span>Générer un parcours</a>
                 </div>
 
-                <form action="{{ route('map.index') }}" method="GET" class="mt-6 flex items-center gap-2 rounded-full bg-white/95 p-1.5 pl-4 max-w-lg shadow-float">
+                <form action="{{ route('map.index') }}" method="GET" class="mt-5 flex items-center gap-2 rounded-full bg-white/95 p-1.5 pl-4 max-w-lg shadow-float">
                     <span class="material-symbols-outlined text-ink-muted">search</span>
-                    <input type="search" name="q" placeholder="Un lieu, un quartier, une envie…" class="flex-1 border-0 bg-transparent focus:ring-0 text-sm text-ink placeholder:text-ink-muted/70" autocomplete="off">
+                    <input type="search" name="q" placeholder="Un lieu, un quartier, une envie…" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm text-ink placeholder:text-ink-muted/70" autocomplete="off">
                     <button type="submit" class="btn btn-md btn-ink">Explorer</button>
                 </form>
 
-                <div class="mt-5 flex flex-wrap gap-2">
+                <div class="mt-4 flex gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
                     @foreach([['musees', 'palette', 'Musées'], ['monuments', 'account_balance', 'Monuments'], ['parcs', 'park', 'Parcs'], ['free', 'loyalty', 'Gratuit'], ['evenements', 'celebration', 'Événements']] as [$f, $icon, $label])
-                        <a href="{{ route('map.index', ['filtre' => $f]) }}" class="chip bg-white/10 text-white border-white/15 hover:bg-white/20 hover:text-white backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">{{ $icon }}</span>{{ $label }}</a>
+                        <a href="{{ route('map.index', ['filtre' => $f]) }}" class="chip shrink-0 bg-white/10 text-white border-white/15 hover:bg-white/20 hover:text-white backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">{{ $icon }}</span>{{ $label }}</a>
                     @endforeach
                 </div>
             </div>
 
-            {{-- Téléphone vivant --}}
-            <div class="relative flex flex-col items-center lg:flex lg:justify-end lg:pr-6" x-data="heroPhone()" @mousemove.window="tilt($event)">
-                <div class="absolute h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
-                <div class="absolute -bottom-10 right-10 h-56 w-56 rounded-full bg-teal/30 blur-3xl"></div>
-                <div class="phone phone-hero lg:float-soft" :style="`--tilt:${rot}deg`">
-                    <div class="phone-screen hero-map">
-                        <div x-ref="map" class="absolute inset-0"></div>
-                        <div class="absolute top-12 inset-x-3 z-[400] flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-card text-[11px] text-ink-muted">
-                            <span class="material-symbols-outlined" style="font-size:16px">search</span>Autour de moi
-                            <span class="ml-auto h-6 w-6 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:14px">my_location</span></span>
+            {{-- Démo produit : un vrai enchaînement d'écrans CAMINO --}}
+            <div class="relative flex items-center gap-5 pl-4 sm:pl-8 lg:block lg:pl-10 lg:pr-0" x-data="heroDemo()">
+                <div class="hidden lg:block absolute h-80 w-80 rounded-full bg-coral/25 blur-3xl right-10 top-10"></div>
+                <div class="hidden lg:block absolute h-56 w-56 rounded-full bg-teal/25 blur-3xl right-40 bottom-0"></div>
+
+                <div class="relative shrink-0 lg:mx-auto lg:w-fit">
+                    <div class="phone phone-demo">
+                        <div class="phone-screen">
+                            {{-- Écran 0 : carte vivante --}}
+                            <div class="demo-screen" :class="cls(0)">
+                                <div x-ref="map" class="absolute inset-0 hero-map"></div>
+                                <div class="absolute top-11 lg:top-12 inset-x-2.5 z-[400] flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 lg:py-2 shadow-card text-[10px] lg:text-[11px] text-ink-muted">
+                                    <span class="material-symbols-outlined shrink-0" style="font-size:15px">search</span><span class="truncate">Autour de moi</span>
+                                    <span class="ml-auto h-5 w-5 lg:h-6 lg:w-6 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:13px">my_location</span></span>
+                                </div>
+                                <template x-if="place">
+                                    <div class="absolute bottom-2.5 inset-x-2.5 z-[400] card p-2 flex gap-2 items-center demo-item" :key="place.id">
+                                        <div class="h-11 w-11 lg:h-14 lg:w-14 rounded-xl overflow-hidden shrink-0 placeholder-cover"><img :src="place.cover" alt="" class="h-full w-full object-cover"></div>
+                                        <div class="min-w-0">
+                                            <p class="text-[9px] lg:text-[10px] font-bold uppercase tracking-wider text-teal" x-text="place.category"></p>
+                                            <p class="text-[11px] lg:text-xs font-semibold leading-snug line-clamp-2 text-ink" x-text="place.title"></p>
+                                            <p class="text-[9px] lg:text-[10px] text-ink-muted" x-text="place.free ? 'Gratuit · à 6 min à pied' : 'À 6 min à pied'"></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {{-- Écran 1 : fiche lieu --}}
+                            <div class="demo-screen bg-paper" :class="cls(1)">
+                                @if($demoFocus)
+                                    <div class="relative h-[46%] overflow-hidden">
+                                        <img src="{{ $demoFocus['cover'] }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent"></div>
+                                        <div class="absolute bottom-3 left-3 right-3 text-white demo-item">
+                                            <p class="text-[9px] uppercase tracking-widest opacity-80">{{ $demoFocus['category'] }}</p>
+                                            <p class="font-display text-base lg:text-lg leading-tight line-clamp-2">{{ $demoFocus['title'] }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 space-y-2 text-ink">
+                                        <div class="flex gap-1.5 demo-item" style="animation-delay:.15s">
+                                            <span class="badge {{ $demoFocus['free'] ? 'badge-free' : 'badge-paid' }} !text-[9px]">{{ $demoFocus['free'] ? 'Gratuit' : 'Payant' }}</span>
+                                            <span class="badge badge-paid !text-[9px]">≈ {{ $demoFocus['minutes'] }} min</span>
+                                            <span class="badge bg-amber-50 text-amber-700 !text-[9px]"><span class="material-symbols-outlined filled" style="font-size:11px">star</span>4,6</span>
+                                        </div>
+                                        <p class="text-[10px] text-ink-muted line-clamp-2 demo-item" style="animation-delay:.25s">{{ $demoFocus['address'] ?? 'Paris' }}</p>
+                                        <div class="grid grid-cols-2 gap-1.5 demo-item" style="animation-delay:.35s">
+                                            <span class="btn btn-sm btn-primary !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">favorite</span>Favori</span>
+                                            <span class="btn btn-sm btn-ink !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">add_location_alt</span>Parcours</span>
+                                        </div>
+                                        <div class="rounded-xl bg-sun-soft p-2 text-[10px] demo-item" style="animation-delay:.5s"><span class="font-semibold text-amber-800">Léa</span> · « Concert gratuit dans la cour ce soir » · il y a 12 min</div>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- Écran 2 : parcours généré --}}
+                            <div class="demo-screen bg-paper p-3 pt-11 lg:pt-12 text-ink" :class="cls(2)">
+                                <p class="eyebrow !text-[9px] demo-item">Parcours généré</p>
+                                <p class="font-display text-base lg:text-lg leading-tight demo-item" style="animation-delay:.1s">Balade musées & monuments</p>
+                                <p class="text-[10px] text-ink-muted demo-item" style="animation-delay:.15s">3 h 10 · 4,2 km · à pied · {{ $current ? mb_strtolower($current['label']) : 'météo ok' }}</p>
+                                <div class="mt-2 h-16 lg:h-20 rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg,#E9F5EA,#FCE8E1)">
+                                    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 80" fill="none"><path class="route-draw" d="M20 60 C 60 10, 110 70, 150 30 S 210 20, 225 40" stroke="#FF5A3C" stroke-width="3.5" stroke-linecap="round"/><circle cx="20" cy="60" r="5" fill="#FF5A3C"/><circle cx="150" cy="30" r="5" fill="#12161C"/><circle cx="225" cy="40" r="5" fill="#12161C"/></svg>
+                                </div>
+                                <div class="mt-2 space-y-1.5">
+                                    @foreach($demoRoute as $i => $p)
+                                        <div class="flex items-center gap-2 rounded-xl bg-white p-1.5 shadow-card demo-item" style="animation-delay:{{ 0.3 + $i * 0.2 }}s">
+                                            <span class="h-6 w-6 rounded-full bg-ink text-white text-[10px] font-bold flex items-center justify-center">{{ $i + 1 }}</span>
+                                            <div class="min-w-0 flex-1"><p class="text-[10px] font-semibold leading-tight truncate">{{ $p['title'] }}</p><p class="text-[9px] text-ink-muted">{{ $p['category'] }} · {{ $p['minutes'] }} min</p></div>
+                                            <span class="text-[9px] font-semibold text-ink-muted">{{ ['10:15', '12:05', '13:10'][$i] }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px] demo-item" style="animation-delay:.9s"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>Lancer dans Google Maps</span>
+                            </div>
+
+                            {{-- Écran 3 : espace perso --}}
+                            <div class="demo-screen bg-ink text-white p-3 pt-11 lg:pt-12" :class="cls(3)">
+                                <div class="flex items-center gap-2 demo-item">
+                                    <span class="h-9 w-9 rounded-2xl bg-teal flex items-center justify-center font-display text-lg">L</span>
+                                    <div><p class="text-[9px] uppercase tracking-widest text-coral font-bold">Niveau 3 · Explorateur</p><p class="font-display text-base leading-tight">Bonsoir Léa</p></div>
+                                </div>
+                                <div class="mt-2 rounded-2xl bg-white/10 p-2 demo-item" style="animation-delay:.15s">
+                                    <div class="flex justify-between text-[9px] text-white/70"><span>92 pts</span><span>Guide local à 180</span></div>
+                                    <div class="mt-1 h-1.5 rounded-full bg-white/15 overflow-hidden"><div class="h-full w-1/2 rounded-full bg-gradient-to-r from-coral to-sun"></div></div>
+                                </div>
+                                <div class="mt-2 grid grid-cols-3 gap-1.5 text-center demo-item" style="animation-delay:.3s">
+                                    @foreach([['route', '12', 'parcours'], ['directions_walk', '38', 'km'], ['favorite', '21', 'favoris']] as [$ic, $v, $l])
+                                        <div class="rounded-xl bg-white/10 p-1.5"><span class="material-symbols-outlined text-sun" style="font-size:14px">{{ $ic }}</span><p class="text-sm font-semibold leading-tight">{{ $v }}</p><p class="text-[8px] text-white/60 uppercase">{{ $l }}</p></div>
+                                    @endforeach
+                                </div>
+                                <p class="mt-2 text-[9px] uppercase tracking-widest text-white/60 demo-item" style="animation-delay:.4s">Pour toi ce week-end</p>
+                                <div class="mt-1 space-y-1.5">
+                                    @foreach($demoPlaces->slice(1, 2)->values() as $i => $p)
+                                        <div class="flex items-center gap-2 rounded-xl bg-white/10 p-1.5 demo-item" style="animation-delay:{{ 0.5 + $i * 0.15 }}s">
+                                            <div class="h-8 w-8 rounded-lg overflow-hidden shrink-0"><img src="{{ $p['cover'] }}" alt="" class="h-full w-full object-cover"></div>
+                                            <div class="min-w-0"><p class="text-[10px] font-semibold truncate">{{ $p['title'] }}</p><p class="text-[9px] text-white/60">{{ $p['category'] }}{{ $p['free'] ? ' · gratuit' : '' }}</p></div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
-                        <template x-if="current">
-                            <a :href="current.url" class="absolute bottom-3 inset-x-3 z-[400] card p-2 flex gap-2.5 items-center animate-fade-up" :key="current.id">
-                                <div class="h-14 w-14 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">
-                                    <template x-if="current.cover"><img :src="current.cover" alt="" class="h-full w-full object-cover"></template>
-                                    <template x-if="!current.cover"><span class="material-symbols-outlined text-white/80" style="font-size:20px">place</span></template>
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-teal" x-text="current.category"></p>
-                                    <p class="text-xs font-semibold leading-snug line-clamp-2 text-ink" x-text="current.title"></p>
-                                    <p class="text-[10px] text-ink-muted" x-text="current.free ? 'Gratuit · à 6 min à pied' : 'À 6 min à pied'"></p>
-                                </div>
-                            </a>
+                    </div>
+
+                    {{-- Indicateur d'étapes (desktop) --}}
+                    <div class="hidden lg:flex justify-center gap-2 mt-6">
+                        <template x-for="(s, idx) in steps" :key="s">
+                            <button @click="go(idx)" class="px-3 py-1.5 rounded-full text-[11px] font-semibold transition" :class="idx === screen ? 'bg-white text-ink' : 'bg-white/10 text-white/70 hover:bg-white/20'" x-text="s"></button>
                         </template>
                     </div>
                 </div>
-                <div class="hidden lg:flex lg:absolute lg:-left-4 lg:bottom-10 card px-3 py-2 items-center gap-2 text-xs animate-fade-up" style="animation-delay:.5s">
-                    <span class="h-8 w-8 rounded-full bg-sun-soft text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:18px">celebration</span></span>
-                    <div><p class="font-semibold leading-tight">Concert gratuit ce soir</p><p class="text-[10px] text-ink-muted">Signalé par la communauté · il y a 12 min</p></div>
+
+                {{-- Légende mobile, à côté du petit téléphone --}}
+                <div class="lg:hidden flex-1 min-w-0 text-white">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-white/60 font-bold">L'app en action</p>
+                    <p class="font-display text-xl leading-tight mt-1" x-text="captions[screen]"></p>
+                    <div class="mt-3 flex gap-1.5">
+                        <template x-for="(s, idx) in steps" :key="'m' + s">
+                            <span class="h-1.5 rounded-full transition-all duration-500" :class="idx === screen ? 'w-6 bg-coral' : 'w-2 bg-white/30'"></span>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <a href="#detour" class="hidden lg:flex absolute bottom-6 left-1/2 -translate-x-1/2 text-ink-muted hover:text-ink flex-col items-center text-[10px] uppercase tracking-widest">
-            Découvrir <span class="material-symbols-outlined animate-bounce">keyboard_arrow_down</span>
-        </a>
     </section>
 
-    {{-- ================================================================ À la une --}}
-    <section id="detour" class="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-14">
-        <div class="reveal">
-            <x-section-heading eyebrow="À la une" title="Des lieux qu'on ne trouve pas dans les guides" subtitle="Une sélection qui change toutes les cinq secondes. Touche une vignette pour choisir." :href="route('map.index')" link-label="Tout voir sur la carte" />
+    {{-- ================================================================ Collections --}}
+    <section id="detour" class="mt-4 sm:mt-12 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 reveal">
+            <x-section-heading eyebrow="Explorer par envie" title="Des collections qui changent avec la météo" :subtitle="$advice['indoor'] ? 'Il pleut, on te propose du couvert en premier.' : 'Beau temps : on commence dehors.'" :href="route('map.index')" link-label="Toute la carte" />
         </div>
-        <div x-data="spotlight(@js($spot))" @mouseenter="pause()" @mouseleave="resume()" @keydown.arrow-right.window="next()" @keydown.arrow-left.window="prev()" class="reveal grid lg:grid-cols-[1.65fr_1fr] gap-4">
-            {{-- Grande scène --}}
-            <div class="relative rounded-4xl overflow-hidden h-[360px] sm:h-[480px] bg-ink shadow-float select-none" @touchstart.passive="touchStart($event)" @touchend.passive="touchEnd($event)">
-                <template x-for="(p, idx) in items" :key="p.id">
-                    <img x-show="idx === i" x-transition.opacity.duration.700ms :src="p.cover" :alt="p.title" class="absolute inset-0 h-full w-full object-cover kenburns" loading="lazy">
-                </template>
-                <div class="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent"></div>
-                <div class="absolute inset-0 bg-gradient-to-r from-ink/40 to-transparent"></div>
-                <button @click="prev()" class="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition" aria-label="Précédent"><span class="material-symbols-outlined">chevron_left</span></button>
-                <button @click="next()" class="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition" aria-label="Suivant"><span class="material-symbols-outlined">chevron_right</span></button>
-                <div class="absolute inset-x-0 bottom-0 p-5 sm:p-8 text-white">
-                    <template x-if="cur">
-                        <div :key="cur.id" class="animate-fade-up">
-                            <div class="flex flex-wrap items-center gap-2 mb-3">
-                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white" :style="`background:${style(cur).color}`"><span class="material-symbols-outlined" style="font-size:14px" x-text="style(cur).icon"></span><span x-text="cur.category"></span></span>
-                                <span x-show="cur.free" class="badge badge-free">Gratuit</span>
-                                <span x-show="cur.rating" class="badge bg-white/20 text-white"><span class="material-symbols-outlined filled" style="font-size:14px">star</span><span x-text="cur.rating"></span></span>
-                            </div>
-                            <h3 class="display text-3xl sm:text-5xl leading-[1.02] max-w-2xl" x-text="cur.title"></h3>
-                            <p class="mt-2 text-sm text-white/80 line-clamp-1" x-text="cur.address"></p>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                <a :href="cur.url" class="btn btn-md bg-white text-ink hover:-translate-y-0.5"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>Découvrir</a>
-                                <a :href="`{{ route('map.index') }}?lat=${cur.lat}&lng=${cur.lng}&z=16`" class="btn btn-md bg-white/15 text-white border border-white/20 backdrop-blur hover:bg-white/25"><span class="material-symbols-outlined" style="font-size:18px">map</span>Sur la carte</a>
-                            </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 pb-4 reveal">
+                @foreach($collections as $c)
+                    <a href="{{ route('map.index', ['filtre' => $c['filter']]) }}" class="group snap-start shrink-0 w-60 sm:w-72 card overflow-hidden card-hover">
+                        <div class="mosaic h-44 sm:h-52 bg-paper-deep">
+                            @foreach($c['places'] as $p)
+                                <img src="{{ $p->coverThumb(500) }}" alt="" loading="lazy" class="transition-transform duration-700 group-hover:scale-105">
+                            @endforeach
                         </div>
-                    </template>
-                </div>
-                {{-- Barre de progression --}}
-                <div class="absolute top-0 inset-x-0 h-1 bg-white/20"><div class="h-full bg-coral transition-[width] duration-100 ease-linear" :style="`width:${progress}%`"></div></div>
-                <div class="absolute top-4 right-4 text-[11px] font-semibold text-white/80 bg-ink/30 backdrop-blur rounded-full px-2.5 py-1" x-text="(i + 1) + ' / ' + items.length"></div>
-            </div>
-
-            {{-- Vignettes : grille bento sur grand écran, bande défilante sur mobile --}}
-            <div class="grid grid-cols-2 gap-3 max-lg:flex max-lg:overflow-x-auto max-lg:snap-x max-lg:hide-scrollbar max-lg:-mx-4 max-lg:px-4 max-lg:pb-1">
-                <template x-for="(p, idx) in items" :key="'t' + p.id">
-                    <button @click="go(idx)" class="relative rounded-3xl overflow-hidden group text-left max-lg:w-40 max-lg:shrink-0 max-lg:snap-start h-32 sm:h-36 lg:h-auto transition-all duration-300" :class="idx === i ? 'ring-4 ring-coral ring-offset-2 ring-offset-paper' : 'hover:-translate-y-1'">
-                        <img :src="p.cover" :alt="p.title" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                        <div class="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent"></div>
-                        <div class="absolute bottom-2.5 left-3 right-3 text-white">
-                            <p class="text-[10px] uppercase tracking-widest opacity-80" x-text="p.category"></p>
-                            <p class="text-sm font-semibold leading-tight line-clamp-2" x-text="p.title"></p>
+                        <div class="p-4 flex items-start gap-3">
+                            <span class="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style="background: {{ $c['color'] }}1A; color: {{ $c['color'] }}"><span class="material-symbols-outlined">{{ $c['icon'] }}</span></span>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-semibold leading-snug">{{ $c['title'] }}</p>
+                                <p class="text-xs text-ink-muted mt-0.5">{{ $c['subtitle'] }}</p>
+                            </div>
+                            <span class="material-symbols-outlined text-ink-muted group-hover:text-coral group-hover:translate-x-0.5 transition">arrow_forward</span>
                         </div>
-                    </button>
-                </template>
+                    </a>
+                @endforeach
             </div>
         </div>
     </section>
+
+    {{-- ================================================================ Coups de cœur --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-10 sm:mt-16">
+        <div class="reveal"><x-section-heading eyebrow="Coups de cœur" title="Six adresses pour commencer" subtitle="Bien notées, avec photo et description. Ouvre la fiche, ajoute-les à ton parcours." /></div>
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            @foreach($favorites as $i => $place)
+                <div class="reveal reveal-delay-{{ $i % 3 }}"><x-place-card :place="$place" /></div>
+            @endforeach
+        </div>
+    </section>
+
     {{-- ================================================================ Chiffres --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-14 reveal">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-20 reveal">
         <div class="card p-2 grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-ink/5">
             @foreach([
                 ['museums', 'Musées', 'palette', '#7C3AED'],
@@ -168,7 +240,7 @@
     </section>
 
     {{-- ================================================================ Générateur express --}}
-    <section id="generateur" class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24 scroll-mt-24 reveal">
+    <section id="generateur" class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 scroll-mt-24 reveal">
         <div class="rounded-4xl bg-ink text-white p-6 sm:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-8 items-center relative overflow-hidden">
             <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
             <div class="absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-teal/30 blur-3xl"></div>
@@ -231,86 +303,38 @@
         </div>
     </section>
 
-    {{-- ================================================================ Mobile --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-28 grid lg:grid-cols-2 gap-10 items-center">
-        <div class="reveal">
-            <p class="eyebrow">Bientôt dans ta poche</p>
-            <h2 class="display text-3xl sm:text-5xl mt-2">L'app CAMINO arrive sur iOS et Android.</h2>
-            <p class="mt-4 text-ink-soft">En attendant, CAMINO est déjà une vraie app sur ton téléphone : ouvre le site, ajoute-le à ton écran d'accueil et retrouve la carte, les alertes et tes parcours en plein écran.</p>
-            <div class="mt-6 flex flex-wrap items-center gap-3">
-                <span class="btn btn-md btn-ink opacity-90 cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                <span class="btn btn-md btn-ink opacity-90 cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                <button type="button" data-install class="hidden btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
-                <span data-ios-tip class="hidden text-xs text-ink-muted"><span class="material-symbols-outlined align-middle" style="font-size:16px">ios_share</span> Sur iPhone : Partager, puis « Sur l'écran d'accueil ».</span>
+    {{-- ================================================================ L'app dans ta poche --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 reveal">
+        <div class="card p-6 sm:p-10 grid lg:grid-cols-[1.2fr_1fr] gap-8 items-center overflow-hidden relative">
+            <div class="absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-teal/15 blur-3xl"></div>
+            <div class="relative">
+                <p class="eyebrow">Bientôt dans ta poche</p>
+                <h2 class="display text-3xl sm:text-5xl mt-2">L'app arrive sur iOS et Android.</h2>
+                <p class="mt-4 text-ink-soft">En attendant, CAMINO est déjà une vraie app sur ton téléphone : installe-la depuis ton navigateur et retrouve la carte, les alertes et tes parcours en plein écran, avec son icône.</p>
+                <div class="mt-6 flex flex-wrap items-center gap-2.5">
+                    <span class="btn btn-md btn-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
+                    <span class="btn btn-md btn-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
+                    <button type="button" data-install class="hidden btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
+                </div>
+                <p data-ios-tip class="hidden mt-3 text-sm text-ink-muted"><span class="material-symbols-outlined align-middle text-teal" style="font-size:18px">ios_share</span> Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p>
+                <ul class="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
+                    @foreach([['my_location', 'Autour de toi', 'Les lieux apparaissent selon ta position.'], ['campaign', 'Alertes live', 'Événement gratuit, affluence, fermeture.'], ['auto_awesome', 'Parcours réels', 'Trajets calculés dans les rues, météo comprise.']] as [$i, $t, $d])
+                        <li class="rounded-2xl bg-paper p-3"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-1">{{ $t }}</p><p class="text-xs text-ink-muted">{{ $d }}</p></li>
+                    @endforeach
+                </ul>
             </div>
-            <div class="mt-6 flex items-center gap-4 card p-4 max-w-md">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=4&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="96" height="96" class="rounded-xl shrink-0 h-24 w-24" loading="lazy">
+            <div class="relative flex items-center gap-4 rounded-3xl bg-paper p-4 sm:p-5">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&color=12161C&bgcolor=F6F3EC&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="120" height="120" class="rounded-2xl shrink-0 h-24 w-24 sm:h-32 sm:w-32" loading="lazy">
                 <div class="text-sm">
-                    <p class="font-semibold">Scanne pour l'ouvrir sur ton téléphone</p>
-                    <p class="text-ink-muted text-xs mt-1">Puis « Ajouter à l'écran d'accueil » dans le menu du navigateur. Ça marche déjà sur iPhone et Android.</p>
-                </div>
-            </div>
-            <ul class="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
-                @foreach([['my_location', 'Autour de toi', 'Les lieux apparaissent selon ta position.'], ['campaign', 'Alertes live', 'Événement gratuit, affluence, fermeture.'], ['offline_bolt', 'Léger', 'Pas de compte obligatoire pour explorer.']] as [$i, $t, $d])
-                    <li class="rounded-2xl bg-white/70 border border-ink/5 p-3"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-1">{{ $t }}</p><p class="text-xs text-ink-muted">{{ $d }}</p></li>
-                @endforeach
-            </ul>
-        </div>
-
-        <div class="relative reveal reveal-delay-1" x-data="{ dev: 'ios', desktop: window.matchMedia('(min-width: 1024px)').matches }" x-init="window.matchMedia('(min-width: 1024px)').addEventListener('change', e => desktop = e.matches)">
-            <div class="absolute h-80 w-80 rounded-full bg-coral/20 blur-3xl left-1/2 -translate-x-1/2 top-10"></div>
-            <div class="lg:hidden flex justify-center gap-2 mb-5 relative">
-                <button @click="dev = 'ios'" class="chip" :data-active="dev === 'ios'"><span class="material-symbols-outlined" style="font-size:16px">ios</span>iPhone</button>
-                <button @click="dev = 'android'" class="chip" :data-active="dev === 'android'"><span class="material-symbols-outlined" style="font-size:16px">android</span>Android</button>
-            </div>
-            <div class="relative flex justify-center items-start gap-8">
-                <div x-show="desktop || dev === 'ios'" x-transition.opacity class="text-center">
-                    <span class="hidden lg:inline-flex items-center gap-1.5 mb-3 badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">ios</span>iPhone · iOS</span>
-                    <div class="phone phone-ios lg:-rotate-6">
-                        <div class="phone-screen">
-                            <div class="absolute inset-0" style="background: radial-gradient(circle at 30% 30%, #E9F5EA 0, transparent 35%), radial-gradient(circle at 70% 60%, #FCE8E1 0, transparent 40%), repeating-linear-gradient(90deg, rgba(18,22,28,0.05) 0 1px, transparent 1px 34px), repeating-linear-gradient(0deg, rgba(18,22,28,0.05) 0 1px, transparent 1px 34px), #F3EFE6;"></div>
-                            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 270 560" fill="none"><path d="M-10 200 C 60 160, 120 260, 200 220 S 300 180, 320 220" stroke="#fff" stroke-width="14" stroke-linecap="round"/><path d="M60 -10 C 90 120, 40 260, 110 400 S 140 520, 130 580" stroke="#fff" stroke-width="10"/><path d="M-10 380 C 80 350, 160 420, 290 360" stroke="#fff" stroke-width="10"/></svg>
-                            @foreach([[78, 180, '#7C3AED', 'palette'], [150, 240, '#B45309', 'account_balance'], [200, 150, '#15803D', 'park'], [110, 330, '#0369A1', 'theater_comedy'], [190, 380, '#DB2777', 'restaurant']] as $i => [$x, $y, $c, $ic])
-                                <div class="absolute camino-pin pin-pop" style="left:{{ $x }}px; top:{{ $y }}px; background:{{ $c }}; width:34px; height:34px; animation-delay: {{ 0.3 + $i * 0.25 }}s"><span class="material-symbols-outlined" style="font-size:17px">{{ $ic }}</span></div>
-                            @endforeach
-                            <div class="absolute camino-pin camino-pin-alert pin-pop" style="left:150px; top:300px; background:#F59E0B; color:#F59E0B; animation-delay:1.7s"><span class="material-symbols-outlined" style="font-size:15px">celebration</span></div>
-                            <div class="absolute top-12 inset-x-3 flex gap-1.5 overflow-hidden">
-                                <span class="chip chip-active !py-1 !px-2.5 text-[10px]">Tous</span><span class="chip !py-1 !px-2.5 text-[10px]">Musées</span><span class="chip !py-1 !px-2.5 text-[10px]">Gratuit</span>
-                            </div>
-                            <div class="absolute bottom-3 inset-x-3 card p-2.5">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600">Événement gratuit · il y a 4 min</p>
-                                <p class="text-xs font-semibold leading-snug">Concert dans la cour du musée à 19h</p>
-                                <p class="text-[10px] text-ink-muted mt-0.5">Signalé par Léa · expire dans 20 h</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div x-show="desktop || dev === 'android'" x-transition.opacity class="text-center lg:mt-14">
-                    <span class="hidden lg:inline-flex items-center gap-1.5 mb-3 badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">android</span>Galaxy · Android</span>
-                    <div class="phone phone-android lg:rotate-3">
-                        <div class="phone-screen p-3 pt-12 space-y-2 text-ink text-left">
-                            <p class="eyebrow">Parcours généré</p>
-                            <p class="font-display text-lg leading-tight">Balade musées & monuments</p>
-                            <p class="text-[10px] text-ink-muted">3 h 10 · 4,2 km · 12 € · plutôt dégagé</p>
-                            <div class="h-20 rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg,#E9F5EA,#FCE8E1)">
-                                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 80" fill="none"><path d="M20 60 C 60 10, 110 70, 150 30 S 210 20, 225 40" stroke="#FF5A3C" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="200" stroke-dashoffset="200"><animate attributeName="stroke-dashoffset" from="200" to="0" dur="2.5s" repeatCount="indefinite"/></path><circle cx="20" cy="60" r="5" fill="#FF5A3C"/><circle cx="150" cy="30" r="5" fill="#12161C"/><circle cx="225" cy="40" r="5" fill="#12161C"/></svg>
-                            </div>
-                            @foreach([['10:15', 'Musée Rodin', 'Musée · 1 h 30', '#7C3AED'], ['12:05', 'Hôtel des Invalides', 'Monument · 45 min', '#B45309'], ['13:10', 'Pont Alexandre III', 'Monument · 20 min', '#B45309']] as $i => [$t, $n, $d, $c])
-                                <div class="flex items-center gap-2 rounded-xl bg-white p-2 shadow-card">
-                                    <span class="h-7 w-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style="background:{{ $c }}">{{ $i + 1 }}</span>
-                                    <div class="min-w-0 flex-1"><p class="text-[11px] font-semibold leading-tight truncate">{{ $n }}</p><p class="text-[10px] text-ink-muted">{{ $d }}</p></div>
-                                    <span class="text-[10px] font-semibold text-ink-muted">{{ $t }}</span>
-                                </div>
-                            @endforeach
-                            <span class="btn btn-sm btn-primary w-full !text-[11px]"><span class="material-symbols-outlined" style="font-size:14px">navigation</span>Lancer</span>
-                        </div>
-                    </div>
+                    <p class="font-semibold text-base">Scanne pour l'ouvrir sur ton téléphone</p>
+                    <p class="text-ink-muted mt-1">Puis « Ajouter à l'écran d'accueil ». Ça marche déjà sur iPhone et Android, sans passer par un store.</p>
                 </div>
             </div>
         </div>
     </section>
+
     {{-- ================================================================ Événements + alertes --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-28 grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
         <div class="reveal">
             <x-section-heading eyebrow="En ce moment" title="Événements à venir" :href="route('map.index', ['filtre' => 'evenements'])" />
             <div class="space-y-3">
@@ -358,7 +382,7 @@
     </section>
 
     {{-- ================================================================ Comment ça marche --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-28">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24">
         <div class="reveal"><x-section-heading eyebrow="Simple comme bonjour" title="Comment ça marche" /></div>
         <div class="grid md:grid-cols-3 gap-4">
             @foreach([
@@ -379,7 +403,7 @@
     </section>
 
     {{-- ================================================================ CTA --}}
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-28 reveal">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 reveal">
         <div class="rounded-4xl bg-coral text-white p-8 sm:p-12 text-center relative overflow-hidden">
             <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 22px 22px;"></div>
             <div class="relative max-w-2xl mx-auto">
@@ -395,55 +419,37 @@
 
     @push('scripts')
     <script>
-        function spotlight(items) {
+        function heroDemo() {
             const C = window.Camino;
+            let map = null;
             return {
-                items, i: 0, progress: 0, timer: null, paused: false, tx: 0,
-                get cur() { return this.items[this.i] || null; },
-                style(p) { return C.categoryStyle(p.slug); },
-                init() { this.timer = setInterval(() => { if (this.paused || document.hidden) return; this.progress += 1; if (this.progress >= 100) this.next(); }, 50); },
-                go(idx) { this.i = (idx + this.items.length) % this.items.length; this.progress = 0; },
-                next() { this.go(this.i + 1); }, prev() { this.go(this.i - 1); },
-                pause() { this.paused = true; }, resume() { this.paused = false; },
-                touchStart(e) { this.tx = e.changedTouches[0].clientX; },
-                touchEnd(e) { const dx = e.changedTouches[0].clientX - this.tx; if (Math.abs(dx) > 40) dx < 0 ? this.next() : this.prev(); },
-            };
-        }
-        function heroPhone() {
-            const C = window.Camino;
-            return {
-                places: @js($heroPlaces), current: null, rot: -3, idx: 0,
+                places: @js($demoPlaces), place: null, screen: 0, prev: -1, idx: 0,
+                steps: ['Explore', 'Découvre', 'Génère', 'Ton espace'],
+                captions: ['La carte vivante, autour de toi', 'Une fiche, des avis, des alertes', 'Un parcours calculé pour de vrai', 'Ton espace qui apprend de toi'],
                 init() {
-                    if (!window.L || !this.$refs.map) return;
-                    const el = this.$refs.map;
-                    let started = false;
-                    const start = () => { if (started) return; started = true; this.boot(el); };
-                    if (el.clientHeight > 0) start();
-                    else if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (el.clientHeight > 0) { ro.disconnect(); start(); } }); ro.observe(el); }
-                    else setTimeout(start, 300);
-                },
-                boot(el) {
-                    const center = [48.858, 2.345];
-                    const mobile = window.innerWidth < 1024;
-                    const map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView(center, 13);
-                    C.tileLayer().addTo(map);
                     const pts = this.places.filter(p => p.lat && p.lng);
-                    pts.forEach((p, i) => setTimeout(() => {
-                        const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.slug, { size: 30 }) }).addTo(map);
-                        const el = m.getElement(); if (el) el.querySelector('.camino-pin')?.classList.add('pin-pop');
-                    }, 600 + i * 220));
-                    // Lent panoramique + carte de lieu qui tourne en boucle
-                    let t = 0; setInterval(() => { t += 0.004; map.panTo([center[0] + Math.sin(t) * 0.012, center[1] + Math.cos(t * 0.8) * 0.02], { animate: true, duration: 1.5, easeLinearity: 0.2 }); }, 1600);
-                    if (pts.length) { this.current = pts[0]; setInterval(() => { this.idx = (this.idx + 1) % pts.length; this.current = null; setTimeout(() => this.current = pts[this.idx], 80); }, 3800); }
+                    if (pts.length) this.place = pts[0];
+                    const el = this.$refs.map;
+                    const start = () => {
+                        if (map || !window.L || !el) return;
+                        map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView([48.858, 2.345], window.innerWidth < 1024 ? 12 : 13);
+                        C.tileLayer().addTo(map);
+                        pts.forEach((p, i) => setTimeout(() => { const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.slug, { size: 26 }) }).addTo(map); m.getElement()?.querySelector('.camino-pin')?.classList.add('pin-pop'); }, 500 + i * 200));
+                        let t = 0; setInterval(() => { t += 0.004; map.panTo([48.858 + Math.sin(t) * 0.012, 2.345 + Math.cos(t * 0.8) * 0.02], { animate: true, duration: 1.5, easeLinearity: 0.2 }); }, 1600);
+                    };
+                    if (el && el.clientHeight > 0) start();
+                    else if (window.ResizeObserver && el) { const ro = new ResizeObserver(() => { if (el.clientHeight > 0) { ro.disconnect(); start(); } }); ro.observe(el); }
+                    // La fiche de la carte tourne, puis les écrans s'enchaînent.
+                    setInterval(() => { if (this.screen !== 0 || !pts.length) return; this.idx = (this.idx + 1) % pts.length; this.place = null; setTimeout(() => this.place = pts[this.idx], 60); }, 3200);
+                    setInterval(() => { if (document.hidden) return; this.go((this.screen + 1) % this.steps.length); }, 4600);
                 },
-                tilt(e) { if (window.innerWidth < 1024) return; this.rot = -3 + ((e.clientX / window.innerWidth) - 0.5) * 6; },
+                go(n) { this.prev = this.screen; this.screen = n; if (n === 0 && map) setTimeout(() => map.invalidateSize(), 100); },
+                cls(n) { return n === this.screen ? '' : (n === this.prev ? 'is-leaving' : 'is-hidden'); },
             };
         }
         document.addEventListener('DOMContentLoaded', () => {
-            // Apparition au défilement
-            const io = new IntersectionObserver((entries) => entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('is-visible'); io.unobserve(en.target); } }), { threshold: 0.12 });
+            const io = new IntersectionObserver((entries) => entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('is-visible'); io.unobserve(en.target); } }), { threshold: 0.05, rootMargin: '0px 0px -4% 0px' });
             document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-            // Compteurs
             const co = new IntersectionObserver((entries) => entries.forEach(en => {
                 if (!en.isIntersecting) return; co.unobserve(en.target);
                 const el = en.target, target = parseInt(el.dataset.count, 10) || 0, start = performance.now(), dur = 1400;
@@ -451,7 +457,6 @@
                 requestAnimationFrame(step);
             }), { threshold: 0.5 });
             document.querySelectorAll('[data-count]').forEach(el => co.observe(el));
-            // Installation PWA : vrai bouton quand le navigateur le permet (Android/Chrome), astuce sur iPhone.
             let deferredInstall = null;
             window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; document.querySelectorAll('[data-install]').forEach(b => b.classList.remove('hidden')); });
             document.querySelectorAll('[data-install]').forEach(b => b.addEventListener('click', async () => { if (!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; b.classList.add('hidden'); }));

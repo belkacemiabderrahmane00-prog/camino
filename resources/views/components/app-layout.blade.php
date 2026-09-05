@@ -60,6 +60,13 @@
                     </nav>
 
                     <div class="ml-auto flex items-center gap-2">
+                        @if(!empty($globalForecast['current']))
+                            <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-sun-soft/80 text-ink pl-1.5 pr-3 py-1 text-xs font-semibold hover:bg-sun-soft transition" title="{{ $globalAdvice['title'] ?? 'Météo' }}" aria-label="Météo">
+                                <span class="h-6 w-6 rounded-full bg-white text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:15px">{{ $globalForecast['current']['icon'] }}</span></span>
+                                {{ round($globalForecast['current']['temp']) }}°
+                                <span class="hidden md:inline text-ink-muted font-normal">· {{ $globalAdvice['title'] ?? $globalForecast['current']['label'] }}</span>
+                            </button>
+                        @endif
                         {{ $actions ?? '' }}
 
                         @auth
@@ -216,6 +223,8 @@
             @endforeach
         </div>
     </nav>
+
+    <x-weather-sheet />
 
     @stack('scripts')
 </body>

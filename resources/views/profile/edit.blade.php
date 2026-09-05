@@ -157,14 +157,7 @@
             <div class="card p-6 md:col-span-2">
                 <p class="eyebrow mb-3">Badges</p>
                 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-center text-xs">
-                    @foreach([
-                        ['Premier pas', 'flag', $stats['itineraries'] >= 1, '1 parcours généré'],
-                        ['Marcheur', 'directions_walk', $stats['km'] >= 10, '10 km parcourus'],
-                        ['Collectionneur', 'favorite', $stats['favorites'] >= 5, '5 favoris'],
-                        ['Critique', 'rate_review', $stats['reviews'] >= 3, '3 avis publiés'],
-                        ['Reporter', 'photo_camera', $stats['photos'] >= 1, '1 photo publiée'],
-                        ['Vigie', 'campaign', $stats['alerts'] >= 1, '1 alerte signalée'],
-                    ] as [$name, $icon, $earned, $hint])
+                    @foreach($badges as ['name' => $name, 'icon' => $icon, 'earned' => $earned, 'hint' => $hint])
                         <div class="rounded-2xl p-3 {{ $earned ? 'bg-sun-soft' : 'bg-paper opacity-60' }}" title="{{ $hint }}">
                             <span class="material-symbols-outlined {{ $earned ? 'filled text-amber-600' : 'text-ink-muted' }}" style="font-size:28px">{{ $icon }}</span>
                             <p class="font-semibold mt-1">{{ $name }}</p>

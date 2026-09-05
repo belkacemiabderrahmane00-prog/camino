@@ -77,7 +77,17 @@ class CommunityController extends Controller
 
         $file = $request->file('photo');
         $image = @imagecreatefromstring(file_get_contents($file->getRealPath()));
-        abort_if($image === false, 422, 'Image illisible.');
+        if ($image === false) {
+            return back()->withErrors(['photo' => 'Photo illisible. Essaie un JPEG ou un PNG (les formats HEIC ne sont pas encore acceptés).']);
+        }
+        if (function_exists('exif_read_data')) {
+            $exif = @exif_read_data($file->getRealPath());
+            $angle = match ((int) ($exif['Orientation'] ?? 1)) { 3 => 180, 6 => -90, 8 => 90, default => 0 };
+            if ($angle !== 0 && ($rotated = imagerotate($image, $angle, 0)) !== false) {
+                imagedestroy($image);
+                $image = $rotated;
+            }
+        }
 
         // Redimensionnement : côté max 1400 px, JPEG qualité 82 (≈ 150–250 Ko).
         $w = imagesx($image);

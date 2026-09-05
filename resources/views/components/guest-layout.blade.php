@@ -30,13 +30,18 @@
 
         {{-- Formulaire --}}
         <div class="flex flex-col">
-            <div class="lg:hidden p-5">
-                <a href="{{ route('home') }}" class="inline-flex items-center gap-2">
-                    <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:18px">location_on</span></span>
-                    <span class="font-display text-xl font-semibold">CAMINO</span>
-                </a>
+            <div class="lg:hidden relative h-52 overflow-hidden text-white">
+                <img src="{{ asset('images/photo_paris.avif') }}" alt="" class="absolute inset-0 h-full w-full object-cover" style="object-position: 60% 40%">
+                <div class="absolute inset-0 bg-gradient-to-t from-paper via-ink/40 to-ink/30"></div>
+                <div class="relative h-full flex flex-col justify-between p-5">
+                    <a href="{{ route('home') }}" class="inline-flex items-center gap-2 w-fit">
+                        <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card"><span class="material-symbols-outlined filled" style="font-size:18px">location_on</span></span>
+                        <span class="font-display text-xl font-semibold drop-shadow">CAMINO</span>
+                    </a>
+                    <p class="display text-2xl text-white drop-shadow pb-4">La ville a plus à raconter que ses monuments.</p>
+                </div>
             </div>
-            <div class="flex-1 flex items-center justify-center p-5 sm:p-10">
+            <div class="flex-1 flex items-start lg:items-center justify-center p-5 pt-2 sm:p-10">
                 <div class="w-full max-w-md animate-fade-up">
                     {{ $slot }}
                 </div>

@@ -1,7 +1,4 @@
 <x-app-layout title="Carte culturelle" :fullscreen="true">
-    <x-slot name="actions">
-        <x-weather-chip :forecast="$forecast" label="Paris" class="hidden lg:inline-flex !py-1 !pr-3" />
-    </x-slot>
 
     <div id="map-page" class="absolute inset-0" x-data="caminoMap()" @keydown.escape.window="closeSheet()">
         {{-- Carte --}}
