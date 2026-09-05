@@ -41,8 +41,8 @@ class DatatourismeIngestCommand extends Command
         }
 
         $this->table(
-            ['Créés', 'Mis à jour', 'Ignorés', 'Erreurs'],
-            [[$stats['created'], $stats['updated'], $stats['skipped'], $stats['errors']]]
+            ['Créés', 'Mis à jour', 'Masqués (hors sujet)', 'Ignorés', 'Erreurs'],
+            [[$stats['created'], $stats['updated'], $stats['hidden'] ?? 0, $stats['skipped'], $stats['errors']]]
         );
 
         $this->info('Import terminé.');
