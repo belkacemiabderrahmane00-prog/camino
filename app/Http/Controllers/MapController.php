@@ -2,22 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Place;
+use App\Models\PlaceAlert;
+use App\Services\WeatherService;
 
 class MapController extends Controller
 {
-    public function index()
+    public function index(WeatherService $weather)
     {
-        $places = Place::query()
-            ->with('category')
-            ->withAvg('reviews', 'rating')
-            ->approved()
-            ->latest()
-            ->take(100)
-            ->get();
+        $start = config('camino.default_start');
 
         return view('map.index', [
-            'places' => $places,
+            'forecast' => $weather->forecast((float) $start['lat'], (float) $start['lng']),
+            'alertTypes' => PlaceAlert::TYPES,
         ]);
     }
 }

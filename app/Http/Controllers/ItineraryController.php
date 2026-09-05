@@ -7,9 +7,11 @@ use App\Models\Category;
 use App\Models\Itinerary;
 use App\Models\Place;
 use App\Services\ItineraryGenerator;
+use App\Services\UserPreferenceService;
+use App\Services\WeatherService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use stdClass;
 
 class ItineraryController extends Controller
 {
@@ -17,28 +19,109 @@ class ItineraryController extends Controller
 
     private const MAX_PLACES = 15;
 
-    /** Point de départ par défaut : centre de Paris (Notre-Dame). */
-    private const DEFAULT_START = [48.8530, 2.3499];
-
     private const DEFAULT_RADIUS_KM = 4;
 
     public function __construct(
-        private ItineraryGenerator $itineraryGenerator
+        private readonly ItineraryGenerator $generator,
+        private readonly UserPreferenceService $preferences,
+        private readonly WeatherService $weather,
     ) {}
 
     public function create()
     {
-        $categories = class_exists(Category::class) ? Category::all() : collect();
+        $categories = Category::whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art', 'evenement-culturel', 'restauration', 'itineraire'])
+            ->orderByRaw("case slug when 'musee' then 1 when 'monument' then 2 when 'parc-jardin' then 3 when 'lieu-culturel' then 4 when 'evenement-culturel' then 5 when 'street-art' then 6 when 'restauration' then 7 else 8 end")
+            ->get();
+
         $placeIds = session(self::SESSION_KEY, []);
         $itineraryPlaces = collect();
         if (! empty($placeIds)) {
-            $itineraryPlaces = Place::whereIn('id', $placeIds)->get()->sortBy(fn ($p) => array_search($p->id, $placeIds))->values();
+            $itineraryPlaces = Place::with('category')->whereIn('id', $placeIds)->get()
+                ->sortBy(fn ($p) => array_search($p->id, $placeIds))->values();
         }
+
+        $result = session('itinerary_result');
+        $start = config('camino.default_start');
+        $forecast = $this->weather->forecast((float) $start['lat'], (float) $start['lng']);
+        $profile = $this->preferences->profile(Auth::user());
 
         return view('itineraries.create', [
             'categories' => $categories,
             'itineraryPlaces' => $itineraryPlaces,
+            'result' => $result,
+            'forecast' => $forecast,
+            'profile' => $profile,
+            'defaultStart' => $start,
         ]);
+    }
+
+    public function store(StoreItineraryRequest $request)
+    {
+        $data = $request->validated();
+
+        $duration = (int) $data['duration_minutes'];
+        $budget = isset($data['budget_eur']) && $data['budget_eur'] !== null ? (float) $data['budget_eur'] : null;
+        $freeOnly = ! empty($data['free_only']);
+        $mode = $data['mode'] ?? 'walk';
+        $interests = array_values($data['interests'] ?? []);
+        $tags = array_values($data['tags'] ?? []);
+        $radiusKm = (int) ($data['radius_km'] ?? self::DEFAULT_RADIUS_KM);
+        if ($mode === 'bike') {
+            $radiusKm = max($radiusKm, 8);
+        }
+
+        $default = config('camino.default_start');
+        $start = [
+            'lat' => isset($data['start_lat']) ? (float) $data['start_lat'] : (float) $default['lat'],
+            'lng' => isset($data['start_lng']) ? (float) $data['start_lng'] : (float) $default['lng'],
+            'label' => $data['start_label'] ?? (isset($data['start_lat']) ? 'Ma position' : $default['label']),
+        ];
+
+        $startsAt = Carbon::now(config('app.timezone'));
+        if (! empty($data['starts_at'])) {
+            [$h, $m] = explode(':', $data['starts_at']);
+            $candidate = $startsAt->copy()->setTime((int) $h, (int) $m);
+            $startsAt = $candidate->lt($startsAt->copy()->subMinutes(30)) ? $candidate->addDay() : $candidate;
+        }
+
+        [$candidates, $fromSession] = $this->candidates($interests, $freeOnly, $start, $radiusKm);
+
+        $result = $this->generator->generate($candidates, [
+            'time_budget_min' => $duration,
+            'budget_eur' => $budget,
+            'free_only' => $freeOnly,
+            'mode' => $mode,
+            'start' => $start,
+            'starts_at' => $startsAt,
+            'interests' => $fromSession ? [] : $interests,
+            'tags' => $tags,
+            'profile' => $this->preferences->profile(Auth::user())['weights'],
+            'preserve_order' => $fromSession,
+            'use_weather' => array_key_exists('use_weather', $data) ? (bool) $data['use_weather'] : true,
+        ]);
+
+        $result['params'] = [
+            'duration_minutes' => $duration,
+            'budget_eur' => $budget,
+            'free_only' => $freeOnly,
+            'mode' => $mode,
+            'interests' => $interests,
+            'radius_km' => $radiusKm,
+        ];
+
+        if (Auth::check() && $result['steps'] !== []) {
+            $itinerary = Itinerary::create([
+                'user_id' => Auth::id(),
+                'name' => $result['title'],
+                'result_json' => $result,
+            ]);
+            $result['itinerary_id'] = $itinerary->id;
+        }
+
+        session()->put('itinerary_result', $result);
+
+        return redirect()->route('itineraries.create')
+            ->with('status', $result['steps'] === [] ? null : (Auth::check() ? 'Parcours enregistré dans « Mes parcours ».' : 'Parcours généré. Connecte-toi pour le retrouver plus tard.'));
     }
 
     public function addPlace(Place $place)
@@ -65,87 +148,9 @@ class ItineraryController extends Controller
     {
         session()->forget(self::SESSION_KEY);
 
-        return redirect()->route('itineraries.create')->with('status', 'Parcours vidé.');
+        return redirect()->route('itineraries.create')->with('status', 'Sélection vidée.');
     }
 
-    public function store(StoreItineraryRequest $request)
-    {
-        $data = $request->validated();
-
-        $duration = (int) $data['duration_minutes'];
-        $budget = (float) $data['budget_eur'];
-        $freeOnly = ! empty($data['free_only']);
-        $categoryIds = $data['category_ids'] ?? [];
-        $startLat = isset($data['start_lat']) ? (float) $data['start_lat'] : self::DEFAULT_START[0];
-        $startLng = isset($data['start_lng']) ? (float) $data['start_lng'] : self::DEFAULT_START[1];
-        $radiusKm = (int) ($data['radius_km'] ?? self::DEFAULT_RADIUS_KM);
-
-        [$places, $fromSession] = $this->getPlacesForItinerary($categoryIds, $freeOnly, $startLat, $startLng, $radiusKm);
-
-        if ($places->isEmpty()) {
-            $result = [
-                'estimated_total_minutes' => 0,
-                'estimated_total_budget' => 0,
-                'steps' => [],
-                'warnings' => [
-                    $freeOnly ? 'Aucun lieu gratuit trouvé autour du point de départ. Élargis le rayon, change de point de départ ou décoche « Prioriser les lieux gratuits ».' : 'Aucun lieu trouvé autour du point de départ. Élargis le rayon ou change de catégories.',
-                ],
-            ];
-        } else {
-            $raw = $this->itineraryGenerator->generate(
-                $places,
-                $duration,
-                $fromSession ? null : $startLat,
-                $fromSession ? null : $startLng,
-                [
-                    'free_only' => $freeOnly,
-                    'budget_eur' => $budget > 0 ? $budget : null,
-                    'preserve_order' => $fromSession,
-                ]
-            );
-
-            $result = [
-                'estimated_total_minutes' => $raw['totalDurationMin'],
-                'estimated_total_budget' => $raw['totalBudgetEur'],
-                'total_distance_km' => $raw['totalDistanceKm'],
-                'steps' => array_map(function ($step) {
-                    return [
-                        'order' => $step['order'],
-                        'place_id' => $step['place_id'],
-                        'title' => $step['title'],
-                        'address' => $step['address'],
-                        'visit_minutes' => $step['visitDurationMin'],
-                        'travel_minutes' => $step['travelDurationMin'],
-                        'cost_eur' => $step['costEur'],
-                        'category' => $step['category'] ?? null,
-                        'lat' => $step['lat'],
-                        'lng' => $step['lng'],
-                    ];
-                }, $raw['steps']),
-                'start' => $raw['start'] ?? null,
-                'warnings' => $raw['warnings'],
-            ];
-        }
-
-        if (Auth::check()) {
-            Itinerary::create([
-                'user_id' => Auth::id(),
-                'name' => 'Parcours ' . now()->format('d/m H\hi'),
-                'result_json' => $result,
-            ]);
-        }
-
-        $itinerary = new stdClass();
-        $itinerary->result_json = $result;
-        session()->put('itinerary', $itinerary);
-
-        return redirect()->route('itineraries.create')
-            ->with('status', Auth::check() ? 'Parcours enregistré !' : 'Parcours généré.');
-    }
-
-    /**
-     * Historique des parcours de l'utilisateur connecté.
-     */
     public function index()
     {
         $itineraries = Auth::user()->itineraries()->latest()->paginate(10);
@@ -153,14 +158,20 @@ class ItineraryController extends Controller
         return view('itineraries.index', ['itineraries' => $itineraries]);
     }
 
-    /**
-     * Recharge un parcours enregistré dans la page de génération.
-     */
+    public function show(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id() || Auth::user()?->is_admin, 403);
+
+        return view('itineraries.show', ['itinerary' => $itinerary, 'result' => $itinerary->result_json]);
+    }
+
     public function replay(Itinerary $itinerary)
     {
         abort_unless($itinerary->user_id === Auth::id(), 403);
 
-        session()->put('itinerary', $itinerary);
+        $result = $itinerary->result_json;
+        $result['itinerary_id'] = $itinerary->id;
+        session()->put('itinerary_result', $result);
 
         return redirect()->route('itineraries.create')->with('status', 'Parcours « ' . $itinerary->name . ' » rechargé.');
     }
@@ -175,54 +186,44 @@ class ItineraryController extends Controller
     }
 
     /**
-     * Lieux pour le parcours : session (ordre utilisateur) ou requête par catégories + gratuit.
+     * Candidats : la sélection manuelle (session) si elle existe, sinon les lieux visibles
+     * dans un carré de ±rayon autour du départ, filtrés par intérêts et gratuité.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: bool}
+     * @return array{0:\Illuminate\Support\Collection,1:bool}
      */
-    private function getPlacesForItinerary(array $categoryIds, bool $freeOnly, float $startLat, float $startLng, int $radiusKm): array
+    private function candidates(array $interests, bool $freeOnly, array $start, int $radiusKm): array
     {
         $placeIds = session(self::SESSION_KEY, []);
 
         if (! empty($placeIds)) {
-            $places = Place::query()
-                ->with('category')
-                ->whereIn('id', $placeIds)
-                ->whereNotNull('lat')
-                ->whereNotNull('lng')
-                ->approved()
-                ->get()
-                ->sortBy(fn (Place $p) => array_search($p->id, $placeIds))
-                ->values();
-
-            if ($freeOnly) {
-                $places = $places->filter(fn (Place $p) => $p->is_free)->values();
-            }
+            $places = Place::query()->with('category')->withAvg('reviews', 'rating')
+                ->whereIn('id', $placeIds)->whereNotNull('lat')->whereNotNull('lng')->approved()->get()
+                ->sortBy(fn (Place $p) => array_search($p->id, $placeIds))->values();
 
             return [$places, true];
         }
 
-        // Candidats : lieux dans un carré de ±rayon autour du départ (1° lat ≈ 111 km, 1° lng ≈ 73 km à Paris).
         $dLat = $radiusKm / 111;
         $dLng = $radiusKm / 73;
 
-        $query = Place::query()
-            ->with('category')
-            ->approved()
-            ->whereBetween('lat', [$startLat - $dLat, $startLat + $dLat])
-            ->whereBetween('lng', [$startLng - $dLng, $startLng + $dLng]);
+        $query = Place::query()->with('category')->withAvg('reviews', 'rating')
+            ->visible()
+            ->whereBetween('lat', [$start['lat'] - $dLat, $start['lat'] + $dLat])
+            ->whereBetween('lng', [$start['lng'] - $dLng, $start['lng'] + $dLng]);
 
-        if ($categoryIds !== []) {
-            $query->whereIn('category_id', $categoryIds);
+        if ($interests !== []) {
+            // Les intérêts guident le scoring ; on garde une part de "hors intérêts" pour la diversité.
+            $query->whereHas('category', fn ($q) => $q->whereIn('slug', array_merge($interests, ['restauration'])));
+        } else {
+            $query->whereHas('category', fn ($q) => $q->where('slug', '!=', 'restauration'));
         }
-
         if ($freeOnly) {
             $query->where('is_free', true);
         }
 
-        // Les lieux avec image et les catégories "visite" d'abord, puis les plus proches du départ.
-        $candidates = $query->limit(400)->get()
-            ->sortBy(fn (Place $p) => ($p->lat - $startLat) ** 2 + (($p->lng - $startLng) * 0.66) ** 2)
-            ->take(60)
+        $candidates = $query->limit(600)->get()
+            ->sortBy(fn (Place $p) => (($p->lat - $start['lat']) ** 2 + (($p->lng - $start['lng']) * 0.66) ** 2))
+            ->take(80)
             ->values();
 
         return [$candidates, false];

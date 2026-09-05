@@ -1,298 +1,243 @@
-@extends('layouts.landing')
+<x-app-layout>
+    {{-- ================================================================ Hero --}}
+    <section class="relative overflow-hidden">
+        <div class="absolute inset-0 -z-10">
+            <div class="absolute -top-40 -right-32 h-[520px] w-[520px] rounded-full bg-coral/15 blur-3xl"></div>
+            <div class="absolute top-40 -left-40 h-[420px] w-[420px] rounded-full bg-teal/15 blur-3xl"></div>
+        </div>
 
-@section('title', "CAMINO — Explorez l'Île-de-France comme jamais")
-
-@section('content')
-
-{{-- HERO (photo en background) --}}
-<section id="discover" class="scroll-mt-28 relative overflow-hidden bg-slate-950">
-    {{-- Background image --}}
-    <div class="absolute inset-0">
-        <img
-            src="{{ asset('images/photo_paris.avif') }}"
-            alt="Paris en arrière-plan"
-            class="w-full h-full object-cover object-center"
-            loading="eager"
-        />
-        {{-- Overlays pour lisibilité --}}
-        <div class="absolute inset-0 bg-slate-950/70"></div>
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(19,236,236,0.18),transparent_55%)]"></div>
-        <div class="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/75 to-slate-950"></div>
-    </div>
-
-    {{-- Content --}}
-    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 md:pt-24 pb-16 sm:pb-20">
-        <div class="max-w-3xl space-y-7">
-            <p class="inline-flex items-center gap-2 rounded-full bg-slate-900/60 border border-slate-700/60 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-200">
-                <span class="inline-flex h-1.5 w-1.5 rounded-full bg-cyan-300"></span>
-                GPS culturel intelligent
-            </p>
-
-            <div class="space-y-4">
-                <h1 class="text-[34px] sm:text-[42px] md:text-[50px] font-extrabold tracking-tight text-white leading-[1.06]">
-                    Explorez l’Île-de-France
-                    <span class="block text-cyan-300">en parcours, pas en liste.</span>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-12 grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
+            <div class="animate-fade-up">
+                <div class="flex flex-wrap items-center gap-3 mb-6">
+                    <span class="eyebrow">GPS culturel intelligent · Île-de-France</span>
+                    <x-weather-chip :forecast="$forecast" label="Paris" />
+                </div>
+                <h1 class="display text-[44px] sm:text-6xl lg:text-7xl">
+                    Explore la ville<br>
+                    <span class="italic text-coral">autrement.</span>
                 </h1>
-
-                <p class="text-sm sm:text-base md:text-lg text-slate-100/95 max-w-2xl leading-relaxed">
-                    CAMINO transforme votre temps libre en itinéraires culturels cohérents :
-                    musées, jardins, street-art et lieux insolites, optimisés selon votre point de départ
-                    et la durée dont vous disposez.
+                <p class="mt-6 text-lg text-ink-soft max-w-xl">
+                    {{ number_format($stats['places'], 0, ',', ' ') }} musées, monuments, parcs, scènes et bons plans sur une carte vivante.
+                    Dis-nous ton temps, ton budget et tes envies : CAMINO trace le parcours, à pied ou à vélo, en tenant compte de la météo.
                 </p>
-            </div>
 
-            {{-- CTAs --}}
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                <a
-                    href="{{ route('map.index') }}"
-                    class="sm:w-auto w-full inline-flex items-center justify-center gap-2 rounded-full bg-cyan-300 text-slate-950 px-7 py-3.5 text-sm sm:text-base font-semibold shadow-lg shadow-cyan-300/25 hover:bg-cyan-200 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                >
-                    <span class="material-symbols-outlined text-[20px]">explore</span>
-                    <span>Ouvrir la carte</span>
-                </a>
+                <form action="{{ route('map.index') }}" method="GET" class="mt-8 flex items-center gap-2 card p-2 pl-4 max-w-xl">
+                    <span class="material-symbols-outlined text-ink-muted">search</span>
+                    <input type="search" name="q" placeholder="Un lieu, un quartier, une envie…" class="flex-1 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70" autocomplete="off">
+                    <button type="submit" class="btn btn-md btn-ink">Explorer</button>
+                </form>
 
-                <a
-                    href="{{ route('itineraries.create') }}"
-                    class="sm:w-auto w-full inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-slate-950/35 backdrop-blur px-7 py-3.5 text-sm sm:text-base font-semibold text-white hover:border-cyan-300 hover:text-cyan-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                >
-                    <span class="material-symbols-outlined text-[20px]">route</span>
-                    <span>Générer un parcours</span>
-                </a>
-            </div>
-
-            {{-- Trust line --}}
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] sm:text-[12px] text-slate-200/80 pt-1">
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    Lieux issus de DATAtourisme &amp; de la communauté
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px] text-cyan-300">schedule</span>
-                    Itinéraires optimisés selon votre temps
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[16px] text-cyan-300">near_me</span>
-                    Point de départ pris en compte
-                </span>
-            </div>
-
-            {{-- Mini proof --}}
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 max-w-2xl">
-                <div class="rounded-2xl bg-slate-950/40 border border-white/15 backdrop-blur px-4 py-3">
-                    <p class="text-[11px] text-slate-200/70">En 2 clics</p>
-                    <p class="text-sm font-semibold text-white">un parcours prêt</p>
-                </div>
-                <div class="rounded-2xl bg-slate-950/40 border border-white/15 backdrop-blur px-4 py-3">
-                    <p class="text-[11px] text-slate-200/70">Selon votre durée</p>
-                    <p class="text-sm font-semibold text-white">1h, 3h, journée</p>
-                </div>
-                <div class="rounded-2xl bg-slate-950/40 border border-white/15 backdrop-blur px-4 py-3">
-                    <p class="text-[11px] text-slate-200/70">Cohérence</p>
-                    <p class="text-sm font-semibold text-white">thèmes &amp; proximité</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    @foreach([['musees', 'palette', 'Musées'], ['monuments', 'account_balance', 'Monuments'], ['parcs', 'park', 'Parcs & jardins'], ['free', 'loyalty', 'Gratuit'], ['evenements', 'celebration', 'Événements']] as [$f, $icon, $label])
+                        <a href="{{ route('map.index', ['filtre' => $f]) }}" class="chip"><span class="material-symbols-outlined" style="font-size:16px">{{ $icon }}</span>{{ $label }}</a>
+                    @endforeach
                 </div>
             </div>
 
-            {{-- Hint --}}
-            <div class="pt-4 hidden md:flex items-center gap-2 text-xs text-slate-200/70">
-                <span class="material-symbols-outlined text-[18px] text-cyan-300">south</span>
-                Faites défiler pour découvrir CAMINO
+            {{-- Collage --}}
+            <div class="relative animate-fade-up" style="animation-delay: 120ms">
+                <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                    @foreach($featured->take(4) as $i => $place)
+                        <a href="{{ route('places.show', $place) }}" class="group relative overflow-hidden rounded-3xl shadow-card {{ $i === 0 ? 'row-span-2 h-72 sm:h-96' : 'h-36 sm:h-44' }} {{ $i === 3 ? '-mt-6' : '' }}">
+                            <x-cover :place="$place" class="h-full group-hover:scale-105 transition-transform duration-500" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent"></div>
+                            <div class="absolute bottom-3 left-3 right-3 text-white">
+                                <p class="text-[10px] uppercase tracking-widest opacity-80">{{ $place->category->name ?? '' }}</p>
+                                <p class="font-semibold text-sm leading-tight line-clamp-2">{{ $place->title }}</p>
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+                <div class="absolute -bottom-5 -left-4 sm:-left-8 card px-4 py-3 flex items-center gap-3 animate-fade-up" style="animation-delay: 300ms">
+                    <span class="h-10 w-10 rounded-2xl bg-teal-soft text-teal flex items-center justify-center"><span class="material-symbols-outlined filled">route</span></span>
+                    <div class="text-sm leading-tight">
+                        <p class="font-semibold">Parcours réels</p>
+                        <p class="text-ink-muted text-xs">Trajets à pied ou à vélo calculés sur les rues d'OpenStreetMap</p>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    {{-- Divider --}}
-    <div class="relative">
-        <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
-    </div>
-</section>
-
-
-{{-- FEATURES --}}
-<section id="features" class="scroll-mt-28 py-20 sm:py-24 px-4 sm:px-6 bg-slate-950">
-    <div class="max-w-6xl mx-auto">
-        <div class="mb-12 sm:mb-14 text-center space-y-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Fonctionnalités clés
-            </p>
-            <h2 class="text-3xl md:text-4xl font-extrabold text-white leading-tight">
-                Pensé pour vos sorties culturelles.
-            </h2>
-            <p class="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-                CAMINO se concentre sur les lieux qui comptent vraiment et construit des parcours cohérents,
-                plutôt qu’une simple liste de points sur une carte.
-            </p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="group p-6 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-300/50 transition-all shadow-sm hover:shadow-lg hover:scale-[1.02]">
-                <div class="w-10 h-10 bg-cyan-300/15 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                    <span class="material-symbols-outlined text-cyan-300 text-[22px]">map</span>
+    {{-- ================================================================ Stats --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="card p-2 grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-ink/5">
+            @foreach([
+                ['museums', 'Musées', 'palette', '#7C3AED'],
+                ['monuments', 'Monuments', 'account_balance', '#B45309'],
+                ['parks', 'Parcs & jardins', 'park', '#15803D'],
+                ['free', 'Lieux gratuits', 'loyalty', '#0F8B8D'],
+                ['events', 'Événements à venir', 'celebration', '#F59E0B'],
+            ] as [$key, $label, $icon, $color])
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <span class="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style="background: {{ $color }}1A; color: {{ $color }}"><span class="material-symbols-outlined">{{ $icon }}</span></span>
+                    <div class="leading-tight">
+                        <p class="text-xl font-semibold">{{ number_format($stats[$key], 0, ',', ' ') }}</p>
+                        <p class="text-xs text-ink-muted">{{ $label }}</p>
+                    </div>
                 </div>
-                <h3 class="text-base font-semibold mb-2 text-white">Carte culturelle filtrée</h3>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    Musées, galeries, jardins, street-art et monuments : une carte dédiée à la culture,
-                    sans le bruit des commerces et services génériques.
-                </p>
-            </div>
+            @endforeach
+        </div>
+    </section>
 
-            <div class="group p-6 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-300/50 transition-all shadow-sm hover:shadow-lg hover:scale-[1.02]">
-                <div class="w-10 h-10 bg-emerald-400/15 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                    <span class="material-symbols-outlined text-emerald-400 text-[22px]">route</span>
+    {{-- ================================================================ Générateur express --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24">
+        <div class="rounded-4xl bg-ink text-white p-6 sm:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-8 items-center relative overflow-hidden">
+            <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
+            <div class="relative">
+                <p class="eyebrow">L'innovation CAMINO</p>
+                <h2 class="display text-3xl sm:text-4xl mt-2">Un parcours sur mesure en 10 secondes.</h2>
+                <p class="mt-4 text-white/75">Temps disponible, budget, à pied ou à vélo, tes centres d'intérêt : l'algorithme sélectionne les lieux, optimise l'ordre et calcule les vrais temps de trajet. S'il pleut, il privilégie les lieux couverts.</p>
+                <ul class="mt-5 space-y-2 text-sm text-white/80">
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">check_circle</span>Horaires d'arrivée à chaque étape</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">check_circle</span>Tracé réel sur la carte, export vers Google Maps</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">check_circle</span>Recommandations qui apprennent de tes favoris</li>
+                </ul>
+            </div>
+            <form method="POST" action="{{ route('itineraries.store') }}" class="relative card p-5 sm:p-6 text-ink space-y-4" x-data="{ mode: 'walk' }">
+                @csrf
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="label" for="hero-duration">Temps disponible</label>
+                        <select id="hero-duration" name="duration_minutes" class="field">
+                            @foreach([90 => '1 h 30', 120 => '2 h', 180 => '3 h', 240 => 'Une demi-journée', 360 => 'La journée'] as $v => $l)
+                                <option value="{{ $v }}" @selected($v === 180)>{{ $l }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label" for="hero-budget">Budget</label>
+                        <select id="hero-budget" name="budget_eur" class="field">
+                            <option value="0">Gratuit uniquement</option>
+                            <option value="15">Jusqu'à 15 €</option>
+                            <option value="40" selected>Jusqu'à 40 €</option>
+                            <option value="">Sans limite</option>
+                        </select>
+                    </div>
                 </div>
-                <h3 class="text-base font-semibold mb-2 text-white">Parcours optimisés par le temps</h3>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    Indiquez votre point de départ et votre durée : CAMINO ordonne les étapes
-                    et les temps de marche pour tenir dans le créneau.
-                </p>
-            </div>
-
-            <div class="group p-6 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-300/50 transition-all shadow-sm hover:shadow-lg hover:scale-[1.02]">
-                <div class="w-10 h-10 bg-amber-400/15 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                    <span class="material-symbols-outlined text-amber-400 text-[22px]">favorite</span>
+                <div>
+                    <p class="label">Mobilité</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach(['walk' => ['directions_walk', 'À pied'], 'bike' => ['directions_bike', 'À vélo']] as $m => [$icon, $label])
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mode" value="{{ $m }}" class="peer sr-only" x-model="mode">
+                                <span class="flex items-center justify-center gap-2 rounded-2xl border border-ink/10 px-3 py-2.5 text-sm font-medium peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink transition"><span class="material-symbols-outlined" style="font-size:18px">{{ $icon }}</span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
-                <h3 class="text-base font-semibold mb-2 text-white">Favoris &amp; historique</h3>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    Conservez vos coups de cœur, retrouvez vos itinéraires passés et partagez facilement
-                    vos découvertes avec vos proches.
-                </p>
-            </div>
-        </div>
-
-        <div class="mt-12 sm:mt-14 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-            <a
-                href="{{ route('itineraries.create') }}"
-                class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 text-white border border-slate-700 px-7 py-3.5 text-sm sm:text-base font-semibold hover:border-cyan-300 hover:text-cyan-300 transition"
-            >
-                <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
-                <span>Créer mon premier parcours</span>
-            </a>
-
-            <a
-                href="{{ route('map.index') }}"
-                class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-700 px-7 py-3.5 text-sm sm:text-base font-semibold text-white hover:border-cyan-300 hover:text-cyan-300 transition"
-            >
-                <span class="material-symbols-outlined text-[20px]">pin_drop</span>
-                <span>Voir les lieux sur la carte</span>
-            </a>
-        </div>
-    </div>
-</section>
-
-
-{{-- HOW --}}
-<section id="how" class="scroll-mt-28 py-20 sm:py-24 px-4 sm:px-6 bg-slate-950">
-    <div class="max-w-6xl mx-auto">
-        <div class="mb-12 sm:mb-14 text-center space-y-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Comment ça marche</p>
-            <h2 class="text-3xl md:text-4xl font-extrabold text-white leading-tight">Simple, rapide, cohérent.</h2>
-            <p class="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-                Vous partez d’un point A, vous avez un temps donné : CAMINO vous propose un parcours logique,
-                avec marche + temps de visite.
-            </p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="rounded-2xl border border-slate-800 bg-slate-900/55 p-6">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-cyan-300/15 text-cyan-300 font-extrabold">1</span>
-                    <h3 class="text-base font-semibold text-white">Choisissez votre point de départ</h3>
+                <div>
+                    <p class="label">Envies</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach(['musee' => 'Musées', 'monument' => 'Monuments', 'parc-jardin' => 'Parcs', 'lieu-culturel' => 'Scènes & galeries', 'street-art' => 'Street art', 'evenement-culturel' => 'Événements'] as $slug => $label)
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="interests[]" value="{{ $slug }}" class="peer sr-only" @checked(in_array($slug, ['musee', 'monument']))>
+                                <span class="chip peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink">{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    Adresse, station ou position actuelle : on part de là où vous êtes.
-                </p>
-            </div>
+                <button type="submit" class="btn btn-lg btn-primary w-full"><span class="material-symbols-outlined">auto_awesome</span>Générer mon parcours</button>
+                <p class="text-center text-[11px] text-ink-muted">Départ : centre de Paris. Tu pourras utiliser ta position sur la page suivante.</p>
+            </form>
+        </div>
+    </section>
 
-            <div class="rounded-2xl border border-slate-800 bg-slate-900/55 p-6">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-400/15 text-emerald-400 font-extrabold">2</span>
-                    <h3 class="text-base font-semibold text-white">Indiquez votre durée</h3>
+    {{-- ================================================================ Sélection --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24">
+        <x-section-heading eyebrow="À découvrir" title="Des lieux qui valent le détour" subtitle="Une sélection de lieux avec photo, renouvelée régulièrement." :href="route('map.index')" link-label="Ouvrir la carte" />
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            @foreach($featured as $place)
+                <x-place-card :place="$place" />
+            @endforeach
+        </div>
+    </section>
+
+    {{-- ================================================================ Événements + alertes --}}
+    @if($events->isNotEmpty() || $alerts->isNotEmpty())
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24 grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+            <div>
+                <x-section-heading eyebrow="En ce moment" title="Événements à venir" :href="route('map.index', ['filtre' => 'evenements'])" />
+                <div class="space-y-3">
+                    @forelse($events as $event)
+                        <a href="{{ route('places.show', $event) }}" class="card card-hover p-3 flex gap-4 items-center">
+                            <div class="w-24 h-20 rounded-2xl overflow-hidden shrink-0"><x-cover :place="$event" class="h-full" /></div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[11px] font-semibold text-amber-700">
+                                    @if($event->event_start_at && $event->event_end_at && !$event->event_start_at->isSameDay($event->event_end_at))
+                                        Du {{ $event->event_start_at->translatedFormat('j M') }} au {{ $event->event_end_at->translatedFormat('j M Y') }}
+                                    @else
+                                        Le {{ ($event->event_start_at ?? $event->event_end_at)->translatedFormat('j F Y') }}
+                                    @endif
+                                </p>
+                                <p class="font-semibold leading-snug line-clamp-2">{{ $event->title }}</p>
+                                <p class="text-xs text-ink-muted line-clamp-1">{{ $event->address }}</p>
+                            </div>
+                            <span class="material-symbols-outlined text-ink-muted hidden sm:block">arrow_forward</span>
+                        </a>
+                    @empty
+                        <div class="card p-6 text-sm text-ink-muted">Aucun événement daté pour l'instant.</div>
+                    @endforelse
                 </div>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    1h, 2h, 3h, demi-journée… CAMINO ajuste les étapes pour rentrer dans votre créneau.
-                </p>
             </div>
-
-            <div class="rounded-2xl border border-slate-800 bg-slate-900/55 p-6">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-amber-400/15 text-amber-400 font-extrabold">3</span>
-                    <h3 class="text-base font-semibold text-white">Partez explorer</h3>
+            <div>
+                <x-section-heading eyebrow="Communauté" title="Alertes en direct" />
+                <div class="card p-2 space-y-1">
+                    @forelse($alerts as $alert)
+                        <div class="flex gap-3 p-3 rounded-2xl hover:bg-paper">
+                            <span class="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style="background: {{ $alert->type_color }}22; color: {{ $alert->type_color }}"><span class="material-symbols-outlined" style="font-size:18px">{{ $alert->type_icon }}</span></span>
+                            <div class="min-w-0 text-sm">
+                                <p class="font-semibold leading-snug">{{ $alert->title }}</p>
+                                <p class="text-xs text-ink-muted">{{ $alert->type_label }}{{ $alert->place ? ' · ' . $alert->place->title : '' }} · expire {{ $alert->expires_at->diffForHumans() }}</p>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-5 text-sm text-ink-muted">
+                            <p>Aucune alerte en ce moment.</p>
+                            <p class="mt-1">Sur la carte, signale un événement gratuit, une forte affluence ou une fermeture : tout le monde le verra.</p>
+                        </div>
+                    @endforelse
+                    <a href="{{ route('map.index') }}" class="btn btn-sm btn-soft w-full mt-1"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>Signaler quelque chose</a>
                 </div>
-                <p class="text-sm text-slate-300 leading-relaxed">
-                    Un parcours ordonné, lisible et partageable : moins de friction, plus de découverte.
-                </p>
             </div>
+        </section>
+    @endif
+
+    {{-- ================================================================ Comment ça marche --}}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24">
+        <x-section-heading eyebrow="Simple" title="Comment ça marche" />
+        <div class="grid md:grid-cols-3 gap-4">
+            @foreach([
+                ['explore', 'Explore la carte vivante', 'Filtre par type, budget ou distance. Les événements et alertes de la communauté apparaissent en temps réel, comme sur Waze.'],
+                ['auto_awesome', 'Génère ton parcours', 'Indique ton temps, ton budget, ta mobilité et tes envies. CAMINO optimise l\'ordre et calcule les trajets réels, météo comprise.'],
+                ['groups', 'Enrichis la carte', 'Partage une photo, laisse un avis, signale un concert gratuit ou une fermeture, propose un lieu que personne ne connaît.'],
+            ] as $i => [$icon, $title, $text])
+                <div class="card p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="h-11 w-11 rounded-2xl bg-coral-soft text-coral flex items-center justify-center"><span class="material-symbols-outlined">{{ $icon }}</span></span>
+                        <span class="font-display text-3xl text-ink/20">0{{ $i + 1 }}</span>
+                    </div>
+                    <p class="font-semibold text-lg">{{ $title }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ $text }}</p>
+                </div>
+            @endforeach
         </div>
-    </div>
-</section>
+    </section>
 
-
-{{-- BETA --}}
-<section id="contact" class="scroll-mt-28 py-20 sm:py-24 px-4 sm:px-6 bg-slate-950">
-    <div class="max-w-6xl mx-auto space-y-10 md:space-y-0 md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] md:items-center md:gap-12">
-        <div class="space-y-5">
-            <div class="space-y-3">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Prochaine étape</p>
-                <h2 class="text-3xl md:text-4xl font-extrabold text-white leading-tight">
-                    Rejoignez les premiers explorateurs CAMINO.
-                </h2>
-                <p class="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
-                    Accédez en avant-première aux nouveaux parcours, aidez-nous à prioriser les quartiers
-                    et les types de lieux, et façonnez avec nous le GPS culturel que vous voudriez utiliser au quotidien.
-                </p>
+    {{-- ================================================================ CTA --}}
+    @guest
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-24">
+            <div class="rounded-4xl bg-coral text-white p-8 sm:p-12 text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 22px 22px;"></div>
+                <div class="relative max-w-2xl mx-auto">
+                    <h2 class="display text-3xl sm:text-5xl">Ton profil culturel, qui apprend de toi.</h2>
+                    <p class="mt-4 text-white/85">Favoris, avis, parcours réalisés : plus tu utilises CAMINO, plus les recommandations te ressemblent. Gratuit, sans pub.</p>
+                    <div class="mt-6 flex flex-wrap justify-center gap-3">
+                        <a href="{{ route('register') }}" class="btn btn-lg bg-white text-ink hover:-translate-y-0.5">Créer mon compte</a>
+                        <a href="{{ route('map.index') }}" class="btn btn-lg bg-ink/20 text-white hover:bg-ink/30">Continuer sans compte</a>
+                    </div>
+                </div>
             </div>
-
-            <ul class="mt-2 space-y-2.5 text-sm text-slate-300">
-                <li class="flex items-start gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-cyan-300 mt-0.5">check_circle</span>
-                    <span>Accès anticipé aux nouveaux parcours et filtres.</span>
-                </li>
-                <li class="flex items-start gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-cyan-300 mt-0.5">check_circle</span>
-                    <span>Suggestions de lieux, quartiers et idées d’itinéraires.</span>
-                </li>
-                <li class="flex items-start gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-cyan-300 mt-0.5">check_circle</span>
-                    <span>Priorité sur les futures fonctionnalités (notifications, hors-ligne, partage, etc.).</span>
-                </li>
-            </ul>
-        </div>
-
-        <div class="rounded-3xl border border-slate-800 bg-slate-900/55 px-8 py-8 sm:px-10 sm:py-10 text-center shadow-2xl shadow-black/60">
-            <p class="text-[12px] font-semibold uppercase tracking-[0.3em] text-cyan-300 mb-3">Bêta CAMINO</p>
-            <p class="text-sm text-slate-300 mb-6 leading-relaxed">
-                Créez gratuitement votre compte pour sauvegarder vos parcours et tester les nouveautés en avant-première.
-            </p>
-
-            <div class="flex flex-col gap-3">
-                <a
-                    href="{{ route('register') }}"
-                    class="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-300 text-slate-950 px-8 py-3.5 text-sm sm:text-base font-semibold shadow-lg shadow-cyan-300/25 hover:bg-cyan-200 transition"
-                >
-                    <span class="material-symbols-outlined text-[20px]">rocket_launch</span>
-                    <span>Créer mon compte gratuit</span>
-                </a>
-
-                <a
-                    href="{{ route('map.index') }}"
-                    class="inline-flex items-center justify-center gap-2 rounded-full border border-slate-700 px-8 py-3.5 text-sm sm:text-base font-semibold text-white hover:border-cyan-300 hover:text-cyan-300 transition"
-                >
-                    <span class="material-symbols-outlined text-[20px]">travel_explore</span>
-                    <span>Explorer sans compte</span>
-                </a>
-
-                <p class="text-[11px] text-slate-400">
-                    Gratuit. Pas de spam. Désinscription en un clic.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-16 max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent"></div>
-        <p class="mt-6 text-center text-[11px] text-slate-500">
-            © {{ date('Y') }} CAMINO · Explorez mieux, simplement.
-        </p>
-    </div>
-</section>
-
-@endsection
+        </section>
+    @endguest
+</x-app-layout>

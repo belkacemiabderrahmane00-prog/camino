@@ -15,7 +15,17 @@ class PlaceController extends Controller
         $place->load([
             'category',
             'media' => fn ($q) => $q->where('is_cover', true)->limit(1),
+            'alerts' => fn ($q) => $q->active()->latest(),
+            'photos' => fn ($q) => $q->approved()->latest()->limit(12),
         ]);
+
+        $nearby = Place::visible()->with('category')
+            ->where('id', '!=', $place->id)
+            ->whereBetween('lat', [$place->lat - 0.012, $place->lat + 0.012])
+            ->whereBetween('lng', [$place->lng - 0.018, $place->lng + 0.018])
+            ->whereHas('category', fn ($q) => $q->where('slug', '!=', 'restauration'))
+            ->orderByRaw('(cover_image_url is null) asc')
+            ->limit(6)->get();
         $isFavorite = false;
 
         if (Auth::check()) {
@@ -42,6 +52,8 @@ class PlaceController extends Controller
             'reviews' => $reviews,
             'reviewCount' => $reviewCount,
             'averageRating' => $averageRating,
+            'nearby' => $nearby,
+            'alertTypes' => \App\Models\PlaceAlert::TYPES,
         ]);
     }
 

@@ -168,7 +168,7 @@ class DatatourismeImporter
     /** Colonnes mises à jour lorsqu'un lieu existe déjà (les enrichissements média Wikimedia sont conservés). */
     private const UPSERT_UPDATE_COLUMNS = [
         'title', 'slug', 'description', 'category_id', 'lat', 'lng', 'address', 'status',
-        'is_free', 'price_level', 'visit_duration_min', 'tags', 'sources', 'updated_at',
+        'is_free', 'price_level', 'visit_duration_min', 'event_start_at', 'event_end_at', 'tags', 'sources', 'updated_at',
     ];
 
     /** Colonnes image, mises à jour uniquement pour les objets qui ont une image dans le flux. */
@@ -314,6 +314,7 @@ class DatatourismeImporter
         $status = $this->isHidden($types) ? 'hidden' : 'approved';
         [$isFree, $priceLevel] = $this->extractPricing($data, $types);
         $cover = $this->extractCover($data);
+        $dates = $this->extractEventDates($data);
 
         return [
             'title' => Str::limit($title, 255),
@@ -327,6 +328,8 @@ class DatatourismeImporter
             'is_free' => $isFree,
             'price_level' => $priceLevel,
             'visit_duration_min' => self::VISIT_MINUTES[$categorySlug] ?? 60,
+            'event_start_at' => $dates[0],
+            'event_end_at' => $dates[1],
             'tags' => json_encode(array_values($this->extractTags($data)), JSON_UNESCAPED_UNICODE),
             'sources' => json_encode(['datatourisme']),
             'external_id' => $externalId,
@@ -656,6 +659,30 @@ class DatatourismeImporter
 
         // "gratuit" mentionné parmi des tarifs payants : accès libre partiel (ex. parc gratuit, expo payante).
         return [$mentionsFree || in_array(0.0, $prices, true), $level];
+    }
+
+    /**
+     * Période de l'événement (takesPlaceAt) : première date de début, dernière date de fin.
+     *
+     * @return array{0:?string,1:?string}
+     */
+    private function extractEventDates(array $data): array
+    {
+        $starts = [];
+        $ends = [];
+        foreach ((array) ($data['takesPlaceAt'] ?? []) as $period) {
+            if (! is_array($period)) {
+                continue;
+            }
+            if (! empty($period['startDate'])) {
+                $starts[] = substr((string) $period['startDate'], 0, 10);
+            }
+            if (! empty($period['endDate'])) {
+                $ends[] = substr((string) $period['endDate'], 0, 10);
+            }
+        }
+
+        return [$starts ? min($starts) : null, $ends ? max($ends) : ( $starts ? max($starts) : null)];
     }
 
     private function removeDir(string $dir): void

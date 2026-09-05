@@ -1,125 +1,117 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 dark:text-slate-500">Accueil</p>
-                <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-50 leading-tight">
-                    Ton espace CAMINO
-                </h2>
-            </div>
-        </div>
-    </x-slot>
-
-    <div class="py-6">
-        <div class="max-w-5xl mx-auto px-4 space-y-5">
-            <x-ui.card glass class="bg-white dark:bg-slate-950/95 transition-colors duration-150">
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                            {{ auth()->user()->name ?? 'Explorateur CAMINO' }},
-                        </p>
-                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                            commence par explorer la carte, générer un parcours ou retrouver tes favoris.
-                        </p>
-                    </div>
-                    <div class="flex gap-2">
-                        <a href="{{ route('map.index') }}">
-                            <x-ui.button size="sm" variant="primary" class="rounded-full text-xs transition-transform duration-150 hover:-translate-y-0.5">
-                                <span class="material-symbols-outlined text-[16px]">explore</span>
-                                Carte culturelle
-                            </x-ui.button>
-                        </a>
-                        <a href="{{ route('itineraries.create') }}">
-                            <x-ui.button size="sm" variant="accent" class="rounded-full text-xs transition-transform duration-150 hover:-translate-y-0.5">
-                                <span class="material-symbols-outlined text-[16px]">route</span>
-                                Nouveau parcours
-                            </x-ui.button>
-                        </a>
+<x-app-layout title="Mon espace">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
+        <div class="grid lg:grid-cols-[1fr_360px] gap-6">
+            <div class="space-y-8 min-w-0">
+                {{-- Bienvenue --}}
+                <div class="rounded-4xl bg-ink text-white p-6 sm:p-8 relative overflow-hidden">
+                    <div class="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-teal/40 blur-3xl"></div>
+                    <div class="relative flex flex-wrap items-end justify-between gap-4">
+                        <div>
+                            <p class="eyebrow">Bonjour {{ auth()->user()->name }}</p>
+                            <h1 class="display text-3xl sm:text-4xl mt-1">Où va-t-on aujourd'hui ?</h1>
+                            @if(!empty($profile['top']))
+                                <p class="mt-3 text-white/75 text-sm">Ton profil culturel : <span class="text-white font-semibold">{{ collect($profile['top'])->pluck('name')->implode(', ') }}</span>. Basé sur {{ $profile['signals']['favorites'] }} favoris, {{ $profile['signals']['reviews'] }} avis et {{ $profile['signals']['itineraries'] }} parcours.</p>
+                            @else
+                                <p class="mt-3 text-white/75 text-sm">Ajoute des favoris et des avis : CAMINO apprend tes goûts et affine ses recommandations, comme Spotify pour la musique.</p>
+                            @endif
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ route('itineraries.create') }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">auto_awesome</span>Générer un parcours</a>
+                            <a href="{{ route('map.index') }}" class="btn btn-md bg-white/15 text-white hover:bg-white/25"><span class="material-symbols-outlined" style="font-size:18px">map</span>Carte</a>
+                        </div>
                     </div>
                 </div>
-            </x-ui.card>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                <x-ui.card class="bg-white dark:bg-slate-950/95 transition-colors duration-150 border border-slate-200 dark:border-slate-800">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] uppercase tracking-[0.18em] text-slate-700 dark:text-slate-500">Explorer</p>
-                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mt-1">Carte culturelle</h3>
-                            <p class="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-                                Découvre les lieux et événements autour de toi en temps réel.
-                            </p>
-                        </div>
-                        <span class="material-symbols-outlined text-primary text-[26px]">map</span>
+                {{-- Recommandations --}}
+                <div>
+                    <x-section-heading eyebrow="Pour toi" :title="!empty($profile['top']) ? 'Sélection selon tes goûts' : 'À découvrir'" :href="route('map.index')" link-label="Explorer" />
+                    <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        @foreach($recommended as $place)
+                            <x-place-card :place="$place" />
+                        @endforeach
                     </div>
-                    <div class="mt-3">
-                        <a href="{{ route('map.index') }}">
-                            <x-ui.button size="sm" variant="outline" class="rounded-full text-[11px]">
-                                Ouvrir la carte
-                            </x-ui.button>
-                        </a>
-                    </div>
-                </x-ui.card>
+                </div>
 
-                <x-ui.card class="bg-white dark:bg-slate-950/95 transition-colors duration-150 border border-slate-200 dark:border-slate-800">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] uppercase tracking-[0.18em] text-slate-700 dark:text-slate-500">Planifier</p>
-                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mt-1">Parcours & itinéraires</h3>
-                            <p class="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-                                Génère un parcours adapté à ton temps et ton budget.
-                            </p>
+                {{-- Parcours récents --}}
+                <div>
+                    <x-section-heading eyebrow="Historique" title="Tes derniers parcours" :href="route('itineraries.index')" />
+                    @if($itineraries->isNotEmpty())
+                        <div class="space-y-2">
+                            @foreach($itineraries as $itinerary)
+                                @php $r = $itinerary->result_json ?? []; @endphp
+                                <a href="{{ route('itineraries.show', $itinerary) }}" class="card card-hover p-4 flex items-center gap-4">
+                                    <span class="h-10 w-10 rounded-2xl bg-coral-soft text-coral flex items-center justify-center shrink-0"><span class="material-symbols-outlined">route</span></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-semibold truncate">{{ $itinerary->name }}</p>
+                                        <p class="text-xs text-ink-muted">{{ $itinerary->created_at->translatedFormat('j F') }} · {{ count($r['steps'] ?? []) }} étapes · {{ number_format($r['total_distance_km'] ?? 0, 1, ',', ' ') }} km</p>
+                                    </div>
+                                    <span class="material-symbols-outlined text-ink-muted">arrow_forward</span>
+                                </a>
+                            @endforeach
                         </div>
-                        <span class="material-symbols-outlined text-camino-accent text-[26px]">route</span>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ route('itineraries.create') }}">
-                            <x-ui.button size="sm" variant="outline" class="rounded-full text-[11px]">
-                                Créer un parcours
-                            </x-ui.button>
-                        </a>
-                    </div>
-                </x-ui.card>
-
-                <x-ui.card class="bg-white dark:bg-slate-950/95 transition-colors duration-150 border border-slate-200 dark:border-slate-800">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] uppercase tracking-[0.18em] text-slate-700 dark:text-slate-500">Mémoire</p>
-                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mt-1">Mes favoris</h3>
-                            <p class="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-                                Retrouve les lieux que tu as enregistrés pour plus tard.
-                            </p>
-                        </div>
-                        <span class="material-symbols-outlined text-pink-400 text-[26px]">favorite</span>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ route('places.favorites') }}">
-                            <x-ui.button size="sm" variant="outline" class="rounded-full text-[11px]">
-                                Voir mes favoris
-                            </x-ui.button>
-                        </a>
-                    </div>
-                </x-ui.card>
-
-                <x-ui.card class="bg-white dark:bg-slate-950/95 transition-colors duration-150 border border-slate-200 dark:border-slate-800">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] uppercase tracking-[0.18em] text-slate-600 dark:text-slate-500">Profil</p>
-                            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mt-1">Compte & préférences</h3>
-                            <p class="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
-                                Gère ton profil, tes préférences et la sécurité de ton compte.
-                            </p>
-                        </div>
-                        <span class="material-symbols-outlined text-primary text-[26px]">person</span>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ route('profile.edit') }}">
-                            <x-ui.button size="sm" variant="outline" class="rounded-full text-[11px]">
-                                Gérer mon profil
-                            </x-ui.button>
-                        </a>
-                    </div>
-                </x-ui.card>
+                    @else
+                        <div class="card p-6 text-sm text-ink-muted">Aucun parcours pour l'instant. <a href="{{ route('itineraries.create') }}" class="font-semibold text-ink underline">Génère le premier</a>.</div>
+                    @endif
+                </div>
             </div>
+
+            <aside class="space-y-6">
+                <div class="card p-5">
+                    <p class="eyebrow mb-3">Météo à Paris</p>
+                    @if(!empty($forecast['current']))
+                        <div class="flex items-center gap-3">
+                            <span class="h-14 w-14 rounded-3xl bg-sun-soft text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:30px">{{ $forecast['current']['icon'] }}</span></span>
+                            <div><p class="text-3xl font-semibold leading-none">{{ round($forecast['current']['temp']) }}°</p><p class="text-sm text-ink-muted mt-1">{{ $forecast['current']['label'] }}</p></div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                            @foreach(array_slice($forecast['days'], 0, 3) as $i => $day)
+                                <div class="rounded-2xl bg-paper p-2">
+                                    <p class="text-ink-muted">{{ $i === 0 ? 'Auj.' : \Illuminate\Support\Carbon::parse($day['date'])->translatedFormat('D') }}</p>
+                                    <span class="material-symbols-outlined text-amber-600 my-1">{{ $day['icon'] }}</span>
+                                    <p class="font-semibold">{{ $day['tmax'] }}° <span class="text-ink-muted font-normal">{{ $day['tmin'] }}°</span></p>
+                                    <p class="text-[10px] text-ink-muted">{{ $day['rain_probability'] }} % pluie</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-sm text-ink-muted">Météo indisponible pour le moment.</p>
+                    @endif
+                </div>
+
+                <div class="card p-5">
+                    <div class="flex items-center justify-between mb-3"><p class="eyebrow">Favoris récents</p><a href="{{ route('places.favorites') }}" class="text-xs font-semibold hover:text-coral">Tout voir</a></div>
+                    <div class="space-y-2">
+                        @forelse($favorites as $place)
+                            <x-place-card :place="$place" :compact="true" />
+                        @empty
+                            <p class="text-sm text-ink-muted">Aucun favori pour l'instant.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                @if($events->isNotEmpty())
+                    <div class="card p-5">
+                        <p class="eyebrow mb-3">Événements à venir</p>
+                        <div class="space-y-3">
+                            @foreach($events as $event)
+                                <a href="{{ route('places.show', $event) }}" class="block text-sm hover:text-coral">
+                                    <p class="text-[11px] text-amber-700 font-semibold">{{ ($event->event_start_at ?? $event->event_end_at)->translatedFormat('j M') }}</p>
+                                    <p class="font-semibold leading-snug line-clamp-2">{{ $event->title }}</p>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <div class="card p-5">
+                    <p class="eyebrow mb-3">Contribuer</p>
+                    <div class="space-y-2 text-sm">
+                        <a href="{{ route('community.propose') }}" class="flex items-center gap-3 rounded-2xl p-2 hover:bg-paper"><span class="material-symbols-outlined text-teal">add_location_alt</span>Proposer un lieu</a>
+                        <a href="{{ route('map.index') }}" class="flex items-center gap-3 rounded-2xl p-2 hover:bg-paper"><span class="material-symbols-outlined text-coral">campaign</span>Signaler un événement gratuit</a>
+                        <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-2xl p-2 hover:bg-paper"><span class="material-symbols-outlined text-ink-muted">person</span>Mon profil</a>
+                    </div>
+                </div>
+            </aside>
         </div>
-    </div>
+    </section>
 </x-app-layout>

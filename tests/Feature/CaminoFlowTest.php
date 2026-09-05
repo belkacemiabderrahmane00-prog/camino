@@ -7,6 +7,7 @@ use App\Models\Place;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -20,13 +21,14 @@ class CaminoFlowTest extends TestCase
     {
         parent::setUp();
         $this->seed(DemoDataSeeder::class);
+        Http::fake(['*' => Http::response(null, 503)]); // routage et météo indisponibles : estimations locales
     }
 
     public function test_guest_can_browse_map_and_place_pages(): void
     {
         $place = Place::approved()->firstOrFail();
 
-        $this->get('/carte')->assertOk()->assertSee('map-budget', false);
+        $this->get('/carte')->assertOk()->assertSee('id="camino-map"', false);
         $this->get('/lieux/' . $place->id)->assertOk()->assertSee($place->title);
         $this->get('/parcours')->assertOk()->assertSee('name="start_lat"', false);
     }
@@ -85,7 +87,7 @@ class CaminoFlowTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post('/parcours', ['duration_minutes' => 300, 'budget_eur' => 60, 'radius_km' => 15])
+            ->post('/parcours', ['duration_minutes' => 300, 'budget_eur' => 60, 'radius_km' => 15, 'interests' => ['musee', 'parc-jardin']])
             ->assertRedirect(route('itineraries.create'));
 
         $itinerary = Itinerary::where('user_id', $user->id)->firstOrFail();

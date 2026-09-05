@@ -28,7 +28,8 @@ class PoiController extends Controller
         $query = Place::query()
             ->with('category')
             ->withAvg('reviews', 'rating')
-            ->approved();
+            ->withCount(['alerts as active_alerts_count' => fn ($q) => $q->active()])
+            ->visible();
 
         if ($bbox = $request->string('bbox')->toString()) {
             $coords = array_map('floatval', explode(',', $bbox));
@@ -69,6 +70,10 @@ class PoiController extends Controller
             }
         }
 
+        if ($request->boolean('events')) {
+            $query->whereNotNull('event_end_at')->orderBy('event_start_at');
+        }
+
         if ($request->boolean('free')) {
             $query->where('is_free', true);
         } elseif (($priceMax = (int) $request->get('price_max')) >= 1 && $priceMax <= 3) {
@@ -97,7 +102,7 @@ class PoiController extends Controller
         $place = Place::query()
             ->with('category')
             ->withAvg('reviews', 'rating')
-            ->approved()
+            ->visible()
             ->find($id);
 
         if (! $place) {
@@ -135,6 +140,8 @@ class PoiController extends Controller
             ],
             'sources' => $place->sources ?? [],
             'rating' => $place->reviews_avg_rating ? round((float) $place->reviews_avg_rating, 1) : null,
+            'event' => $place->event_end_at ? ['start' => $place->event_start_at?->toDateString(), 'end' => $place->event_end_at->toDateString()] : null,
+            'alerts' => (int) ($place->active_alerts_count ?? 0),
         ];
     }
 }

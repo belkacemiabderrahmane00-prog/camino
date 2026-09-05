@@ -42,6 +42,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -58,5 +59,20 @@ class User extends Authenticatable
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function alerts()
+    {
+        return $this->hasMany(PlaceAlert::class);
+    }
+
+    public function photos()
+    {
+        return $this->hasMany(PlacePhoto::class);
+    }
+
+    public function submittedPlaces()
+    {
+        return $this->hasMany(Place::class, 'created_by');
     }
 }

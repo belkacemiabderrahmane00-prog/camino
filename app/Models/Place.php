@@ -37,6 +37,9 @@ class Place extends Model
         'wikidata_qid',
         'cover_image_is_fallback',
         'cover_image_fallback_reason',
+        'event_start_at',
+        'event_end_at',
+        'created_by',
     ];
 
     protected $casts = [
@@ -48,11 +51,26 @@ class Place extends Model
         'lat' => 'float',
         'lng' => 'float',
         'cover_image_is_fallback' => 'boolean',
+        'event_start_at' => 'date',
+        'event_end_at' => 'date',
     ];
 
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');
+    }
+
+    /** Visible au public : approuvé et, pour un événement daté, pas encore terminé. */
+    public function scopeVisible($query)
+    {
+        return $query->approved()->where(function ($q) {
+            $q->whereNull('event_end_at')->orWhereDate('event_end_at', '>=', now()->toDateString());
+        });
+    }
+
+    public function scopeUpcomingEvents($query)
+    {
+        return $query->approved()->whereNotNull('event_end_at')->whereDate('event_end_at', '>=', now()->toDateString())->orderBy('event_start_at');
     }
 
     /**
@@ -91,6 +109,26 @@ class Place extends Model
     public function media()
     {
         return $this->hasMany(PoiMedia::class);
+    }
+
+    public function alerts()
+    {
+        return $this->hasMany(PlaceAlert::class);
+    }
+
+    public function photos()
+    {
+        return $this->hasMany(PlacePhoto::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getIsEventAttribute(): bool
+    {
+        return $this->event_end_at !== null;
     }
 
     public function getGoogleMapsUrl(): ?string

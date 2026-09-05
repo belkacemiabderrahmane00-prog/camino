@@ -3,142 +3,234 @@
 namespace App\Services;
 
 use App\Models\Place;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
+/**
+ * Générateur de parcours culturels.
+ *
+ * 1. Filtrage des candidats (coordonnées, gratuité, budget unitaire).
+ * 2. Scoring : centres d'intérêt, thèmes, profil de l'utilisateur, météo (intérieur/extérieur),
+ *    présence d'une photo et d'une description, note communautaire, proximité du départ.
+ * 3. Sélection gloutonne dans le temps et le budget, avec diversité (max. 1 restaurant, 2 par catégorie).
+ * 4. Ordre optimisé et trajets réels (Valhalla) ; ajustement si le temps réel dépasse.
+ * 5. Horaires d'arrivée / départ à chaque étape, géométrie du tracé, résumé météo.
+ */
 class ItineraryGenerator
 {
-    /** Vitesse de marche retenue (km/h). */
-    private const WALK_SPEED_KMH = 4.0;
+    private const INDOOR = ['musee', 'lieu-culturel', 'restauration'];
+
+    private const OUTDOOR = ['parc-jardin', 'street-art', 'itineraire'];
+
+    private const MAX_PER_CATEGORY = ['restauration' => 1, 'default' => 3];
+
+    public function __construct(
+        private readonly RoutingService $routing,
+        private readonly WeatherService $weather,
+    ) {}
 
     /**
-     * Génère un itinéraire à pied à partir d'une collection de lieux.
-     *
-     * Algorithme "plus proche voisin" : depuis le point de départ (ou le barycentre des lieux),
-     * on ajoute à chaque étape le lieu le plus proche de la position courante qui tient encore
-     * dans le temps et le budget restants. Avec preserve_order, l'ordre fourni est conservé.
-     *
-     * @param \Illuminate\Support\Collection<int,Place> $places
-     * @param array{free_only?: bool, budget_eur?: ?float, preserve_order?: bool} $options
+     * @param Collection<int,Place> $candidates
+     * @param array{
+     *   time_budget_min:int, budget_eur?:?float, free_only?:bool, mode?:string,
+     *   start?:array{lat:float,lng:float,label?:string}, starts_at?:Carbon,
+     *   interests?:array<int,string>, tags?:array<int,string>, profile?:array<string,float>,
+     *   preserve_order?:bool, max_steps?:int, use_weather?:bool
+     * } $options
      */
-    public function generate(
-        Collection $places,
-        int $timeBudgetMin,
-        ?float $startLat = null,
-        ?float $startLng = null,
-        array $options = []
-    ): array {
-        $freeOnly = $options['free_only'] ?? false;
-        $budgetEur = $options['budget_eur'] ?? null;
-        $preserveOrder = $options['preserve_order'] ?? false;
+    public function generate(Collection $candidates, array $options): array
+    {
+        $timeBudget = max(30, (int) ($options['time_budget_min'] ?? 180));
+        $budgetEur = isset($options['budget_eur']) && $options['budget_eur'] !== null ? (float) $options['budget_eur'] : null;
+        $freeOnly = (bool) ($options['free_only'] ?? false);
+        $mode = in_array($options['mode'] ?? null, [RoutingService::MODE_WALK, RoutingService::MODE_BIKE], true) ? $options['mode'] : RoutingService::MODE_WALK;
+        $startsAt = ($options['starts_at'] ?? null) instanceof Carbon ? $options['starts_at'] : Carbon::now(config('app.timezone'));
+        $interests = array_values(array_filter((array) ($options['interests'] ?? [])));
+        $tags = array_map(fn ($t) => mb_strtolower((string) $t), array_filter((array) ($options['tags'] ?? [])));
+        $profile = (array) ($options['profile'] ?? []);
+        $preserveOrder = (bool) ($options['preserve_order'] ?? false);
+        $maxSteps = max(1, min(12, (int) ($options['max_steps'] ?? 7)));
+        $useWeather = (bool) ($options['use_weather'] ?? true);
 
-        $places = $places->filter(fn (Place $p) => $p->lat && $p->lng)->values();
+        $candidates = $candidates
+            ->filter(fn (Place $p) => $p->lat && $p->lng)
+            ->when($freeOnly, fn ($c) => $c->filter(fn (Place $p) => $p->is_free))
+            ->values();
 
-        if ($freeOnly) {
-            $places = $places->filter(fn (Place $p) => $p->is_free)->values();
+        $start = $options['start'] ?? null;
+        if (! $start || ! isset($start['lat'], $start['lng'])) {
+            $start = $candidates->isNotEmpty()
+                ? ['lat' => (float) $candidates->avg('lat'), 'lng' => (float) $candidates->avg('lng'), 'label' => 'Point de départ']
+                : ['lat' => config('camino.default_start.lat'), 'lng' => config('camino.default_start.lng'), 'label' => config('camino.default_start.label')];
+        }
+        $start['label'] = $start['label'] ?? 'Point de départ';
+
+        $weather = $useWeather ? $this->weather->summaryFor((float) $start['lat'], (float) $start['lng'], $startsAt, $timeBudget) : null;
+
+        if ($candidates->isEmpty()) {
+            return $this->result($start, $startsAt, $mode, [], [], $weather, [
+                $freeOnly ? 'Aucun lieu gratuit disponible autour du point de départ.' : 'Aucun lieu disponible autour du point de départ.',
+            ]);
         }
 
-        if ($places->isEmpty()) {
-            return $this->emptyResult($freeOnly ? 'Aucun lieu gratuit disponible pour ce périmètre.' : 'Aucun lieu disponible pour ce périmètre.');
-        }
+        // --- 2. Scoring ---------------------------------------------------------------------------
+        $scored = $candidates->map(function (Place $p) use ($start, $interests, $tags, $profile, $weather, $mode) {
+            $slug = $p->category->slug ?? 'lieu-culturel';
+            $score = 1.0;
 
-        $originLat = $startLat ?? (float) $places->avg('lat');
-        $originLng = $startLng ?? (float) $places->avg('lng');
+            if ($interests !== []) {
+                $score += in_array($slug, $interests, true) ? 2.5 : -1.0;
+            }
+            $placeTags = array_map(fn ($t) => mb_strtolower((string) $t), (array) ($p->tags ?? []));
+            if ($tags !== [] && array_intersect($tags, $placeTags) !== []) {
+                $score += 1.5;
+            }
+            $score += (float) ($profile[$slug] ?? 0) * 1.2;
+            $score += $p->cover_image_url ? 0.9 : 0;
+            $score += $p->description ? 0.3 : 0;
+            $score += $p->reviews_avg_rating ? min(1.0, (float) $p->reviews_avg_rating / 5) : 0;
 
-        $steps = [];
-        $remaining = max($timeBudgetMin, 30);
-        $totalDistance = 0.0;
-        $totalCost = 0.0;
-        $currentLat = $originLat;
-        $currentLng = $originLng;
-        $order = 1;
-        $skippedForBudget = 0;
+            if ($weather && $weather['indoor_recommended']) {
+                $score += in_array($slug, self::INDOOR, true) ? 1.5 : (in_array($slug, self::OUTDOOR, true) ? -2.0 : 0);
+            } elseif ($weather && ! $weather['indoor_recommended'] && in_array($slug, ['parc-jardin', 'street-art'], true)) {
+                $score += 0.5;
+            }
 
-        /** @var Collection<int,Place> $pool */
-        $pool = $places;
+            $distanceKm = $this->routing->haversineKm((float) $start['lat'], (float) $start['lng'], (float) $p->lat, (float) $p->lng);
+            $score -= $distanceKm * ($mode === RoutingService::MODE_BIKE ? 0.15 : 0.45);
 
-        while ($pool->isNotEmpty()) {
-            // Candidat suivant : ordre imposé, ou le plus proche de la position courante.
-            $candidate = $preserveOrder
-                ? $pool->first()
-                : $pool->sortBy(fn (Place $p) => $this->distanceKm($currentLat, $currentLng, (float) $p->lat, (float) $p->lng))->first();
+            return ['place' => $p, 'score' => $score, 'distance_km' => $distanceKm, 'slug' => $slug];
+        });
 
-            $pool = $pool->reject(fn (Place $p) => $p->id === $candidate->id)->values();
+        // --- 3. Sélection gloutonne -------------------------------------------------------------
+        $ordered = $preserveOrder ? $scored : $scored->sortByDesc('score')->values();
+        $selected = [];
+        $usedMinutes = 0;
+        $usedEur = 0.0;
+        $perCategory = [];
+        $skippedBudget = 0;
+        $curLat = (float) $start['lat'];
+        $curLng = (float) $start['lng'];
 
-            $distKm = $this->distanceKm($currentLat, $currentLng, (float) $candidate->lat, (float) $candidate->lng);
-            $travelMin = (int) round(($distKm / self::WALK_SPEED_KMH) * 60);
-            $visitMin = (int) ($candidate->visit_duration_min ?: 60);
+        foreach ($ordered as $row) {
+            /** @var Place $place */
+            $place = $row['place'];
+            if (count($selected) >= $maxSteps) {
+                break;
+            }
+            $cap = self::MAX_PER_CATEGORY[$row['slug']] ?? self::MAX_PER_CATEGORY['default'];
+            if (! $preserveOrder && ($perCategory[$row['slug']] ?? 0) >= $cap) {
+                continue;
+            }
+            $cost = $this->estimateCost($place);
+            if ($budgetEur !== null && $usedEur + $cost > $budgetEur) {
+                $skippedBudget++;
 
-            if ($remaining - ($travelMin + $visitMin) < 0) {
-                // Ne tient plus dans le temps : en ordre libre on tente les autres, sinon on s'arrête.
+                continue;
+            }
+            $visit = (int) ($place->visit_duration_min ?: 60);
+            $travel = $this->routing->estimateMinutes($curLat, $curLng, (float) $place->lat, (float) $place->lng, $mode);
+            if ($usedMinutes + $travel + $visit > $timeBudget) {
                 if ($preserveOrder) {
                     break;
                 }
 
                 continue;
             }
+            $selected[] = $place;
+            $usedMinutes += $travel + $visit;
+            $usedEur += $cost;
+            $perCategory[$row['slug']] = ($perCategory[$row['slug']] ?? 0) + 1;
+            $curLat = (float) $place->lat;
+            $curLng = (float) $place->lng;
+        }
 
-            $costEur = $this->estimateCost($candidate);
-            if ($budgetEur !== null && $totalCost + $costEur > $budgetEur) {
-                $skippedForBudget++;
+        if ($selected === []) {
+            return $this->result($start, $startsAt, $mode, [], [], $weather, [
+                $skippedBudget > 0 ? 'Le budget indiqué est trop faible pour les lieux disponibles.' : 'Le temps disponible est trop court pour proposer un parcours.',
+            ]);
+        }
 
-                continue;
+        // --- 4. Ordre optimisé + trajets réels --------------------------------------------------
+        $points = array_merge([['lat' => (float) $start['lat'], 'lng' => (float) $start['lng']]], array_map(fn (Place $p) => ['lat' => (float) $p->lat, 'lng' => (float) $p->lng], $selected));
+        $route = $preserveOrder ? $this->routing->route($points, $mode) : $this->routing->optimizedRoute($points, $mode);
+        $order = $route['order'] ?? array_keys($points);
+        $sequence = [];
+        foreach ($order as $idx) {
+            if ($idx > 0 && isset($selected[$idx - 1])) {
+                $sequence[] = $selected[$idx - 1];
             }
+        }
 
-            $remaining -= ($travelMin + $visitMin);
-            $totalDistance += $distKm;
-            $totalCost += $costEur;
+        // Ajustement : si les durées réelles dépassent le temps, on retire les dernières étapes.
+        $legs = $route['legs'] ?? [];
+        $trimmed = false;
+        while (count($sequence) > 1 && $this->totalMinutes($sequence, $legs) > $timeBudget) {
+            array_pop($sequence);
+            array_pop($legs);
+            $trimmed = true;
+        }
+        if ($trimmed) {
+            $points = array_merge([['lat' => (float) $start['lat'], 'lng' => (float) $start['lng']]], array_map(fn (Place $p) => ['lat' => (float) $p->lat, 'lng' => (float) $p->lng], $sequence));
+            $route = $this->routing->route($points, $mode);
+            $legs = $route['legs'] ?? [];
+        }
 
+        // --- 5. Étapes horodatées ---------------------------------------------------------------
+        $steps = [];
+        $cursor = $startsAt->copy();
+        $totalCost = 0.0;
+        foreach ($sequence as $i => $place) {
+            $leg = $legs[$i] ?? ['distance_km' => 0, 'duration_min' => 0];
+            $visit = (int) ($place->visit_duration_min ?: 60);
+            $cost = $this->estimateCost($place);
+            $totalCost += $cost;
+            $arrive = $cursor->copy()->addMinutes((int) $leg['duration_min']);
+            $leave = $arrive->copy()->addMinutes($visit);
             $steps[] = [
-                'order' => $order++,
-                'place_id' => $candidate->id,
-                'title' => $candidate->title,
-                'address' => $candidate->address ?? 'Adresse à venir',
-                'category' => $candidate->relationLoaded('category') ? $candidate->category?->name : null,
-                'lat' => (float) $candidate->lat,
-                'lng' => (float) $candidate->lng,
-                'visitDurationMin' => $visitMin,
-                'travelDurationMin' => $travelMin,
-                'distanceKmFromPrevious' => round($distKm, 2),
-                'costEur' => round($costEur, 2),
+                'order' => $i + 1,
+                'place_id' => $place->id,
+                'title' => $place->title,
+                'address' => $place->address,
+                'category' => $place->category->name ?? null,
+                'category_slug' => $place->category->slug ?? null,
+                'cover' => $place->cover_image_url,
+                'lat' => (float) $place->lat,
+                'lng' => (float) $place->lng,
+                'is_free' => (bool) $place->is_free,
+                'price_level' => $place->price_level,
+                'cost_eur' => round($cost, 2),
+                'visit_minutes' => $visit,
+                'travel_minutes' => (int) $leg['duration_min'],
+                'travel_km' => round((float) $leg['distance_km'], 2),
+                'arrive_at' => $arrive->format('H:i'),
+                'leave_at' => $leave->format('H:i'),
+                'reason' => $this->reason($place, $interests, $weather),
             ];
-
-            $currentLat = (float) $candidate->lat;
-            $currentLng = (float) $candidate->lng;
+            $cursor = $leave;
         }
 
         $warnings = [];
-        if ($steps === []) {
-            $warnings[] = $skippedForBudget > 0
-                ? 'Le budget indiqué est trop faible pour les lieux disponibles.'
-                : 'Le temps disponible est trop court pour proposer un parcours.';
-        } elseif ($skippedForBudget > 0) {
-            $warnings[] = $skippedForBudget . ' lieu(x) écarté(s) pour rester dans le budget.';
+        if ($skippedBudget > 0) {
+            $warnings[] = $skippedBudget . ' lieu(x) écarté(s) pour rester dans le budget.';
+        }
+        if (($route['source'] ?? '') === 'estimate') {
+            $warnings[] = 'Service de routage indisponible : distances estimées à vol d\'oiseau.';
+        }
+        if ($weather && $weather['indoor_recommended']) {
+            $warnings[] = sprintf('Météo : %s (%d %% de pluie) — le parcours privilégie les lieux couverts.', $weather['label'], $weather['rain_probability']);
         }
 
-        return [
-            'title' => 'Parcours CAMINO',
-            'mode' => 'walk',
-            'start' => ['lat' => $originLat, 'lng' => $originLng],
-            'totalDurationMin' => $timeBudgetMin - $remaining,
-            'totalDistanceKm' => round($totalDistance, 2),
-            'totalBudgetEur' => round($totalCost, 2),
-            'steps' => $steps,
-            'warnings' => $warnings,
-        ];
+        return $this->result($start, $startsAt, $mode, $steps, $route, $weather, $warnings, round($totalCost, 2));
     }
 
-    /**
-     * Estimation du coût d'une étape à partir du lieu (price_level ou is_free).
-     */
     public function estimateCost(Place $place): float
     {
         if ($place->is_free) {
             return 0.0;
         }
-        // price_level : 1 = € (≈ 5 €), 2 = €€ (≈ 15 €), 3 = €€€ (≈ 30 €)
-        $level = (int) ($place->price_level ?? 0);
 
-        return match ($level) {
+        return match ((int) ($place->price_level ?? 0)) {
             1 => 5.0,
             2 => 15.0,
             3 => 30.0,
@@ -146,28 +238,67 @@ class ItineraryGenerator
         };
     }
 
-    private function emptyResult(string $warning): array
+    /** @param array<int,Place> $sequence */
+    private function totalMinutes(array $sequence, array $legs): int
     {
+        $total = 0;
+        foreach ($sequence as $i => $place) {
+            $total += (int) (($legs[$i]['duration_min'] ?? 0)) + (int) ($place->visit_duration_min ?: 60);
+        }
+
+        return $total;
+    }
+
+    private function reason(Place $place, array $interests, ?array $weather): string
+    {
+        $slug = $place->category->slug ?? '';
+        if ($interests !== [] && in_array($slug, $interests, true)) {
+            return 'Correspond à tes centres d\'intérêt';
+        }
+        if ($weather && $weather['indoor_recommended'] && in_array($slug, self::INDOOR, true)) {
+            return 'À l\'abri en cas de pluie';
+        }
+        if ($place->is_free) {
+            return 'Gratuit';
+        }
+        if ($place->reviews_avg_rating) {
+            return 'Bien noté par la communauté';
+        }
+
+        return 'Proche de ton parcours';
+    }
+
+    private function result(array $start, Carbon $startsAt, string $mode, array $steps, array $route, ?array $weather, array $warnings, float $totalCost = 0.0): array
+    {
+        $totalMinutes = array_sum(array_map(fn ($s) => $s['visit_minutes'] + $s['travel_minutes'], $steps));
+        $categories = array_values(array_unique(array_filter(array_map(fn ($s) => $s['category'], $steps))));
+
         return [
-            'title' => 'Parcours CAMINO',
-            'mode' => 'walk',
-            'start' => null,
-            'totalDurationMin' => 0,
-            'totalDistanceKm' => 0,
-            'totalBudgetEur' => 0,
-            'steps' => [],
-            'warnings' => [$warning],
+            'version' => 2,
+            'title' => $this->title($categories, $start['label'] ?? null),
+            'mode' => $mode,
+            'start' => ['lat' => (float) $start['lat'], 'lng' => (float) $start['lng'], 'label' => $start['label'] ?? 'Point de départ'],
+            'starts_at' => $startsAt->toIso8601String(),
+            'ends_at' => $startsAt->copy()->addMinutes($totalMinutes)->toIso8601String(),
+            'total_minutes' => $totalMinutes,
+            'total_distance_km' => round((float) ($route['distance_km'] ?? 0), 2),
+            'total_cost_eur' => $totalCost,
+            'steps' => $steps,
+            'geometry' => $route['geometry'] ?? [],
+            'routing_source' => $route['source'] ?? 'none',
+            'weather' => $weather,
+            'warnings' => $warnings,
         ];
     }
 
-    private function distanceKm(float $lat1, float $lng1, float $lat2, float $lng2): float
+    private function title(array $categories, ?string $startLabel): string
     {
-        $earthRadius = 6371; // km
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        if ($categories === []) {
+            return 'Parcours CAMINO';
+        }
+        $main = array_slice($categories, 0, 2);
+        $label = implode(' & ', array_map(fn ($c) => mb_strtolower($c), $main));
 
-        return $earthRadius * $c;
+        return 'Balade ' . $label . ($startLabel && $startLabel !== 'Point de départ' ? ' · ' . $startLabel : '');
     }
 }

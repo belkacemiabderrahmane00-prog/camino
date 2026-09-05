@@ -1,380 +1,264 @@
 @php
-    /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Category[] $categories */
-    $itinerary = session('itinerary');
+    $params = $result['params'] ?? [];
+    $steps = $result['steps'] ?? [];
+    $hasResult = !empty($steps);
 @endphp
-
-<x-app-layout>
-    <div class="max-w-5xl mx-auto px-4 py-6 sm:py-8 lg:py-10">
-        <div class="mb-6 flex items-center justify-between gap-3">
+<x-app-layout title="Générer un parcours">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
+        <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Explore</p>
-                <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-                    Parcours & itinéraires
-                </h1>
-                <p class="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                    Crée un parcours culturel sur mesure selon ton temps, ton budget et tes envies.
-                </p>
+                <p class="eyebrow mb-1.5">Générateur de parcours</p>
+                <h1 class="display text-4xl sm:text-5xl">Ton parcours, calculé pour de vrai.</h1>
+                <p class="mt-3 text-ink-muted max-w-2xl">Sélection selon tes envies et la météo, ordre optimisé, trajets réels à pied ou à vélo sur les rues d'OpenStreetMap, horaires à chaque étape.</p>
             </div>
-            <div class="hidden sm:flex items-center gap-2">
-                @auth
-                    <a href="{{ route('itineraries.index') }}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined text-[16px]">history</span>
-                        Mes parcours
-                    </a>
-                @endauth
+            <div class="flex items-center gap-2">
+                <x-weather-chip :forecast="$forecast" label="Paris" :detailed="true" />
+                @auth<a href="{{ route('itineraries.index') }}" class="btn btn-sm btn-soft"><span class="material-symbols-outlined" style="font-size:16px">history</span>Mes parcours</a>@endauth
             </div>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-            <!-- Wizard form -->
-            <x-ui.card glass class="space-y-5 bg-white border border-slate-300 shadow-lg shadow-slate-900/10 dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-black/40 transition-colors duration-150">
-                <div class="flex items-center gap-3 text-xs">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary font-semibold shadow-sm shadow-primary/30">1</span>
+        <div class="grid lg:grid-cols-[400px_1fr] gap-6 items-start">
+            {{-- ============================================================ Formulaire --}}
+            <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-5 lg:sticky lg:top-24"
+                  x-data="{
+                      mode: '{{ old('mode', $params['mode'] ?? 'walk') }}',
+                      duration: {{ (int) old('duration_minutes', $params['duration_minutes'] ?? 180) }},
+                      startMode: '{{ (old('start_lat') || (($result['start']['label'] ?? '') === 'Ma position')) ? 'me' : 'paris' }}',
+                      locating: false,
+                      label(m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''); },
+                      useMe() {
+                          this.locating = true;
+                          window.Camino.locate().then(p => { this.$refs.lat.value = p.lat.toFixed(6); this.$refs.lng.value = p.lng.toFixed(6); this.startMode = 'me'; this.locating = false; })
+                              .catch(() => { this.locating = false; alert('Impossible de récupérer ta position.'); });
+                      },
+                      useParis() { this.$refs.lat.value = ''; this.$refs.lng.value = ''; this.startMode = 'paris'; }
+                  }">
+                @csrf
+                <input type="hidden" name="start_lat" x-ref="lat" value="{{ old('start_lat', ($result['start']['label'] ?? '') === 'Ma position' ? ($result['start']['lat'] ?? '') : '') }}">
+                <input type="hidden" name="start_lng" x-ref="lng" value="{{ old('start_lng', ($result['start']['label'] ?? '') === 'Ma position' ? ($result['start']['lng'] ?? '') : '') }}">
+                <input type="hidden" name="start_label" :value="startMode === 'me' ? 'Ma position' : ''">
+
+                @if($itineraryPlaces->isNotEmpty())
+                    <div class="rounded-2xl bg-teal-soft p-4 text-sm">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <p class="font-semibold text-teal-dark"><span class="material-symbols-outlined align-middle" style="font-size:18px">playlist_add_check</span> Ta sélection ({{ $itineraryPlaces->count() }})</p>
+                            <button formaction="{{ route('itineraries.clear-places') }}" class="text-xs text-teal-dark underline">Vider</button>
+                        </div>
+                        <ul class="space-y-1 text-xs text-ink-soft max-h-28 overflow-y-auto">
+                            @foreach($itineraryPlaces as $p)<li class="truncate">• {{ $p->title }}</li>@endforeach
+                        </ul>
+                        <p class="mt-2 text-[11px] text-teal-dark">Le parcours enchaînera ces lieux dans cet ordre, avec les trajets réels.</p>
+                    </div>
+                @endif
+
+                <div>
+                    <div class="flex items-center justify-between"><label class="label" for="duration">Temps disponible</label><span class="text-sm font-semibold" x-text="label(duration)"></span></div>
+                    <input id="duration" type="range" name="duration_minutes" min="30" max="600" step="15" x-model="duration" class="w-full accent-coral">
+                    <div class="flex justify-between text-[10px] text-ink-muted mt-1"><span>30 min</span><span>2 h</span><span>Demi-journée</span><span>Journée</span></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <p class="font-semibold text-slate-950 dark:text-slate-100">Paramètres de ton parcours</p>
-                        <p class="text-[11px] text-slate-700 dark:text-slate-400">Temps, budget, gratuité, centres d’intérêt.</p>
+                        <label class="label" for="budget">Budget (€)</label>
+                        <input id="budget" type="number" name="budget_eur" min="0" max="1000" step="1" value="{{ old('budget_eur', $params['budget_eur'] ?? 40) }}" class="field" placeholder="Sans limite">
+                    </div>
+                    <div>
+                        <label class="label" for="starts_at">Heure de départ</label>
+                        <input id="starts_at" type="time" name="starts_at" value="{{ old('starts_at') }}" class="field" placeholder="Maintenant">
                     </div>
                 </div>
 
-                <form method="POST" action="{{ route('itineraries.store') }}" class="space-y-5 mt-2">
-                    @csrf
-
-                    <div class="grid gap-4 sm:grid-cols-2 text-xs">
-                        <x-ui.input
-                            label="Temps disponible (minutes)"
-                            name="duration_minutes"
-                            type="number"
-                            min="30"
-                            max="600"
-                            value="{{ old('duration_minutes', 180) }}"
-                            required
-                        />
-                        <x-ui.input
-                            label="Budget approximatif (€)"
-                            name="budget_eur"
-                            type="number"
-                            step="1"
-                            min="0"
-                            value="{{ old('budget_eur', 40) }}"
-                            required
-                        />
-                    </div>
-
-                    <div class="space-y-2 text-xs" x-data="{ mode: '{{ old('start_lat') ? 'me' : 'paris' }}', locating: false, label: '{{ old('start_lat') ? 'Ma position' : '' }}',
-                        useMe() {
-                            if (!navigator.geolocation) { alert('Géolocalisation indisponible sur cet appareil.'); return; }
-                            this.locating = true;
-                            navigator.geolocation.getCurrentPosition((pos) => {
-                                this.$refs.lat.value = pos.coords.latitude.toFixed(6);
-                                this.$refs.lng.value = pos.coords.longitude.toFixed(6);
-                                this.mode = 'me'; this.locating = false; this.label = 'Ma position';
-                            }, () => { this.locating = false; alert('Impossible de récupérer ta position.'); }, { enableHighAccuracy: true, timeout: 10000 });
-                        },
-                        useParis() { this.$refs.lat.value = ''; this.$refs.lng.value = ''; this.mode = 'paris'; this.label = ''; }
-                    }">
-                        <p class="text-slate-950 dark:text-slate-200 font-semibold">Point de départ</p>
-                        <input type="hidden" name="start_lat" x-ref="lat" value="{{ old('start_lat') }}">
-                        <input type="hidden" name="start_lng" x-ref="lng" value="{{ old('start_lng') }}">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="useParis()" :class="mode === 'paris' ? 'bg-primary text-slate-900 border-primary' : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-700/80'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 border text-[11px] transition-colors">
-                                <span class="material-symbols-outlined text-[14px]">location_city</span> Centre de Paris
-                            </button>
-                            <button type="button" @click="useMe()" :class="mode === 'me' ? 'bg-primary text-slate-900 border-primary' : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-700/80'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 border text-[11px] transition-colors">
-                                <span class="material-symbols-outlined text-[14px]" x-text="locating ? 'progress_activity' : 'my_location'">my_location</span> Ma position
-                            </button>
-                            <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400 ml-auto">
-                                Rayon
-                                <select name="radius_km" class="rounded-full border-slate-200 bg-white py-1 pl-2 pr-7 text-[11px] text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100">
-                                    @foreach([2, 4, 8, 15] as $r)
-                                        <option value="{{ $r }}" @selected((int) old('radius_km', 4) === $r)>{{ $r }} km</option>
-                                    @endforeach
-                                </select>
+                <div>
+                    <p class="label">Mobilité</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach(['walk' => ['directions_walk', 'À pied', '4 km/h'], 'bike' => ['directions_bike', 'À vélo', 'rayon élargi']] as $m => [$icon, $l, $hint])
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mode" value="{{ $m }}" class="peer sr-only" x-model="mode">
+                                <span class="flex items-center gap-2 rounded-2xl border border-ink/10 px-3 py-2.5 text-sm font-medium peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink transition">
+                                    <span class="material-symbols-outlined" style="font-size:20px">{{ $icon }}</span>
+                                    <span class="leading-tight">{{ $l }}<br><span class="text-[10px] font-normal opacity-70">{{ $hint }}</span></span>
+                                </span>
                             </label>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between gap-4 text-xs">
-                        <div class="flex items-center gap-2">
-                            <input
-                                id="free_only"
-                                type="checkbox"
-                                name="free_only"
-                                value="1"
-                                @checked(old('free_only'))
-                                class="rounded border-slate-300 text-primary focus:ring-primary bg-white dark:border-slate-600 dark:bg-slate-900"
-                            >
-                            <label for="free_only" class="text-slate-900 dark:text-slate-300">
-                                Prioriser les lieux gratuits
-                            </label>
-                        </div>
-                        <p class="hidden sm:block text-[11px] text-slate-700 dark:text-slate-500">
-                            CAMINO veille à rester dans les contraintes choisies.
-                        </p>
-                    </div>
-
-                    <div class="space-y-2 text-xs">
-                        <p class="text-slate-950 dark:text-slate-200 font-semibold">Centres d’intérêt</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            @foreach($categories as $category)
-                                @php
-                                    $checked = in_array($category->id, old('category_ids', []));
-                                @endphp
-                                <label class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 border border-slate-200 bg-slate-50 text-[11px] text-slate-700 cursor-pointer hover:border-primary/70 hover:text-primary transition-colors duration-150 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-200">
-                                    <input
-                                        type="checkbox"
-                                        name="category_ids[]"
-                                        value="{{ $category->id }}"
-                                        class="h-3 w-3 rounded border-slate-300 text-primary focus:ring-primary bg-white dark:border-slate-500 dark:bg-slate-900"
-                                        @checked($checked)
-                                    >
-                                    <span>{{ $category->name }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                        @error('category_ids.*')
-                            <p class="mt-1 text-[11px] text-rose-500 dark:text-rose-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="pt-1 flex items-center justify-between">
-                        <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-500">
-                            <span class="material-symbols-outlined text-[16px] text-primary">lightbulb</span>
-                            <span>Astuce : commence avec 2–3 catégories max.</span>
-                        </div>
-                        <x-ui.button variant="accent" size="md" class="rounded-full text-xs border border-slate-900/5 transition-transform duration-150 hover:-translate-y-0.5">
-                            <span class="material-symbols-outlined text-[18px]">route</span>
-                            Calculer un parcours
-                        </x-ui.button>
-                    </div>
-                </form>
-            </x-ui.card>
-
-            @if($itineraryPlaces->isNotEmpty())
-                <x-ui.card glass class="space-y-4 bg-white border border-slate-300 shadow-lg shadow-slate-900/10 dark:bg-slate-950/95 dark:border-slate-800 dark:shadow-black/40 transition-colors duration-150">
-                    <div class="flex items-center justify-between">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">Tes lieux</p>
-                        <form method="POST" action="{{ route('itineraries.clear-places') }}" class="inline">
-                            @csrf
-                            <button type="submit" class="text-[11px] text-slate-500 dark:text-slate-400 hover:text-rose-500">Vider</button>
-                        </form>
-                    </div>
-                    <div class="space-y-2 max-h-32 overflow-y-auto hide-scrollbar">
-                        @foreach($itineraryPlaces as $p)
-                            <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs">
-                                <div class="min-w-0 flex-1">
-                                    <p class="font-semibold text-slate-900 dark:text-slate-100 truncate">{{ $p->title }}</p>
-                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ $p->address ?? 'Adresse à venir' }}</p>
-                                </div>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    @if($p->getGoogleMapsUrl())
-                                        <a href="{{ $p->getGoogleMapsUrl() }}" target="_blank" rel="noopener" class="p-1.5 rounded-lg text-slate-500 hover:bg-primary/20 hover:text-primary" title="Google Maps"><span class="material-symbols-outlined text-[16px]">map</span></a>
-                                    @endif
-                                    <form method="POST" action="{{ route('itineraries.remove-place', $p) }}" class="inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="p-1.5 rounded-lg text-slate-500 hover:bg-rose-500/20 hover:text-rose-400" title="Retirer"><span class="material-symbols-outlined text-[16px]">close</span></button>
-                                    </form>
-                                </div>
-                            </div>
                         @endforeach
                     </div>
-                    @php
-                        $addrs = $itineraryPlaces->map(fn ($p) => $p->address ?? $p->title)->filter(fn ($a) => $a && $a !== 'Adresse à venir')->values()->all();
-                    @endphp
-                    @if(count($addrs) >= 1)
-                        <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                            @if(count($addrs) >= 2)
-                                <a href="https://www.google.com/maps/dir/?api=1&origin={{ urlencode($addrs[0]) }}&destination={{ urlencode($addrs[count($addrs)-1]) }}{{ count($addrs) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addrs, 1, -1))) : '' }}&travelmode=walking" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
-                                    <span class="material-symbols-outlined text-[14px]">map</span> Google Maps
-                                </a>
-                            @else
-                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($addrs[0]) }}&travelmode=walking" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
-                                    <span class="material-symbols-outlined text-[14px]">map</span> Google Maps
-                                </a>
-                            @endif
-                            <a href="https://waze.com/ul?q={{ urlencode($addrs[0]) }}&navigate=yes" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
-                                <span class="material-symbols-outlined text-[14px]">directions_car</span> Waze
-                            </a>
-                        </div>
-                    @endif
-                </x-ui.card>
-            @endif
-
-            <!-- Result timeline -->
-            <x-ui.card glass class="space-y-4 bg-white border border-slate-300 relative overflow-hidden shadow-lg shadow-slate-900/10 dark:bg-slate-950/95 dark:border-slate-800 dark:shadow-black/40 transition-colors duration-150">
-                <div class="flex items-center justify-between text-xs">
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">Résultat</p>
-                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Parcours généré</p>
-                    </div>
-                    <div class="flex gap-3 text-[11px] text-slate-300">
-                        @if($itinerary)
-                            @php $result = $itinerary->result_json ?? []; @endphp
-                            <div class="flex flex-col items-end">
-                                <span class="text-slate-500 dark:text-slate-500">Durée</span>
-                                <span class="font-semibold">{{ $result['estimated_total_minutes'] ?? '–' }} min</span>
-                            </div>
-                            @if(isset($result['total_distance_km']))
-                                <div class="flex flex-col items-end">
-                                    <span class="text-slate-500 dark:text-slate-500">Marche</span>
-                                    <span class="font-semibold">{{ number_format($result['total_distance_km'], 1, ',', ' ') }} km</span>
-                                </div>
-                            @endif
-                            <div class="flex flex-col items-end">
-                                <span class="text-slate-500 dark:text-slate-500">Budget</span>
-                                <span class="font-semibold">
-                                    {{ number_format($result['estimated_total_budget'] ?? 0, 2, ',', ' ') }} €
-                                </span>
-                            </div>
-                        @endif
-                    </div>
                 </div>
 
-                @if($itinerary)
-                    @php
-                        $result = $itinerary->result_json ?? [];
-                        $steps = $result['steps'] ?? [];
-                    @endphp
+                <div>
+                    <p class="label">Point de départ</p>
+                    <div class="flex gap-2">
+                        <button type="button" @click="useParis()" class="chip flex-1 justify-center" :data-active="startMode === 'paris'"><span class="material-symbols-outlined" style="font-size:16px">location_city</span>Centre de Paris</button>
+                        <button type="button" @click="useMe()" class="chip flex-1 justify-center" :data-active="startMode === 'me'"><span class="material-symbols-outlined" :class="locating && 'animate-spin'" style="font-size:16px" x-text="locating ? 'progress_activity' : 'my_location'"></span>Ma position</button>
+                    </div>
+                    <label class="mt-2 flex items-center justify-between text-xs text-ink-muted">
+                        <span>Rayon de recherche</span>
+                        <select name="radius_km" class="field !w-auto !py-1.5 text-xs">
+                            @foreach([2, 4, 6, 10, 15] as $r)<option value="{{ $r }}" @selected((int) old('radius_km', $params['radius_km'] ?? 4) === $r)>{{ $r }} km</option>@endforeach
+                        </select>
+                    </label>
+                </div>
 
-                    @if(!empty($result['warnings']))
-                        <div class="rounded-2xl border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100">
-                            @foreach($result['warnings'] as $warning)
-                                <p>{{ $warning }}</p>
+                <div>
+                    <p class="label">Centres d'intérêt</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        @php $selected = old('interests', $params['interests'] ?? ['musee', 'monument']); @endphp
+                        @foreach($categories as $category)
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="interests[]" value="{{ $category->slug }}" class="peer sr-only" @checked(in_array($category->slug, $selected))>
+                                <span class="chip peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink">{{ $category->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @if(!empty($profile['top']))
+                        <p class="mt-2 text-[11px] text-ink-muted"><span class="material-symbols-outlined align-middle text-coral" style="font-size:14px">auto_awesome</span> Ton profil aime : {{ collect($profile['top'])->pluck('name')->implode(', ') }}. Le générateur en tient compte.</p>
+                    @endif
+                </div>
+
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <label class="inline-flex items-center gap-2 cursor-pointer"><input type="checkbox" name="free_only" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" @checked(old('free_only', $params['free_only'] ?? false))>Lieux gratuits uniquement</label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer"><input type="hidden" name="use_weather" value="0"><input type="checkbox" name="use_weather" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" checked>Tenir compte de la météo</label>
+                </div>
+
+                <button type="submit" class="btn btn-lg btn-primary w-full"><span class="material-symbols-outlined">auto_awesome</span>{{ $hasResult ? 'Recalculer' : 'Générer mon parcours' }}</button>
+            </form>
+
+            {{-- ============================================================ Résultat --}}
+            <div class="min-w-0">
+                @if($result && $hasResult)
+                    <div class="card overflow-hidden">
+                        <div id="itinerary-map" class="h-[320px] sm:h-[420px]"></div>
+                        <div class="p-5 sm:p-6">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="eyebrow">Parcours généré</p>
+                                    <h2 class="display text-2xl sm:text-3xl mt-1">{{ $result['title'] }}</h2>
+                                    <p class="text-sm text-ink-muted mt-1">
+                                        Départ {{ \Illuminate\Support\Carbon::parse($result['starts_at'])->translatedFormat('H\hi') }} · {{ $result['start']['label'] }}
+                                        · {{ $result['mode'] === 'bike' ? 'à vélo' : 'à pied' }}
+                                        @if(($result['routing_source'] ?? '') === 'valhalla') · trajets réels @endif
+                                    </p>
+                                </div>
+                                @if(!empty($result['weather']))
+                                    <div class="inline-flex items-center gap-2 rounded-full bg-sun-soft px-3 py-1.5 text-xs text-amber-800">
+                                        <span class="material-symbols-outlined filled" style="font-size:18px">{{ $result['weather']['icon'] }}</span>
+                                        {{ $result['weather']['label'] }}{{ $result['weather']['temp'] !== null ? ' · ' . round($result['weather']['temp']) . '°' : '' }} · pluie {{ $result['weather']['rain_probability'] }} %
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                                @foreach([
+                                    ['schedule', floor($result['total_minutes'] / 60) . ' h ' . str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT), 'au total'],
+                                    [$result['mode'] === 'bike' ? 'directions_bike' : 'directions_walk', number_format($result['total_distance_km'], 1, ',', ' ') . ' km', 'de trajet'],
+                                    ['payments', number_format($result['total_cost_eur'], 0, ',', ' ') . ' €', 'estimés'],
+                                ] as [$icon, $value, $label])
+                                    <div class="rounded-2xl bg-paper p-3">
+                                        <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">{{ $icon }}</span>
+                                        <p class="font-semibold text-lg leading-tight">{{ $value }}</p>
+                                        <p class="text-[11px] text-ink-muted">{{ $label }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            @if(!empty($result['warnings']))
+                                <div class="mt-4 space-y-1">
+                                    @foreach($result['warnings'] as $w)
+                                        <p class="text-xs text-amber-800 bg-sun-soft rounded-xl px-3 py-2 flex items-start gap-2"><span class="material-symbols-outlined" style="font-size:16px">info</span>{{ $w }}</p>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            {{-- Timeline --}}
+                            <ol class="mt-6 relative">
+                                <div class="absolute left-[15px] top-4 bottom-4 w-0.5 bg-ink/10"></div>
+                                <li class="relative pl-11 pb-5">
+                                    <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">flag</span></span>
+                                    <p class="text-sm font-semibold">{{ $result['start']['label'] }}</p>
+                                    <p class="text-xs text-ink-muted">Départ à {{ \Illuminate\Support\Carbon::parse($result['starts_at'])->format('H\hi') }}</p>
+                                </li>
+                                @foreach($steps as $step)
+                                    <li class="relative pl-11 pb-5">
+                                        <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-ink text-white flex items-center justify-center text-sm font-bold">{{ $step['order'] }}</span>
+                                        <p class="text-[11px] text-ink-muted mb-1.5 flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ $result['mode'] === 'bike' ? 'directions_bike' : 'directions_walk' }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</p>
+                                        <a href="{{ route('places.show', $step['place_id']) }}" class="card card-hover flex gap-3 p-2.5">
+                                            <div class="w-24 h-20 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">
+                                                @if($step['cover'])<img src="{{ $step['cover'] }}" alt="" loading="lazy" class="w-full h-full object-cover">@else<span class="material-symbols-outlined text-white/80">place</span>@endif
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{{ $step['category'] }}</p>
+                                                <p class="font-semibold leading-snug line-clamp-2">{{ $step['title'] }}</p>
+                                                <p class="text-xs text-ink-muted mt-0.5">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['visit_minutes'] }} min sur place{{ $step['is_free'] ? ' · gratuit' : ($step['cost_eur'] ? ' · ≈ ' . number_format($step['cost_eur'], 0) . ' €' : '') }}</p>
+                                                <p class="text-[11px] text-teal mt-1 flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">auto_awesome</span>{{ $step['reason'] }}</p>
+                                            </div>
+                                        </a>
+                                    </li>
+                                @endforeach
+                                <li class="relative pl-11">
+                                    <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-paper-deep text-ink flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">sports_score</span></span>
+                                    <p class="text-sm font-semibold">Fin du parcours</p>
+                                    <p class="text-xs text-ink-muted">vers {{ \Illuminate\Support\Carbon::parse($result['ends_at'])->format('H\hi') }}</p>
+                                </li>
+                            </ol>
+
+                            @php
+                                $coords = collect($steps)->map(fn ($s) => $s['lat'] . ',' . $s['lng'])->all();
+                                $origin = $result['start']['lat'] . ',' . $result['start']['lng'];
+                                $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . end($coords) . (count($coords) > 1 ? '&waypoints=' . implode('|', array_slice($coords, 0, -1)) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : 'walking');
+                            @endphp
+                            <div class="mt-6 flex flex-wrap gap-2">
+                                <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Lancer dans Google Maps</a>
+                                @auth
+                                    @if(!empty($result['itinerary_id']))
+                                        <a href="{{ route('itineraries.show', $result['itinerary_id']) }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Enregistré · voir la fiche</a>
+                                    @endif
+                                @else
+                                    <a href="{{ route('register') }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Créer un compte pour le garder</a>
+                                @endauth
+                                <button x-data @click="navigator.clipboard.writeText(@js($gmUrl)); alert('Lien Google Maps copié !')" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
+                            </div>
+                        </div>
+                    </div>
+                @elseif($result)
+                    <div class="card p-8 text-center">
+                        <span class="material-symbols-outlined text-4xl text-ink-muted">explore_off</span>
+                        <p class="mt-3 font-semibold">Aucun parcours possible avec ces paramètres.</p>
+                        <ul class="mt-2 text-sm text-ink-muted space-y-1">@foreach($result['warnings'] ?? [] as $w)<li>{{ $w }}</li>@endforeach</ul>
+                        <p class="mt-3 text-sm text-ink-muted">Élargis le rayon, augmente le temps ou le budget, ou change de point de départ.</p>
+                    </div>
+                @else
+                    <div class="card p-8 sm:p-12 text-center">
+                        <div class="mx-auto h-16 w-16 rounded-3xl bg-coral-soft text-coral flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:32px">auto_awesome</span></div>
+                        <h2 class="display text-2xl mt-4">Prêt quand tu l'es.</h2>
+                        <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">Règle ton temps, ton budget et tes envies à gauche. CAMINO choisit les lieux, optimise l'ordre et affiche le tracé réel avec les horaires de chaque étape.</p>
+                        <div class="mt-6 grid sm:grid-cols-3 gap-3 text-left text-sm">
+                            @foreach([['cloud', 'Météo intégrée', 'S\'il pleut, on privilégie les lieux couverts.'], ['route', 'Trajets réels', 'Rues et distances OpenStreetMap, à pied ou à vélo.'], ['auto_awesome', 'Personnalisé', 'Tes favoris et avis affinent les choix.']] as [$i, $t, $d])
+                                <div class="rounded-2xl bg-paper p-4"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-2">{{ $t }}</p><p class="text-xs text-ink-muted mt-1">{{ $d }}</p></div>
                             @endforeach
                         </div>
-                    @endif
-
-                    @if(!empty($steps))
-                        <div id="itinerary-map" class="h-56 sm:h-64 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900"></div>
-                    @endif
-
-                    <div class="relative mt-2 pb-4">
-                        <div class="absolute left-4 top-0 bottom-2 w-[3px] bg-gradient-to-b from-primary via-primary/40 to-primary/10 rounded-full"></div>
-                        <div class="space-y-6 pl-8">
-                            @forelse($steps as $index => $step)
-                                <div class="relative">
-                                    <div class="absolute -left-5 top-1 h-6 w-6 rounded-full bg-primary shadow-lg shadow-primary/40 flex items-center justify-center text-[11px] font-bold text-slate-900">
-                                        {{ $step['order'] ?? $index + 1 }}
-                                    </div>
-                                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 dark:bg-slate-900/80 dark:border-slate-800 transition-colors duration-150">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <p class="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                                                @if(!empty($step['place_id']))
-                                                    <a href="{{ route('places.show', $step['place_id']) }}" class="hover:text-primary transition-colors">{{ $step['title'] ?? 'Étape' }}</a>
-                                                @else
-                                                    {{ $step['title'] ?? 'Étape' }}
-                                                @endif
-                                                @if(!empty($step['category']))
-                                                    <span class="ml-1 text-[10px] font-normal text-slate-500 dark:text-slate-400">· {{ $step['category'] }}</span>
-                                                @endif
-                                            </p>
-                                            <p class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-[14px]">timer</span>
-                                                {{ ($step['visit_minutes'] ?? 0) + ($step['travel_minutes'] ?? 0) }} min
-                                            </p>
-                                        </div>
-                                        <p class="mt-1 text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2">
-                                            {{ $step['address'] ?? 'Adresse à venir' }}
-                                        </p>
-                                    </div>
-                                    @if($index < count($steps) - 1)
-                                        <div class="mt-1 flex gap-2 text-[10px] text-slate-500 dark:text-slate-500">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 dark:bg-slate-900/80 dark:border-slate-800">
-                                                <span class="material-symbols-outlined text-[14px]">directions_walk</span>
-                                                {{ $step['travel_minutes'] ?? 0 }} min de marche
-                                            </span>
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 dark:bg-slate-900/80 dark:border-slate-800">
-                                                <span class="material-symbols-outlined text-[14px]">payments</span>
-                                                {{ number_format($step['cost_eur'] ?? 0, 2, ',', ' ') }} €
-                                            </span>
-                                        </div>
-                                    @endif
-                                </div>
-                            @empty
-                                <p class="text-xs text-slate-500 dark:text-slate-400">
-                                    Aucun lieu n’a pu être sélectionné avec ces paramètres.
-                                </p>
-                            @endforelse
-                        </div>
                     </div>
-                    @if(!empty($steps))
-                        @php
-                            $addresses = collect($steps)->pluck('address')->filter(fn ($a) => $a && $a !== 'Adresse à venir')->values()->all();
-                            $gmParcoursUrl = count($addresses) >= 2
-                                ? 'https://www.google.com/maps/dir/?api=1&origin=' . urlencode($addresses[0]) . '&destination=' . urlencode($addresses[count($addresses) - 1]) . (count($addresses) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addresses, 1, -1))) : '') . '&travelmode=walking'
-                                : (count($addresses) === 1 ? 'https://www.google.com/maps/dir/?api=1&destination=' . urlencode($addresses[0]) . '&travelmode=walking' : null);
-                            $wazeParcoursUrl = !empty($addresses) ? 'https://waze.com/ul?q=' . urlencode($addresses[0]) . '&navigate=yes' : null;
-                        @endphp
-                        <div class="mt-4 flex flex-wrap gap-2 justify-end">
-                            <a href="{{ route('map.index') }}" class="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-semibold transition-transform duration-150 hover:-translate-y-0.5">
-                                <span class="material-symbols-outlined text-[18px]">explore</span>
-                                Voir sur la carte
-                            </a>
-                            @if($gmParcoursUrl)
-                                <a href="{{ $gmParcoursUrl }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full bg-primary text-slate-900 px-5 py-2.5 text-xs font-semibold shadow-lg shadow-primary/30 transition-transform duration-150 hover:-translate-y-0.5">
-                                    <span class="material-symbols-outlined text-[18px]">map</span>
-                                    Google Maps
-                                </a>
-                            @endif
-                            @if($wazeParcoursUrl)
-                                <a href="{{ $wazeParcoursUrl }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full bg-primary/80 text-slate-900 px-5 py-2.5 text-xs font-semibold shadow-lg shadow-primary/20 transition-transform duration-150 hover:-translate-y-0.5">
-                                    <span class="material-symbols-outlined text-[18px]">directions_car</span>
-                                    Waze
-                                </a>
-                            @endif
-                            @if(!$gmParcoursUrl && !$wazeParcoursUrl)
-                                <a href="{{ route('map.index') }}" class="inline-flex items-center gap-2 rounded-full bg-primary text-slate-900 px-5 py-2.5 text-xs font-semibold shadow-lg shadow-primary/30 transition-transform duration-150 hover:-translate-y-0.5">
-                                    <span class="material-symbols-outlined text-[18px]">play_circle</span>
-                                    Démarrer ce parcours
-                                </a>
-                            @endif
-                        </div>
-                    @endif
-                @else
-                    <div class="mt-4 space-y-3">
-                        <x-ui.skeleton class="h-4 w-1/2"></x-ui.skeleton>
-                        <x-ui.skeleton class="h-16 w-full"></x-ui.skeleton>
-                        <x-ui.skeleton class="h-16 w-full"></x-ui.skeleton>
-                    </div>
-                    <p class="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-                        Renseigne les paramètres à gauche pour générer un premier parcours.
-                    </p>
                 @endif
-            </x-ui.card>
+            </div>
         </div>
-    </div>
-    @if(!empty($itinerary) && !empty(($itinerary->result_json ?? [])['steps']))
+    </section>
+
+    @if($result && $hasResult)
+        @push('scripts')
         <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                if (!window.L) return;
+            document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById('itinerary-map');
-                if (!el) return;
-                const steps = @json(($itinerary->result_json ?? [])['steps'] ?? []);
-                const points = steps.filter(s => s.lat && s.lng).map(s => [s.lat, s.lng]);
-                if (!points.length) return;
-
+                if (!el || !window.L) return;
+                const C = window.Camino;
+                const result = @js(['start' => $result['start'], 'steps' => collect($steps)->map(fn ($s) => ['lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'order' => $s['order'], 'arrive' => $s['arrive_at'], 'slug' => $s['category_slug']])->all(), 'geometry' => $result['geometry'], 'mode' => $result['mode']]);
                 const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors',
-                }).addTo(map);
+                C.tileLayer().addTo(map);
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-                const line = L.polyline(points, { color: '#13ecec', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round' }).addTo(map);
-                steps.forEach((s, i) => {
-                    if (!s.lat || !s.lng) return;
-                    const icon = L.divIcon({
-                        html: `<div style="width:28px;height:28px;border-radius:50%;background:#13ecec;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:700 12px/1 system-ui;color:#0f172a;">${s.order || i + 1}</div>`,
-                        className: 'camino-marker-wrapper',
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14],
-                    });
-                    L.marker([s.lat, s.lng], { icon })
-                        .addTo(map)
-                        .bindPopup(`<div class="text-[11px] font-sans"><p class="font-semibold">${s.order || i + 1}. ${s.title}</p><p class="text-slate-500">${s.address || ''}</p><p class="text-slate-500">${s.visit_minutes || 0} min sur place${s.travel_minutes ? ' · ' + s.travel_minutes + ' min de marche' : ''}</p></div>`);
-                });
-                map.fitBounds(line.getBounds(), { padding: [24, 24] });
+                const pts = (result.geometry && result.geometry.length > 1) ? result.geometry : [[result.start.lat, result.start.lng], ...result.steps.map(s => [s.lat, s.lng])];
+                L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.25 }).addTo(map);
+                const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: 0.95, lineJoin: 'round' }).addTo(map);
+                L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Départ</div>');
+                result.steps.forEach(s => L.marker([s.lat, s.lng], { icon: C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.order}. ${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`));
+                map.fitBounds(line.getBounds(), { padding: [30, 30] });
             });
         </script>
+        @endpush
     @endif
 </x-app-layout>
