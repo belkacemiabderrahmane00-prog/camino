@@ -18,7 +18,10 @@ class EnrichPoiMediaCommand extends Command
                             {--limit=50 : Nombre maximum de POI à traiter}
                             {--radius-km=0.4 : Rayon de recherche autour du POI pour Wikidata (en km)}
                             {--min-score=0.6 : Score minimal de matching Wikidata}
-                            {--sleep-ms=250 : Pause entre chaque POI (en millisecondes)}';
+                            {--sleep-ms=250 : Pause entre chaque POI (en millisecondes)}
+                            {--categories=musee,monument,lieu-culturel,parc-jardin : Slugs de catégories à traiter (séparés par des virgules)}
+                            {--skip-overpass : Ne pas interroger Overpass/OSM (lent, faible rendement)}
+                            {--city-fallback : Utiliser une photo de la ville quand aucune image du lieu n\'est trouvée}';
 
     protected $description = 'Enrichit les POI (places) avec des images open data via Wikidata/Wikimedia Commons, OSM et fallbacks Wikipedia/villes/catégories.';
 
@@ -28,6 +31,9 @@ class EnrichPoiMediaCommand extends Command
         $radiusKm = (float) $this->option('radius-km');
         $minScore = (float) $this->option('min-score');
         $sleepMs = max(0, (int) $this->option('sleep-ms'));
+        $slugs = array_values(array_filter(array_map('trim', explode(',', (string) $this->option('categories')))));
+        $skipOverpass = (bool) $this->option('skip-overpass');
+        $cityFallback = (bool) $this->option('city-fallback');
 
         $this->info("Enrichissement média pour {$limit} lieux sans image de couverture…");
         $this->info(sprintf(
@@ -48,8 +54,8 @@ class EnrichPoiMediaCommand extends Command
             ->whereNotNull('lat')
             ->whereNotNull('lng')
             ->whereJsonContains('sources', ['datatourisme'])
-            ->whereHas('category', function ($q) {
-                $q->whereIn('slug', ['musee', 'monument', 'lieu-culturel', 'parc-jardin']);
+            ->whereHas('category', function ($q) use ($slugs) {
+                $q->whereIn('slug', $slugs);
             })
             ->orderByDesc('id')
             ->limit($limit)
@@ -99,7 +105,7 @@ class EnrichPoiMediaCommand extends Command
             }
 
             // 2. Fallback : Overpass -> OSM -> Wikidata/Wikipedia
-            if (! $filename) {
+            if (! $filename && ! $skipOverpass) {
                 $matches = $overpass->searchAround($place->lat, $place->lng, $place->title, (int) round($radiusKm * 1000));
                 $best = $matches[0] ?? null;
                 $score = $best['score'] ?? 0;
@@ -282,8 +288,8 @@ class EnrichPoiMediaCommand extends Command
                 }
             }
 
-            // 6. Fallback image de la ville (Wikipedia)
-            if (! $place->cover_image_url && $place->address) {
+            // 6. Fallback image de la ville (Wikipedia), uniquement sur demande explicite
+            if ($cityFallback && ! $place->cover_image_url && $place->address) {
                 $city = $this->extractCityFromAddress($place->address);
                 if ($city) {
                     $this->line(sprintf('   Tentative image de ville via Wikipedia pour "%s"…', $city));
