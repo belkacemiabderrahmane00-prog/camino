@@ -8,7 +8,7 @@
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:title" content="{{ $shareTitle }}">
     <meta property="og:description" content="{{ $shareDescription }}">
-    @if($place->cover_image_url)<meta property="og:image" content="{{ $place->cover_image_url }}">@endif
+    @if($place->cover_image_url)<meta property="og:image" content="{{ $place->coverThumb(1200) }}">@endif
     <meta name="twitter:card" content="{{ $place->cover_image_url ? 'summary_large_image' : 'summary' }}">
 @endpush
 

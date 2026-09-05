@@ -194,7 +194,7 @@ class ItineraryGenerator
                 'address' => $place->address,
                 'category' => $place->category->name ?? null,
                 'category_slug' => $place->category->slug ?? null,
-                'cover' => $place->cover_image_url,
+                'cover' => $place->coverThumb(480),
                 'lat' => (float) $place->lat,
                 'lng' => (float) $place->lng,
                 'is_free' => (bool) $place->is_free,

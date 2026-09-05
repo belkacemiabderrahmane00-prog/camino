@@ -135,7 +135,8 @@ class PoiController extends Controller
             'opening_hours' => $place->opening_hours,
             'tags' => $place->tags ?? [],
             'media' => [
-                'cover' => $place->cover_image_url,
+                'cover' => $place->coverThumb(640),
+                'cover_original' => $place->cover_image_url,
                 'gallery' => $place->gallery ?? [],
             ],
             'sources' => $place->sources ?? [],

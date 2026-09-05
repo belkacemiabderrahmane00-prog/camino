@@ -158,6 +158,12 @@
                     this.map = L.map('camino-map', { zoomControl: false, attributionControl: true }).setView([lat, lng], z);
                     C.tileLayer().addTo(this.map);
                     this.map.on('moveend', C.debounce(() => this.load(), 250));
+                    // Le conteneur peut changer de taille après l'init (polices, en-tête, mobile) : on recale Leaflet.
+                    const fix = () => this.map.invalidateSize();
+                    if (window.ResizeObserver) new ResizeObserver(C.debounce(fix, 100)).observe(document.getElementById('camino-map'));
+                    window.addEventListener('load', fix);
+                    setTimeout(fix, 300);
+                    setTimeout(fix, 1200);
                     this.load();
                     if (params.get('locate')) this.locate();
                 },

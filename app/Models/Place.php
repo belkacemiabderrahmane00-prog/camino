@@ -131,6 +131,29 @@ class Place extends Model
         return $this->event_end_at !== null;
     }
 
+    /**
+     * Vignette de couverture : pour les fichiers Wikimedia Commons en taille originale (souvent > 1 Mo),
+     * on demande la miniature générée par Commons ; sinon l'URL telle quelle.
+     */
+    public function coverThumb(int $width = 800): ?string
+    {
+        $url = $this->cover_image_url;
+        if (! $url) {
+            return null;
+        }
+        // Special:FilePath redirige vers la miniature Commons de la largeur demandée (hôte thumb.wikimedia.org).
+        if (preg_match('~^https?://upload\.wikimedia\.org/wikipedia/commons/[0-9a-f]/[0-9a-f]{2}/([^/?#]+)$~i', $url, $m)) {
+            return 'https://commons.wikimedia.org/wiki/Special:FilePath/' . $m[1] . '?width=' . $width;
+        }
+
+        return $url;
+    }
+
+    public function getCoverThumbAttribute(): ?string
+    {
+        return $this->coverThumb(800);
+    }
+
     public function getGoogleMapsUrl(): ?string
     {
         $address = $this->address ?? $this->title ?? null;
