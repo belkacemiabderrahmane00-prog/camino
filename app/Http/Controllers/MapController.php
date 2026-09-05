@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Event;
 use App\Models\Place;
 
 class MapController extends Controller
@@ -17,14 +16,8 @@ class MapController extends Controller
             ->take(100)
             ->get();
 
-        $events = Event::query()
-            ->latest()
-            ->take(50)
-            ->get();
-
         return view('map.index', [
             'places' => $places,
-            'events' => $events,
         ]);
     }
 }

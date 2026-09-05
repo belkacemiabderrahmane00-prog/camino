@@ -1,6 +1,5 @@
 @php
     /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Place[] $places */
-    /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Event[] $events */
 @endphp
 
 <x-app-layout>
@@ -41,8 +40,7 @@
                 <x-ui.chip icon="park" data-filter="parcs">Parcs / jardins</x-ui.chip>
                 <x-ui.chip icon="apartment" data-filter="lieux-culturels">Lieux culturels</x-ui.chip>
                 <x-ui.chip icon="restaurant" data-filter="restauration">Restauration</x-ui.chip>
-                <x-ui.chip icon="brush" data-filter="street-art">Street Art</x-ui.chip>
-                <x-ui.chip icon="theaters" data-filter="spectacles">Spectacles</x-ui.chip>
+                <x-ui.chip icon="event" data-filter="evenements">Événements</x-ui.chip>
                 <x-ui.chip icon="timeline" data-filter="itineraires">Itinéraires</x-ui.chip>
                 <x-ui.chip icon="loyalty" data-filter="free">Gratuit</x-ui.chip>
             </div>
@@ -72,135 +70,35 @@
             <x-ui.card glass padding="md" class="h-full flex flex-col bg-white/95 border border-slate-200/80 dark:bg-slate-900/85 dark:border-slate-800/80 transition-colors duration-150">
                 <div class="mb-3">
                     <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">Filtres</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Affinez par type de lieu, budget, ouverture.</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Affinez par type de lieu et par budget.</p>
                 </div>
 
                 <div class="space-y-4 text-xs flex-1 overflow-y-auto hide-scrollbar pr-1">
                     <div>
-                        <p class="font-medium text-slate-800 dark:text-slate-200 mb-2">Budget</p>
-                        <select class="w-full rounded-2xl border-slate-200 bg-white/90 text-[11px] text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100">
-                            <option>Tout</option>
-                            <option>Gratuit</option>
-                            <option>€</option>
-                            <option>€€</option>
-                            <option>€€€</option>
+                        <label for="map-budget" class="block font-medium text-slate-800 dark:text-slate-200 mb-2">Budget</label>
+                        <select id="map-budget" class="w-full rounded-2xl border-slate-200 bg-white/90 text-[11px] text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100">
+                            <option value="">Tout</option>
+                            <option value="free">Gratuit</option>
+                            <option value="1">Jusqu'à € (≈ 6 €)</option>
+                            <option value="2">Jusqu'à €€ (≈ 15 €)</option>
+                            <option value="3">€€€ et moins</option>
                         </select>
                     </div>
 
                     <div>
-                        <p class="font-medium text-slate-800 dark:text-slate-200 mb-1">Ouvert maintenant</p>
-                        <label class="inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                            <input type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary bg-white dark:border-slate-600 dark:bg-slate-900" />
-                            Oui
-                        </label>
-                    </div>
-
-                    <div>
                         <p class="font-medium text-slate-800 dark:text-slate-200 mb-2">Autour de moi</p>
-                        <x-ui.button variant="outline" size="sm" class="w-full justify-center border-slate-300 text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-200 transition-colors duration-150">
+                        <x-ui.button variant="outline" size="sm" data-action="geolocate" class="w-full justify-center border-slate-300 text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-200 transition-colors duration-150">
                             <span class="material-symbols-outlined text-[16px]">my_location</span>
                             Utiliser ma position
                         </x-ui.button>
                     </div>
 
                     <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
-                        <p class="font-medium text-slate-800 dark:text-slate-200 mb-2">Événements en direct</p>
-                        <div class="space-y-2 max-h-40 overflow-y-auto hide-scrollbar pr-1">
-                            @forelse($events as $event)
-                                <div class="rounded-2xl bg-slate-100 border border-slate-200 px-3 py-2 dark:bg-slate-900/80 dark:border-slate-800 transition-colors duration-150">
-                                    <p class="text-[11px] font-medium text-slate-800 dark:text-slate-50 truncate">
-                                        {{ $event->title }}
-                                    </p>
-                                    <p class="text-[10px] text-slate-500 dark:text-slate-400">
-                                        {{ optional($event->start_at)->format('d/m H:i') }}
-                                    </p>
-                                </div>
-                            @empty
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400">Aucun événement à venir.</p>
-                            @endforelse
-                        </div>
+                        <p class="font-medium text-slate-800 dark:text-slate-200 mb-1">Dans cette zone</p>
+                        <p id="map-count" class="text-[11px] text-slate-500 dark:text-slate-400">Chargement…</p>
+                        <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Déplace ou zoome la carte pour explorer d'autres lieux. Les 80 plus récents de la zone sont affichés.</p>
                     </div>
                 </div>
-            </x-ui.card>
-        </aside>
-
-        <!-- Bottom sheet façon Stitch : visible uniquement au clic sur l'icône list -->
-        <div
-            x-show="drawerOpen"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="translate-y-full opacity-0"
-            x-transition:enter-end="translate-y-0 opacity-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="translate-y-0 opacity-100"
-            x-transition:leave-end="translate-y-full opacity-0"
-            class="fixed inset-x-0 bottom-24 sm:bottom-0 z-50 flex flex-col items-center"
-        >
-            <div class="relative w-full max-w-md bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-700/80 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.25)] dark:shadow-[0_-16px_50px_rgba(0,0,0,0.7)] pb-6 max-h-[70vh] flex flex-col text-slate-900 dark:text-slate-50">
-                <div class="w-full flex justify-center py-3">
-                    <div class="w-12 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full"></div>
-                </div>
-                <button
-                    type="button"
-                    @click="drawerOpen = false"
-                    class="absolute -top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/90 text-slate-100 shadow-xl border border-slate-700 hover:bg-slate-800 hover:text-primary hover:border-primary transition-colors"
-                    title="Fermer"
-                >
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
-
-                <div class="px-5 flex-1 overflow-y-auto pt-1">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-slate-900 dark:text-slate-50">À proximité</h2>
-                        <button type="button" class="text-primary text-sm font-semibold hover:text-cyan-400 transition">Voir tout</button>
-                    </div>
-                    <div id="nearby-loading" class="hidden items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mb-2">
-                        <span class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                        <span>Chargement des lieux…</span>
-                    </div>
-                    <div class="space-y-3" id="nearby-list">
-                        @forelse($places->take(10) as $place)
-                            <a href="{{ route('places.show', $place) }}" class="flex gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                                <div class="relative shrink-0 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center" style="width:56px;height:56px;border-radius:9999px;">
-                                    <span class="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">museum</span>
-                                </div>
-                                <div class="flex flex-col justify-center flex-1 min-w-0">
-                                    <div class="flex justify-between items-start gap-2">
-                                        <h3 class="font-bold text-base leading-tight text-slate-900 dark:text-slate-50 line-clamp-2">{{ $place->title }}</h3>
-                                        @auth
-                                            <span class="material-symbols-outlined text-slate-300 dark:text-slate-500 group-hover:text-primary shrink-0" style="font-variation-settings: 'FILL' 0">favorite</span>
-                                        @endauth
-                                    </div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-                                        <span>{{ $place->category->name ?? 'Lieu culturel' }} • {{ Str::limit($place->address ?? 'Adresse à venir', 25) }}</span>
-                                        @if($place->is_free)
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">GRATUIT</span>
-                                        @else
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">INDOOR</span>
-                                        @endif
-                                    </p>
-                                    <div class="flex items-center gap-3 mt-2">
-                                        <span class="flex items-center text-primary text-xs font-bold">
-                                            <span class="material-symbols-outlined text-[14px] mr-0.5">near_me</span>
-                                            —
-                                        </span>
-                                        @if($place->reviews_avg_rating ?? null)
-                                            <span class="flex items-center text-amber-500 text-xs font-bold">
-                                                <span class="material-symbols-outlined text-[14px] mr-0.5 text-amber-500">star</span>
-                                                {{ number_format($place->reviews_avg_rating, 1) }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </a>
-                        @empty
-                            <div class="py-8 text-center text-slate-500 dark:text-slate-400 text-sm">
-                                <span class="material-symbols-outlined text-4xl mb-2 block">place</span>
-                                Aucun lieu sur la carte pour l'instant.
-                            </div>
-                        @endforelse
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -223,12 +121,15 @@
 
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            const events = @json($events);
             const apiUrl = @js(url('/api/v1/pois'));
             let placeMarkers = [];
             let markerById = {};
             const loadingEl = document.getElementById('nearby-loading');
             const searchInput = document.getElementById('map-search');
+            const budgetSelect = document.getElementById('map-budget');
+            const countEl = document.getElementById('map-count');
+            const budgetSelect = document.getElementById('map-budget');
+            const countEl = document.getElementById('map-count');
             const filterChips = document.querySelectorAll('#map-filters [data-filter]');
             let activeFilter = 'all';
             let searchQuery = '';
@@ -431,14 +332,17 @@
                     'lieux-culturels': 'lieu-culturel',
                     'restauration': 'restauration',
                     'street-art': 'street-art',
-                    'spectacles': 'evenement-culturel',
+                    'evenements': 'evenement-culturel',
                     'itineraires': 'itineraire',
                 };
                 if (categoryByFilter[activeFilter]) {
                     params.set('category_slugs', categoryByFilter[activeFilter]);
                 }
-                if (activeFilter === 'free') {
+                const budget = budgetSelect ? budgetSelect.value : '';
+                if (activeFilter === 'free' || budget === 'free') {
                     params.set('free', '1');
+                } else if (budget) {
+                    params.set('price_max', budget);
                 }
 
                 try {
@@ -448,6 +352,16 @@
                     const json = await response.json();
                     const list = Array.isArray(json.data) ? json.data : [];
                     renderPlaces(list);
+                    if (countEl) {
+                        countEl.textContent = list.length === 0
+                            ? 'Aucun lieu ici avec ces filtres.'
+                            : (list.length >= 80 ? '80 lieux affichés (zoome pour affiner).' : `${list.length} lieu${list.length > 1 ? 'x' : ''} affiché${list.length > 1 ? 's' : ''}.`);
+                    }
+                    if (countEl) {
+                        countEl.textContent = list.length === 0
+                            ? 'Aucun lieu ici avec ces filtres.'
+                            : (list.length >= 80 ? '80 lieux affichés (zoome pour affiner).' : `${list.length} lieu${list.length > 1 ? 'x' : ''} affiché${list.length > 1 ? 's' : ''}.`);
+                    }
                 } catch (e) {
                     console.error('Erreur lors du chargement des POI', e);
                 } finally {
@@ -455,33 +369,10 @@
                 }
             }
 
-            // Événements (markers simples, non filtrés par bbox pour l'instant)
-            events.forEach(event => {
-                if (!event.lat || !event.lng) return;
-                const marker = L.circleMarker([event.lat, event.lng], {
-                    radius: 6,
-                    color: '#a855f7',
-                    weight: 1.2,
-                    fillColor: '#d946ef',
-                    fillOpacity: 0.9,
-                }).addTo(map);
-
-                const popupHtml = `
-                    <div class="text-[11px] font-sans">
-                        <p class="font-semibold text-slate-900 mb-1">${event.title}</p>
-                        <p class="text-slate-500 mb-1">${event.start_at || ''}</p>
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 text-[10px] font-medium">
-                            Événement
-                        </span>
-                    </div>
-                `;
-
-                marker.bindPopup(popupHtml);
-            });
 
             // Bouton "autour de moi" (géolocalisation navigateur)
-            const geoButton = document.querySelector('[data-action="geolocate"]');
-            if (geoButton && 'geolocation' in navigator) {
+            document.querySelectorAll('[data-action="geolocate"]').forEach((geoButton) => {
+                if (!('geolocation' in navigator)) return;
                 geoButton.addEventListener('click', () => {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
@@ -495,7 +386,7 @@
                         { enableHighAccuracy: true, timeout: 10000 }
                     );
                 });
-            }
+            });
 
             // Filtres chips (Tous / Musées / Monuments / Street Art / Gratuit)
             if (filterChips.length) {
@@ -520,6 +411,14 @@
                         loadPlacesForCurrentView();
                     });
                 });
+            }
+
+            if (budgetSelect) {
+                budgetSelect.addEventListener('change', () => loadPlacesForCurrentView());
+            }
+
+            if (budgetSelect) {
+                budgetSelect.addEventListener('change', () => loadPlacesForCurrentView());
             }
 
             // Barre de recherche (titre + adresse)

@@ -19,6 +19,7 @@ class PoiController extends Controller
      * - tags (comma-sep)
      * - q (search in title / address)
      * - free=1 (only free places)
+ * - price_max (1..3: places free or with price_level <= value)
      * - limit
      */
     public function index(Request $request): JsonResponse
@@ -69,6 +70,10 @@ class PoiController extends Controller
 
         if ($request->boolean('free')) {
             $query->where('is_free', true);
+        } elseif (($priceMax = (int) $request->get('price_max')) >= 1 && $priceMax <= 3) {
+            $query->where(function ($q) use ($priceMax) {
+                $q->where('is_free', true)->orWhere('price_level', '<=', $priceMax);
+            });
         }
 
         if ($search = trim($request->string('q')->toString())) {
