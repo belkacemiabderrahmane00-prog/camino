@@ -8,7 +8,7 @@
         },
         place(lat, lng) { this.lat = +lat.toFixed(6); this.lng = +lng.toFixed(6); if (this.marker) this.marker.setLatLng([lat, lng]); else this.marker = L.marker([lat, lng], { draggable: true, icon: window.Camino.placeIcon(null, { size: 40 }) }).addTo(this.map).on('dragend', e => this.place(e.target.getLatLng().lat, e.target.getLatLng().lng)); },
         async locate() { try { const p = await window.Camino.locate(); this.map.setView([p.lat, p.lng], 16); this.place(p.lat, p.lng); } catch (e) { alert('Position indisponible.'); } }
-    }" x-init="init()">
+    }">
         <div class="mb-6">
             <p class="eyebrow mb-1.5">Communauté</p>
             <h1 class="display text-4xl">Proposer un lieu</h1>

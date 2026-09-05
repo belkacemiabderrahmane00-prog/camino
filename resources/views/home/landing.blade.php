@@ -56,7 +56,7 @@
             </div>
 
             {{-- Téléphone vivant --}}
-            <div class="relative flex flex-col items-center lg:block lg:justify-end" x-data="heroPhone()" x-init="init()" @mousemove.window="tilt($event)">
+            <div class="relative flex flex-col items-center lg:block lg:justify-end" x-data="heroPhone()" @mousemove.window="tilt($event)">
                 <div class="absolute h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
                 <div class="absolute -bottom-10 right-10 h-56 w-56 rounded-full bg-teal/30 blur-3xl"></div>
                 <div class="phone phone-hero lg:float-soft" :style="`--tilt:${rot}deg`">
