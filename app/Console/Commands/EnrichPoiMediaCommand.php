@@ -166,6 +166,43 @@ class EnrichPoiMediaCommand extends Command
                 }
             }
 
+            // 2bis. Photo Commons géolocalisée autour du point (rendement élevé pour monuments, parcs, musées).
+            if (! $filename) {
+                $this->line('   Recherche d\'une photo Commons géolocalisée (rayon 60 m)…');
+                $nearby = $commons->findNearbyImage((float) $place->lat, (float) $place->lng, $place->title, 60, 960);
+                if ($nearby && ! empty($nearby['image_url_original'])) {
+                    PoiMedia::where('place_id', $place->id)->where('is_cover', true)->update(['is_cover' => false]);
+                    PoiMedia::create([
+                        'place_id' => $place->id,
+                        'source' => 'wikimedia_commons',
+                        'title' => $nearby['filename'],
+                        'image_url_original' => $nearby['image_url_original'],
+                        'image_url_thumb' => $nearby['image_url_thumb'] ?? null,
+                        'license' => $nearby['license'] ?? null,
+                        'author' => $nearby['author'] ?? null,
+                        'attribution_url' => $nearby['attribution_url'] ?? null,
+                        'is_cover' => true,
+                        'extra' => ['credit' => $nearby['credit'] ?? null, 'geosearch_distance_m' => $nearby['distance_m']],
+                    ]);
+                    $place->cover_image_url = $nearby['image_url_thumb'] ?? $nearby['image_url_original'];
+                    $place->cover_image_source = 'wikimedia_commons';
+                    $place->cover_image_license = $nearby['license'] ?? null;
+                    $place->cover_image_author = $nearby['author'] ?? null;
+                    $place->cover_image_attribution = $nearby['credit'] ?? null;
+                    $place->cover_image_page_url = $nearby['attribution_url'] ?? null;
+                    $place->cover_image_is_fallback = false;
+                    $place->cover_image_fallback_reason = 'commons_geosearch';
+                    $place->save();
+                    $this->line(sprintf('   ✓ Photo géolocalisée "%s" (~%d m).', $nearby['filename'], (int) $nearby['distance_m']));
+                    if ($sleepMs > 0) {
+                        usleep($sleepMs * 1000);
+                    }
+
+                    continue;
+                }
+                $this->line('   Aucune photo géolocalisée exploitable.');
+            }
+
             // 3+. Sauvegarder dans poi_media + mettre à jour cover_image_url
             PoiMedia::where('place_id', $place->id)
                 ->where('is_cover', true)
