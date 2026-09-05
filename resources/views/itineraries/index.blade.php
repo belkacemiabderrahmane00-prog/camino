@@ -16,11 +16,6 @@
             </a>
         </div>
 
-        @if(session('status'))
-            <div class="mb-4 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-xs text-slate-800 dark:text-slate-100">
-                {{ session('status') }}
-            </div>
-        @endif
 
         <div class="space-y-3">
             @forelse($itineraries as $itinerary)

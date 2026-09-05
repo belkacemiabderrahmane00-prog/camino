@@ -25,10 +25,6 @@
             </div>
         </div>
 
-        @if(session('status'))
-            <div class="mb-4 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-xs text-slate-800 dark:text-slate-100">{{ session('status') }}</div>
-        @endif
-
         <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <!-- Wizard form -->
             <x-ui.card glass class="space-y-5 bg-white border border-slate-300 shadow-lg shadow-slate-900/10 dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-black/40 transition-colors duration-150">
