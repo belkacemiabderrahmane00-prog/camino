@@ -2,41 +2,45 @@
     $params = $result['params'] ?? [];
     $steps = $result['steps'] ?? [];
     $hasResult = !empty($steps);
+    $today = \Illuminate\Support\Carbon::now(config('app.timezone'));
+    $initial = [
+        'startMode' => old('start_label') === 'Ma position' || ($params['start_source'] ?? null) === 'Ma position' ? 'me' : ((old('start_lat') ?? ($params['start_source'] ?? null)) ? 'address' : 'paris'),
+        'start' => ['lat' => old('start_lat', $hasResult && ($params['start_source'] ?? null) ? $result['start']['lat'] : null), 'lng' => old('start_lng', $hasResult && ($params['start_source'] ?? null) ? $result['start']['lng'] : null), 'label' => old('start_label', $hasResult && ($params['start_source'] ?? null) ? $result['start']['label'] : '')],
+        'endMode' => old('end_mode', $params['end_mode'] ?? 'open'),
+        'end' => ['lat' => old('end_lat', $params['end']['lat'] ?? null), 'lng' => old('end_lng', $params['end']['lng'] ?? null), 'label' => old('end_label', $params['end']['label'] ?? '')],
+        'date' => old('date', $params['date'] ?? $today->format('Y-m-d')),
+        'time' => old('starts_at', $params['starts_at'] ?? ''),
+        'today' => $today->format('Y-m-d'),
+        'tomorrow' => $today->copy()->addDay()->format('Y-m-d'),
+        'mode' => old('mode', $params['mode'] ?? 'walk'),
+        'duration' => (int) old('duration_minutes', $params['duration_minutes'] ?? 180),
+        'paris' => ['lat' => $defaultStart['lat'], 'lng' => $defaultStart['lng']],
+    ];
+    $mobIcon = ($result['mode'] ?? 'walk') === 'bike' ? 'directions_bike' : 'directions_walk';
 @endphp
 <x-app-layout title="Générer un parcours">
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12">
         <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
             <div>
                 <p class="eyebrow mb-1.5">Générateur de parcours</p>
-                <h1 class="display text-4xl sm:text-5xl">Ton parcours, calculé pour de vrai.</h1>
-                <p class="mt-3 text-ink-muted max-w-2xl">Sélection selon tes envies et la météo, ordre optimisé, trajets réels à pied ou à vélo sur les rues d'OpenStreetMap, horaires à chaque étape.</p>
+                <h1 class="display text-3xl sm:text-5xl">Ton parcours, calculé pour de vrai.</h1>
+                <p class="mt-3 text-ink-muted max-w-2xl">Lieux choisis selon tes envies, la météo et leurs horaires d'ouverture, ordre optimisé, trajets réels dans les rues, heure d'arrivée à chaque étape.</p>
             </div>
-            <div class="flex items-center gap-2">
-                <x-weather-chip :forecast="$forecast" label="Paris" :detailed="true" />
-                @auth<a href="{{ route('itineraries.index') }}" class="btn btn-sm btn-soft"><span class="material-symbols-outlined" style="font-size:16px">history</span>Mes parcours</a>@endauth
-            </div>
+            @auth<a href="{{ route('itineraries.index') }}" class="btn btn-sm btn-soft"><span class="material-symbols-outlined" style="font-size:16px">history</span>Mes parcours</a>@endauth
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start" x-data="itineraryForm(@js($initial))">
             {{-- ============================================================ Formulaire --}}
-            <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-5 lg:sticky lg:top-24"
-                  x-data="{
-                      mode: '{{ old('mode', $params['mode'] ?? 'walk') }}',
-                      duration: {{ (int) old('duration_minutes', $params['duration_minutes'] ?? 180) }},
-                      startMode: '{{ (old('start_lat') || (($result['start']['label'] ?? '') === 'Ma position')) ? 'me' : 'paris' }}',
-                      locating: false,
-                      label(m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''); },
-                      useMe() {
-                          this.locating = true;
-                          window.Camino.locate().then(p => { this.$refs.lat.value = p.lat.toFixed(6); this.$refs.lng.value = p.lng.toFixed(6); this.startMode = 'me'; this.locating = false; })
-                              .catch(() => { this.locating = false; alert('Impossible de récupérer ta position.'); });
-                      },
-                      useParis() { this.$refs.lat.value = ''; this.$refs.lng.value = ''; this.startMode = 'paris'; }
-                  }">
+            <form method="POST" action="{{ route('itineraries.store') }}" class="card p-5 sm:p-6 space-y-6 lg:sticky lg:top-24 min-w-0" @submit="beforeSubmit">
                 @csrf
-                <input type="hidden" name="start_lat" x-ref="lat" value="{{ old('start_lat', ($result['start']['label'] ?? '') === 'Ma position' ? ($result['start']['lat'] ?? '') : '') }}">
-                <input type="hidden" name="start_lng" x-ref="lng" value="{{ old('start_lng', ($result['start']['label'] ?? '') === 'Ma position' ? ($result['start']['lng'] ?? '') : '') }}">
-                <input type="hidden" name="start_label" :value="startMode === 'me' ? 'Ma position' : ''">
+                <input type="hidden" name="start_lat" :value="startMode === 'paris' ? '' : (start.lat ?? '')">
+                <input type="hidden" name="start_lng" :value="startMode === 'paris' ? '' : (start.lng ?? '')">
+                <input type="hidden" name="start_label" :value="startMode === 'paris' ? '' : (start.label || (startMode === 'me' ? 'Ma position' : 'Point sur la carte'))">
+                <input type="hidden" name="end_mode" :value="endMode">
+                <input type="hidden" name="end_lat" :value="endMode === 'point' ? (end.lat ?? '') : ''">
+                <input type="hidden" name="end_lng" :value="endMode === 'point' ? (end.lng ?? '') : ''">
+                <input type="hidden" name="end_label" :value="endMode === 'point' ? end.label : ''">
+                <input type="hidden" name="date" :value="date">
 
                 @if($itineraryPlaces->isNotEmpty())
                     <div class="rounded-2xl bg-teal-soft p-4 text-sm">
@@ -47,31 +51,86 @@
                         <ul class="space-y-1 text-xs text-ink-soft max-h-28 overflow-y-auto">
                             @foreach($itineraryPlaces as $p)<li class="truncate">• {{ $p->title }}</li>@endforeach
                         </ul>
-                        <p class="mt-2 text-[11px] text-teal-dark">Le parcours enchaînera ces lieux dans cet ordre, avec les trajets réels.</p>
+                        <p class="mt-2 text-[11px] text-teal-dark">Le parcours enchaînera ces lieux dans cet ordre, avec les trajets réels et leurs horaires.</p>
                     </div>
                 @endif
 
+                @if($errors->any())
+                    <div class="rounded-2xl bg-coral-soft text-coral-dark px-4 py-3 text-sm space-y-0.5">@foreach($errors->all() as $e)<p>{{ $e }}</p>@endforeach</div>
+                @endif
+
+                {{-- Départ --}}
+                <div>
+                    <p class="label flex items-center gap-1.5"><span class="material-symbols-outlined text-coral" style="font-size:16px">trip_origin</span>Départ</p>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" @click="useMe()" class="chip justify-center" :data-active="startMode === 'me'"><span class="material-symbols-outlined" :class="locating && 'animate-spin'" style="font-size:16px" x-text="locating ? 'progress_activity' : 'my_location'"></span>Ma position</button>
+                        <button type="button" @click="startMode = 'address'; $nextTick(() => $refs.startSearch?.focus())" class="chip justify-center" :data-active="startMode === 'address'"><span class="material-symbols-outlined" style="font-size:16px">search</span>Adresse</button>
+                        <button type="button" @click="startMode = 'paris'; start = { lat: null, lng: null, label: '' }" class="chip justify-center" :data-active="startMode === 'paris'"><span class="material-symbols-outlined" style="font-size:16px">location_city</span>Paris</button>
+                    </div>
+                    <div x-show="startMode !== 'paris'" x-cloak class="mt-2">
+                        <div x-show="startMode === 'address'" x-data="addressSearch('start')" class="relative">
+                            <input x-ref="startSearch" type="search" x-model="q" @input.debounce.250ms="search()" @focus="open = results.length > 0" @keydown.escape="open = false" placeholder="Numéro, rue, ville…" class="field pr-10" autocomplete="off">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-ink-muted" style="font-size:18px" x-text="loading ? 'progress_activity' : 'search'"></span>
+                            <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-30 mt-1 w-full card p-1 max-h-60 overflow-y-auto">
+                                <template x-for="r in results" :key="r.label">
+                                    <button type="button" @click="pick(r)" class="w-full text-left px-3 py-2 rounded-xl hover:bg-paper text-sm flex items-start gap-2"><span class="material-symbols-outlined text-ink-muted mt-0.5" style="font-size:16px" x-text="r.type === 'municipality' ? 'location_city' : 'place'"></span><span x-text="r.label"></span></button>
+                                </template>
+                                <p x-show="!loading && results.length === 0 && q.length >= 3" class="px-3 py-2 text-xs text-ink-muted">Aucune adresse trouvée en Île-de-France.</p>
+                            </div>
+                        </div>
+                        <div class="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                            <p class="text-ink-muted truncate min-w-0"><template x-if="start.lat"><span><span class="material-symbols-outlined align-middle text-teal" style="font-size:14px">check_circle</span> <span x-text="start.label || 'Point choisi'"></span></span></template><template x-if="!start.lat"><span x-text="startMode === 'me' ? 'En attente de ta position…' : 'Choisis une adresse ou un point sur la carte.'"></span></template></p>
+                            <button type="button" @click="openMap('start')" class="shrink-0 font-semibold text-ink hover:text-coral inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:16px">pin_drop</span>Sur la carte</button>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Arrivée --}}
+                <div>
+                    <p class="label flex items-center gap-1.5"><span class="material-symbols-outlined text-ink" style="font-size:16px">sports_score</span>Arrivée</p>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" @click="endMode = 'open'" class="chip justify-center" :data-active="endMode === 'open'"><span class="material-symbols-outlined" style="font-size:16px">explore</span>Libre</button>
+                        <button type="button" @click="endMode = 'loop'" class="chip justify-center" :data-active="endMode === 'loop'"><span class="material-symbols-outlined" style="font-size:16px">replay</span>Boucle</button>
+                        <button type="button" @click="endMode = 'point'; $nextTick(() => $refs.endSearch?.focus())" class="chip justify-center" :data-active="endMode === 'point'"><span class="material-symbols-outlined" style="font-size:16px">search</span>Adresse</button>
+                    </div>
+                    <div x-show="endMode === 'point'" x-cloak class="mt-2">
+                        <div x-data="addressSearch('end')" class="relative">
+                            <input x-ref="endSearch" type="search" x-model="q" @input.debounce.250ms="search()" @focus="open = results.length > 0" @keydown.escape="open = false" placeholder="Adresse d'arrivée (gare, hôtel…)" class="field pr-10" autocomplete="off">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-ink-muted" style="font-size:18px" x-text="loading ? 'progress_activity' : 'search'"></span>
+                            <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-30 mt-1 w-full card p-1 max-h-60 overflow-y-auto">
+                                <template x-for="r in results" :key="r.label"><button type="button" @click="pick(r)" class="w-full text-left px-3 py-2 rounded-xl hover:bg-paper text-sm" x-text="r.label"></button></template>
+                            </div>
+                        </div>
+                        <div class="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                            <p class="text-ink-muted truncate min-w-0"><template x-if="end.lat"><span><span class="material-symbols-outlined align-middle text-teal" style="font-size:14px">check_circle</span> <span x-text="end.label || 'Point choisi'"></span></span></template><template x-if="!end.lat"><span>Où veux-tu finir ?</span></template></p>
+                            <button type="button" @click="openMap('end')" class="shrink-0 font-semibold text-ink hover:text-coral inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:16px">pin_drop</span>Sur la carte</button>
+                        </div>
+                    </div>
+                    <p x-show="endMode === 'loop'" x-cloak class="mt-1.5 text-xs text-ink-muted">Le retour au point de départ est compté dans le temps disponible.</p>
+                </div>
+
+                {{-- Quand --}}
+                <div>
+                    <p class="label flex items-center gap-1.5"><span class="material-symbols-outlined text-ink" style="font-size:16px">calendar_month</span>Quand</p>
+                    <div class="grid grid-cols-[1fr_1fr_1.2fr] gap-1.5">
+                        <button type="button" @click="date = today" class="chip justify-center" :data-active="date === today">Aujourd'hui</button>
+                        <button type="button" @click="date = tomorrow" class="chip justify-center" :data-active="date === tomorrow">Demain</button>
+                        <input type="date" x-model="date" :min="today" class="field !py-1.5 text-xs" aria-label="Date">
+                    </div>
+                    <div class="mt-2 grid grid-cols-2 gap-3">
+                        <div><label class="label !mb-1 text-[11px]" for="starts_at">Heure de départ</label><input id="starts_at" type="time" name="starts_at" x-model="time" class="field" :placeholder="date === today ? 'Maintenant' : '10:00'"></div>
+                        <div><label class="label !mb-1 text-[11px]" for="budget">Budget (€)</label><input id="budget" type="number" name="budget_eur" min="0" max="1000" step="1" value="{{ old('budget_eur', $params['budget_eur'] ?? 40) }}" class="field" placeholder="Sans limite"></div>
+                    </div>
+                    <p class="mt-1.5 text-[11px] text-ink-muted" x-text="date === today && !time ? 'Départ maintenant : les horaires d\'ouverture sont vérifiés pour aujourd\'hui.' : 'Les lieux fermés ce jour-là sont écartés automatiquement.'"></p>
+                </div>
+
+                {{-- Temps + mobilité --}}
                 <div>
                     <div class="flex items-center justify-between"><label class="label" for="duration">Temps disponible</label><span class="text-sm font-semibold" x-text="label(duration)"></span></div>
                     <input id="duration" type="range" name="duration_minutes" min="30" max="600" step="15" x-model="duration" class="w-full accent-coral">
                     <div class="flex justify-between text-[10px] text-ink-muted mt-1"><span>30 min</span><span>2 h</span><span>Demi-journée</span><span>Journée</span></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="label" for="budget">Budget (€)</label>
-                        <input id="budget" type="number" name="budget_eur" min="0" max="1000" step="1" value="{{ old('budget_eur', $params['budget_eur'] ?? 40) }}" class="field" placeholder="Sans limite">
-                    </div>
-                    <div>
-                        <label class="label" for="starts_at">Heure de départ</label>
-                        <input id="starts_at" type="time" name="starts_at" value="{{ old('starts_at') }}" class="field" placeholder="Maintenant">
-                    </div>
-                </div>
-
-                <div>
-                    <p class="label">Mobilité</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        @foreach(['walk' => ['directions_walk', 'À pied', '4 km/h'], 'bike' => ['directions_bike', 'À vélo', 'rayon élargi']] as $m => [$icon, $l, $hint])
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        @foreach(['walk' => ['directions_walk', 'À pied', 'rayon auto ~1 km/h'], 'bike' => ['directions_bike', 'À vélo', 'rayon auto ~2,5 km/h']] as $m => [$icon, $l, $hint])
                             <label class="cursor-pointer">
                                 <input type="radio" name="mode" value="{{ $m }}" class="peer sr-only" x-model="mode">
                                 <span class="flex items-center gap-2 rounded-2xl border border-ink/10 px-3 py-2.5 text-sm font-medium peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink transition">
@@ -83,24 +142,11 @@
                     </div>
                 </div>
 
+                {{-- Envies --}}
                 <div>
-                    <p class="label">Point de départ</p>
-                    <div class="flex gap-2">
-                        <button type="button" @click="useParis()" class="chip flex-1 justify-center" :data-active="startMode === 'paris'"><span class="material-symbols-outlined" style="font-size:16px">location_city</span>Centre de Paris</button>
-                        <button type="button" @click="useMe()" class="chip flex-1 justify-center" :data-active="startMode === 'me'"><span class="material-symbols-outlined" :class="locating && 'animate-spin'" style="font-size:16px" x-text="locating ? 'progress_activity' : 'my_location'"></span>Ma position</button>
-                    </div>
-                    <label class="mt-2 flex items-center justify-between text-xs text-ink-muted">
-                        <span>Rayon de recherche</span>
-                        <select name="radius_km" class="field !w-auto !py-1.5 text-xs">
-                            @foreach([2, 4, 6, 10, 15] as $r)<option value="{{ $r }}" @selected((int) old('radius_km', $params['radius_km'] ?? 4) === $r)>{{ $r }} km</option>@endforeach
-                        </select>
-                    </label>
-                </div>
-
-                <div>
-                    <p class="label">Centres d'intérêt</p>
+                    <p class="label">Envies</p>
                     <div class="flex flex-wrap gap-1.5">
-                        @php $selected = old('interests', $params['interests'] ?? ['musee', 'monument']); @endphp
+                        @php $selected = old('interests', $params['interests'] ?? ($user?->interests ?: ['musee', 'monument'])); @endphp
                         @foreach($categories as $category)
                             <label class="cursor-pointer">
                                 <input type="checkbox" name="interests[]" value="{{ $category->slug }}" class="peer sr-only" @checked(in_array($category->slug, $selected))>
@@ -113,42 +159,57 @@
                     @endif
                 </div>
 
-                <div class="flex flex-wrap gap-4 text-sm">
-                    <label class="inline-flex items-center gap-2 cursor-pointer"><input type="checkbox" name="free_only" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" @checked(old('free_only', $params['free_only'] ?? false))>Lieux gratuits uniquement</label>
-                    <label class="inline-flex items-center gap-2 cursor-pointer"><input type="hidden" name="use_weather" value="0"><input type="checkbox" name="use_weather" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" checked>Tenir compte de la météo</label>
+                {{-- Options --}}
+                <div class="space-y-2 text-sm">
+                    <label class="flex items-center justify-between gap-3 cursor-pointer rounded-2xl bg-paper px-3 py-2.5"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">restaurant</span>Pause déjeuner dans le parcours</span><input type="hidden" name="with_lunch" value="0"><input type="checkbox" name="with_lunch" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" @checked(old('with_lunch', $params['with_lunch'] ?? false))></label>
+                    <label class="flex items-center justify-between gap-3 cursor-pointer rounded-2xl bg-paper px-3 py-2.5"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">rainy</span>Tenir compte de la météo</span><input type="hidden" name="use_weather" value="0"><input type="checkbox" name="use_weather" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" @checked(old('use_weather', $params['use_weather'] ?? true))></label>
+                    <label class="flex items-center justify-between gap-3 cursor-pointer rounded-2xl bg-paper px-3 py-2.5"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">loyalty</span>Lieux gratuits uniquement</span><input type="checkbox" name="free_only" value="1" class="rounded border-ink/20 text-coral focus:ring-coral" @checked(old('free_only', $params['free_only'] ?? false))></label>
+                    <label class="flex items-center justify-between gap-3 rounded-2xl bg-paper px-3 py-2"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">radar</span>Rayon de recherche</span>
+                        <select name="radius_km" class="field !w-auto !py-1.5 text-xs">
+                            <option value="">Auto</option>
+                            @foreach([2, 4, 6, 10, 15, 25] as $r)<option value="{{ $r }}" @selected((int) old('radius_km', $params['radius_km'] ?? 0) === $r)>{{ $r }} km</option>@endforeach
+                        </select>
+                    </label>
                 </div>
 
-                <button type="submit" class="btn btn-lg btn-primary w-full"><span class="material-symbols-outlined">auto_awesome</span>{{ $hasResult ? 'Recalculer' : 'Générer mon parcours' }}</button>
+                <button type="submit" class="btn btn-lg btn-primary w-full" :disabled="submitting"><span class="material-symbols-outlined" :class="submitting && 'animate-spin'" x-text="submitting ? 'progress_activity' : 'auto_awesome'"></span><span x-text="submitting ? 'Calcul des trajets réels…' : '{{ $hasResult ? 'Recalculer' : 'Générer mon parcours' }}'"></span></button>
             </form>
 
             {{-- ============================================================ Résultat --}}
             <div class="min-w-0">
                 @if($result && $hasResult)
+                    @php
+                        $v3 = ($result['version'] ?? 2) >= 3;
+                        $startsAt = \Illuminate\Support\Carbon::parse($result['starts_at']);
+                        $endsAt = \Illuminate\Support\Carbon::parse($result['ends_at']);
+                    @endphp
                     <div class="card overflow-hidden">
-                        <div id="itinerary-map" class="h-[320px] sm:h-[420px]"></div>
+                        <div id="itinerary-map" class="h-[320px] sm:h-[440px]"></div>
                         <div class="p-5 sm:p-6">
                             <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <p class="eyebrow">Parcours généré</p>
+                                <div class="min-w-0">
+                                    <p class="eyebrow">{{ ucfirst($startsAt->translatedFormat('l j F')) }} · départ {{ $startsAt->format('H\hi') }}</p>
                                     <h2 class="display text-2xl sm:text-3xl mt-1">{{ $result['title'] }}</h2>
-                                    <p class="text-sm text-ink-muted mt-1">
-                                        Départ {{ \Illuminate\Support\Carbon::parse($result['starts_at'])->translatedFormat('H\hi') }} · {{ $result['start']['label'] }}
+                                    <p class="text-sm text-ink-muted mt-1 flex flex-wrap items-center gap-x-1.5">
+                                        <span class="material-symbols-outlined text-coral" style="font-size:16px">trip_origin</span>{{ $result['start']['label'] }}
+                                        @if(!empty($result['end']))<span class="material-symbols-outlined text-ink-muted" style="font-size:16px">arrow_forward</span>{{ $result['end']['label'] }}@endif
                                         · {{ $result['mode'] === 'bike' ? 'à vélo' : 'à pied' }}
                                         @if(($result['routing_source'] ?? '') === 'valhalla') · trajets réels @endif
                                     </p>
                                 </div>
                                 @if(!empty($result['weather']))
-                                    <div class="inline-flex items-center gap-2 rounded-full bg-sun-soft px-3 py-1.5 text-xs text-amber-800">
+                                    <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-2 rounded-full bg-sun-soft px-3 py-1.5 text-xs text-amber-800 hover:bg-sun-soft/70">
                                         <span class="material-symbols-outlined filled" style="font-size:18px">{{ $result['weather']['icon'] }}</span>
                                         {{ $result['weather']['label'] }}{{ $result['weather']['temp'] !== null ? ' · ' . round($result['weather']['temp']) . '°' : '' }} · pluie {{ $result['weather']['rain_probability'] }} %
-                                    </div>
+                                    </button>
                                 @endif
                             </div>
 
-                            <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                                 @foreach([
-                                    ['schedule', floor($result['total_minutes'] / 60) . ' h ' . str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT), 'au total'],
-                                    [$result['mode'] === 'bike' ? 'directions_bike' : 'directions_walk', number_format($result['total_distance_km'], 1, ',', ' ') . ' km', 'de trajet'],
+                                    ['schedule', floor($result['total_minutes'] / 60) . ' h ' . str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT), 'fin vers ' . $endsAt->format('H\hi')],
+                                    [$mobIcon, number_format($result['total_distance_km'], 1, ',', ' ') . ' km', ($v3 ? ($result['travel_share'] ?? 0) . ' % du temps' : 'de trajet')],
+                                    ['museum', count(array_filter($steps, fn ($s) => ($s['kind'] ?? 'visit') === 'visit')) . ' lieux', $v3 && ($result['wait_minutes'] ?? 0) > 0 ? $result['wait_minutes'] . ' min d\'attente' : 'sans attente'],
                                     ['payments', number_format($result['total_cost_eur'], 0, ',', ' ') . ' €', 'estimés'],
                                 ] as [$icon, $value, $label])
                                     <div class="rounded-2xl bg-paper p-3">
@@ -162,7 +223,7 @@
                             @if(!empty($result['warnings']))
                                 <div class="mt-4 space-y-1">
                                     @foreach($result['warnings'] as $w)
-                                        <p class="text-xs text-amber-800 bg-sun-soft rounded-xl px-3 py-2 flex items-start gap-2"><span class="material-symbols-outlined" style="font-size:16px">info</span>{{ $w }}</p>
+                                        <p class="text-xs text-amber-800 bg-sun-soft rounded-xl px-3 py-2 flex items-start gap-2"><span class="material-symbols-outlined shrink-0" style="font-size:16px">info</span>{{ $w }}</p>
                                     @endforeach
                                 </div>
                             @endif
@@ -173,36 +234,57 @@
                                 <li class="relative pl-11 pb-5">
                                     <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">flag</span></span>
                                     <p class="text-sm font-semibold">{{ $result['start']['label'] }}</p>
-                                    <p class="text-xs text-ink-muted">Départ à {{ \Illuminate\Support\Carbon::parse($result['starts_at'])->format('H\hi') }}</p>
+                                    <p class="text-xs text-ink-muted">Départ à {{ $startsAt->format('H\hi') }}</p>
                                 </li>
                                 @foreach($steps as $step)
+                                    @php $lunch = ($step['kind'] ?? 'visit') === 'lunch'; $h = $step['hours'] ?? null; @endphp
                                     <li class="relative pl-11 pb-5">
-                                        <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-ink text-white flex items-center justify-center text-sm font-bold">{{ $step['order'] }}</span>
-                                        <p class="text-[11px] text-ink-muted mb-1.5 flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ $result['mode'] === 'bike' ? 'directions_bike' : 'directions_walk' }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</p>
-                                        <a href="{{ route('places.show', $step['place_id']) }}" class="card card-hover flex gap-3 p-2.5">
-                                            <div class="w-24 h-20 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">
-                                                @if($step['cover'])<img src="{{ $step['cover'] }}" alt="" loading="lazy" class="w-full h-full object-cover">@else<span class="material-symbols-outlined text-white/80">place</span>@endif
+                                        <span class="absolute left-0 top-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold {{ $lunch ? 'bg-sun text-ink' : 'bg-ink text-white' }}">@if($lunch)<span class="material-symbols-outlined" style="font-size:16px">restaurant</span>@else{{ $step['order'] }}@endif</span>
+                                        <p class="text-[11px] text-ink-muted mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ $mobIcon }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</span>
+                                            @if(($step['wait_minutes'] ?? 0) > 0)<span class="inline-flex items-center gap-1 text-amber-700"><span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span>{{ $step['wait_minutes'] }} min d'attente avant l'ouverture</span>@endif
+                                        </p>
+                                        <a href="{{ route('places.show', $step['place_id']) }}" class="card card-hover flex gap-3 p-2.5 {{ $lunch ? 'border-sun/60' : '' }}">
+                                            <div class="w-24 h-24 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">
+                                                @if($step['cover'])<img src="{{ $step['cover'] }}" alt="" loading="lazy" class="w-full h-full object-cover">@else<span class="material-symbols-outlined text-white/80">{{ $lunch ? 'restaurant' : 'place' }}</span>@endif
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{{ $step['category'] }}</p>
+                                                <p class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{{ $lunch ? 'Pause déjeuner' : $step['category'] }}</p>
                                                 <p class="font-semibold leading-snug line-clamp-2">{{ $step['title'] }}</p>
                                                 <p class="text-xs text-ink-muted mt-0.5">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['visit_minutes'] }} min sur place{{ $step['is_free'] ? ' · gratuit' : ($step['cost_eur'] ? ' · ≈ ' . number_format($step['cost_eur'], 0) . ' €' : '') }}</p>
-                                                <p class="text-[11px] text-teal mt-1 flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">auto_awesome</span>{{ $step['reason'] }}</p>
+                                                <div class="mt-1.5 flex flex-wrap gap-1">
+                                                    @if($h)
+                                                        @if($h['status'] === 'open')
+                                                            <span class="badge badge-free !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">schedule</span>Ouvert {{ $h['opens'] }}–{{ $h['closes'] }}</span>
+                                                        @else
+                                                            <span class="badge bg-paper-deep text-ink-muted !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">help</span>Horaires à vérifier</span>
+                                                        @endif
+                                                    @endif
+                                                    <span class="badge bg-teal-soft text-teal-dark !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">auto_awesome</span>{{ $step['reason'] }}</span>
+                                                </div>
                                             </div>
                                         </a>
+                                        @if(!empty($step['alternative']))
+                                            <a href="{{ route('places.show', $step['alternative']['place_id']) }}" class="mt-1.5 flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 hover:bg-sky-100">
+                                                <span class="material-symbols-outlined" style="font-size:16px">umbrella</span>
+                                                <span class="min-w-0 truncate">Plan B s'il pleut : <span class="font-semibold">{{ $step['alternative']['title'] }}</span>{{ $step['alternative']['minutes_away'] !== null ? ' · à ' . $step['alternative']['minutes_away'] . ' min' : '' }}</span>
+                                            </a>
+                                        @endif
                                     </li>
                                 @endforeach
                                 <li class="relative pl-11">
                                     <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-paper-deep text-ink flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">sports_score</span></span>
-                                    <p class="text-sm font-semibold">Fin du parcours</p>
-                                    <p class="text-xs text-ink-muted">vers {{ \Illuminate\Support\Carbon::parse($result['ends_at'])->format('H\hi') }}</p>
+                                    <p class="text-sm font-semibold">{{ $result['end']['label'] ?? 'Fin du parcours' }}</p>
+                                    <p class="text-xs text-ink-muted">@if(!empty($result['end']))<span class="material-symbols-outlined align-middle" style="font-size:14px">{{ $mobIcon }}</span> {{ $result['end']['travel_minutes'] ?? 0 }} min · {{ number_format($result['end']['travel_km'] ?? 0, 1, ',', ' ') }} km · arrivée @endif vers {{ $endsAt->format('H\hi') }}</p>
                                 </li>
                             </ol>
 
                             @php
                                 $coords = collect($steps)->map(fn ($s) => $s['lat'] . ',' . $s['lng'])->all();
                                 $origin = $result['start']['lat'] . ',' . $result['start']['lng'];
-                                $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . end($coords) . (count($coords) > 1 ? '&waypoints=' . implode('|', array_slice($coords, 0, -1)) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : 'walking');
+                                $destination = !empty($result['end']) ? $result['end']['lat'] . ',' . $result['end']['lng'] : end($coords);
+                                $waypoints = !empty($result['end']) ? $coords : array_slice($coords, 0, -1);
+                                $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . $destination . ($waypoints ? '&waypoints=' . implode('|', $waypoints) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : 'walking');
                             @endphp
                             <div class="mt-6 flex flex-wrap gap-2">
                                 <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Lancer dans Google Maps</a>
@@ -213,7 +295,7 @@
                                 @else
                                     <a href="{{ route('register') }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Créer un compte pour le garder</a>
                                 @endauth
-                                <button x-data @click="navigator.clipboard.writeText(@js($gmUrl)); alert('Lien Google Maps copié !')" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
+                                <button type="button" @click="navigator.clipboard.writeText(@js($gmUrl)); $dispatch('toast', 'Lien copié')" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
                             </div>
                         </div>
                     </div>
@@ -222,43 +304,130 @@
                         <span class="material-symbols-outlined text-4xl text-ink-muted">explore_off</span>
                         <p class="mt-3 font-semibold">Aucun parcours possible avec ces paramètres.</p>
                         <ul class="mt-2 text-sm text-ink-muted space-y-1">@foreach($result['warnings'] ?? [] as $w)<li>{{ $w }}</li>@endforeach</ul>
-                        <p class="mt-3 text-sm text-ink-muted">Élargis le rayon, augmente le temps ou le budget, ou change de point de départ.</p>
+                        <p class="mt-3 text-sm text-ink-muted">Élargis le rayon, augmente le temps ou le budget, change de jour ou de point de départ.</p>
                     </div>
                 @else
                     <div class="card p-8 sm:p-12 text-center">
                         <div class="mx-auto h-16 w-16 rounded-3xl bg-coral-soft text-coral flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:32px">auto_awesome</span></div>
                         <h2 class="display text-2xl mt-4">Prêt quand tu l'es.</h2>
-                        <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">Règle ton temps, ton budget et tes envies à gauche. CAMINO choisit les lieux, optimise l'ordre et affiche le tracé réel avec les horaires de chaque étape.</p>
+                        <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">Indique d'où tu pars, quand, combien de temps tu as. CAMINO choisit des lieux ouverts à ce moment-là, optimise l'ordre, calcule les vrais trajets et te donne l'heure d'arrivée à chaque étape.</p>
                         <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-sm">
-                            @foreach([['cloud', 'Météo intégrée', 'S\'il pleut, on privilégie les lieux couverts.'], ['route', 'Trajets réels', 'Rues et distances OpenStreetMap, à pied ou à vélo.'], ['auto_awesome', 'Personnalisé', 'Tes favoris et avis affinent les choix.']] as [$i, $t, $d])
+                            @foreach([['schedule', 'Horaires vérifiés', 'Les lieux fermés ce jour-là sont écartés, l\'attente est calculée.'], ['route', 'Trajets réels', 'Rues et durées OpenStreetMap, à pied ou à vélo, ordre optimisé.'], ['umbrella', 'Météo et plan B', 'S\'il pleut, on privilégie le couvert et chaque étape dehors a une alternative.']] as [$i, $t, $d])
                                 <div class="rounded-2xl bg-paper p-4"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-2">{{ $t }}</p><p class="text-xs text-ink-muted mt-1">{{ $d }}</p></div>
                             @endforeach
                         </div>
                     </div>
                 @endif
             </div>
+
+            {{-- ============================================================ Sélecteur sur la carte --}}
+            <div x-cloak x-show="picker.open" class="fixed inset-0 z-[1300] flex items-end sm:items-center justify-center">
+                <div class="absolute inset-0 bg-ink/50 backdrop-blur-sm" @click="closeMap()"></div>
+                <div class="relative w-full sm:max-w-lg card rounded-b-none sm:rounded-3xl overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <p class="font-semibold" x-text="picker.target === 'start' ? 'Choisis ton point de départ' : 'Choisis ton point d\'arrivée'"></p>
+                        <button type="button" @click="closeMap()" class="btn btn-icon btn-ghost" aria-label="Fermer"><span class="material-symbols-outlined">close</span></button>
+                    </div>
+                    <div class="relative h-[55vh] sm:h-[420px]">
+                        <div x-ref="pickerMap" class="absolute inset-0"></div>
+                        <div class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full z-[500]"><span class="material-symbols-outlined filled text-coral drop-shadow" style="font-size:44px">location_on</span></div>
+                    </div>
+                    <div class="p-4 flex items-center justify-between gap-3">
+                        <p class="text-xs text-ink-muted min-w-0 truncate" x-text="picker.label || 'Déplace la carte, le repère reste au centre.'"></p>
+                        <button type="button" @click="confirmMap()" class="btn btn-md btn-primary shrink-0"><span class="material-symbols-outlined" style="font-size:18px">check</span>Valider</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
-    @if($result && $hasResult)
-        @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const el = document.getElementById('itinerary-map');
-                if (!el || !window.L) return;
-                const C = window.Camino;
-                const result = @js(['start' => $result['start'], 'steps' => collect($steps)->map(fn ($s) => ['lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'order' => $s['order'], 'arrive' => $s['arrive_at'], 'slug' => $s['category_slug']])->all(), 'geometry' => $result['geometry'], 'mode' => $result['mode']]);
-                const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
-                C.tileLayer().addTo(map);
-                L.control.zoom({ position: 'bottomright' }).addTo(map);
-                const pts = (result.geometry && result.geometry.length > 1) ? result.geometry : [[result.start.lat, result.start.lng], ...result.steps.map(s => [s.lat, s.lng])];
-                L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.25 }).addTo(map);
-                const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: 0.95, lineJoin: 'round' }).addTo(map);
-                L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Départ</div>');
-                result.steps.forEach(s => L.marker([s.lat, s.lng], { icon: C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.order}. ${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`));
-                map.fitBounds(line.getBounds(), { padding: [30, 30] });
-            });
-        </script>
-        @endpush
-    @endif
+    @push('scripts')
+    <script>
+        function addressSearch(target) {
+            return {
+                q: '', results: [], open: false, loading: false,
+                async search() {
+                    if (this.q.trim().length < 3) { this.results = []; this.open = false; return; }
+                    this.loading = true;
+                    try {
+                        const r = await fetch('/api/v1/geocode?q=' + encodeURIComponent(this.q), { headers: { Accept: 'application/json' } });
+                        this.results = r.ok ? await r.json() : [];
+                    } catch (e) { this.results = []; }
+                    this.loading = false; this.open = true;
+                },
+                pick(r) { this.q = r.label; this.open = false; this.$dispatch('picked', { target, lat: r.lat, lng: r.lng, label: r.label }); },
+            };
+        }
+        function itineraryForm(init) {
+            let pickerMap = null;
+            return {
+                ...init, locating: false, submitting: false,
+                picker: { open: false, target: 'start', label: '' },
+                init() {
+                    this.$el.addEventListener('picked', (e) => { const d = e.detail; this[d.target] = { lat: d.lat, lng: d.lng, label: d.label }; if (d.target === 'start') this.startMode = 'address'; });
+                    if (this.startMode === 'me' && !this.start.lat) this.useMe();
+                },
+                label(m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''); },
+                useMe() {
+                    this.startMode = 'me'; this.locating = true;
+                    window.Camino.locate().then(async (p) => {
+                        this.start = { lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6), label: 'Ma position' };
+                        this.locating = false;
+                        try { const r = await fetch(`/api/v1/geocode/reverse?lat=${p.lat}&lng=${p.lng}`); const j = await r.json(); if (j.label) this.start.label = j.label; } catch (e) {}
+                    }).catch(() => { this.locating = false; this.startMode = 'address'; this.$dispatch('toast', 'Position indisponible : saisis une adresse.'); });
+                },
+                openMap(target) {
+                    this.picker = { open: true, target, label: '' };
+                    const current = this[target].lat ? this[target] : (this.start.lat ? this.start : this.paris);
+                    this.$nextTick(() => {
+                        const el = this.$refs.pickerMap;
+                        if (!pickerMap) {
+                            pickerMap = L.map(el, { zoomControl: false }).setView([current.lat, current.lng], 14);
+                            window.Camino.tileLayer().addTo(pickerMap);
+                            L.control.zoom({ position: 'bottomright' }).addTo(pickerMap);
+                            pickerMap.on('moveend', () => { const c = pickerMap.getCenter(); this.picker.label = c.lat.toFixed(5) + ', ' + c.lng.toFixed(5); });
+                            // La carte naît dans une boîte encore invisible : on recalcule sa taille dès qu'elle change.
+                            if (window.ResizeObserver) new ResizeObserver(() => pickerMap.invalidateSize()).observe(el);
+                        } else {
+                            pickerMap.setView([current.lat, current.lng], 14);
+                        }
+                        [100, 350, 800].forEach(ms => setTimeout(() => pickerMap.invalidateSize(), ms));
+                    });
+                },
+                closeMap() { this.picker.open = false; },
+                async confirmMap() {
+                    const c = pickerMap.getCenter();
+                    const target = this.picker.target;
+                    this[target] = { lat: +c.lat.toFixed(6), lng: +c.lng.toFixed(6), label: 'Point sur la carte' };
+                    if (target === 'start') this.startMode = 'map'; else this.endMode = 'point';
+                    this.picker.open = false;
+                    try { const r = await fetch(`/api/v1/geocode/reverse?lat=${c.lat}&lng=${c.lng}`); const j = await r.json(); if (j.label) this[target].label = j.label; } catch (e) {}
+                },
+                beforeSubmit(e) {
+                    if (this.startMode !== 'paris' && !this.start.lat) { e.preventDefault(); this.$dispatch('toast', 'Choisis un point de départ (adresse, position ou carte).'); return; }
+                    if (this.endMode === 'point' && !this.end.lat) { e.preventDefault(); this.$dispatch('toast', 'Indique une adresse d\'arrivée.'); return; }
+                    this.submitting = true;
+                },
+            };
+        }
+        @if($result && $hasResult)
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = document.getElementById('itinerary-map');
+            if (!el || !window.L) return;
+            const C = window.Camino;
+            const result = @js(['start' => $result['start'], 'end' => $result['end'] ?? null, 'steps' => collect($steps)->map(fn ($s) => ['lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'order' => $s['order'], 'arrive' => $s['arrive_at'], 'slug' => $s['category_slug'], 'kind' => $s['kind'] ?? 'visit'])->all(), 'geometry' => $result['geometry'], 'mode' => $result['mode']]);
+            const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
+            C.tileLayer().addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            const pts = (result.geometry && result.geometry.length > 1) ? result.geometry : [[result.start.lat, result.start.lng], ...result.steps.map(s => [s.lat, s.lng])];
+            L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.25 }).addTo(map);
+            const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: 0.95, lineJoin: 'round' }).addTo(map);
+            L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Départ</div>');
+            result.steps.forEach(s => L.marker([s.lat, s.lng], { icon: s.kind === 'lunch' ? C.placeIcon('restauration', { size: 30 }) : C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.kind === 'lunch' ? '🍽️ ' : s.order + '. '}${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`));
+            if (result.end) L.marker([result.end.lat, result.end.lng], { icon: C.stepIcon('<span class="material-symbols-outlined" style="font-size:16px">sports_score</span>') }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Arrivée</div>');
+            map.fitBounds(line.getBounds(), { padding: [30, 30] });
+        });
+        @endif
+    </script>
+    @endpush
 </x-app-layout>

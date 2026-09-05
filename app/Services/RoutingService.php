@@ -69,6 +69,94 @@ class RoutingService
     }
 
     /**
+     * Matrice temps/distance entre tous les points (Valhalla sources_to_targets), avec repli haversine.
+     *
+     * @param array<int,array{lat:float,lng:float}> $points
+     * @return array{minutes:array<int,array<int,int>>, km:array<int,array<int,float>>, source:string}
+     */
+    public function matrix(array $points, string $mode = self::MODE_WALK): array
+    {
+        $points = array_values($points);
+        $n = count($points);
+        $costing = self::COSTING[$mode] ?? 'pedestrian';
+        $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], $points);
+        $cacheKey = 'routing:matrix:' . md5($costing . json_encode($locations));
+
+        // L'instance publique limite chaque appel à 100 paires : on découpe en blocs 10 × 10 envoyés en parallèle.
+        // L'instance publique limite chaque appel à 100 paires source × cible et n'aime pas les rafales :
+        // on envoie des blocs « quelques sources × toutes les cibles », par vagues de 3 requêtes.
+        $result = $n >= 2 && $n <= 60 ? Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($locations, $costing, $n) {
+            $perRequest = max(1, intdiv(100, $n));
+            $groups = array_chunk(range(0, $n - 1), $perRequest);
+            $base = rtrim(config('camino.routing.base_url'), '/') . '/sources_to_targets';
+            $timeout = config('camino.routing.timeout', 20);
+            $minutes = [];
+            $km = [];
+            foreach (array_chunk($groups, 3, true) as $wave) {
+                try {
+                    $responses = Http::pool(function ($pool) use ($wave, $locations, $costing, $base, $timeout) {
+                        foreach ($wave as $key => $sources) {
+                            $pool->as((string) $key)->timeout($timeout)->withHeaders(['User-Agent' => config('camino.user_agent')])
+                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'units' => 'kilometers']);
+                        }
+                    });
+                } catch (\Throwable $e) {
+                    Log::warning('Routing matrix unavailable: ' . $e->getMessage());
+
+                    return null;
+                }
+                foreach ($wave as $key => $sources) {
+                    $response = $responses[(string) $key] ?? null;
+                    if (! $response instanceof \Illuminate\Http\Client\Response || ! $response->ok()) {
+                        // Une seconde chance, seule et après une courte pause.
+                        usleep(400000);
+                        try {
+                            $response = Http::timeout($timeout)->withHeaders(['User-Agent' => config('camino.user_agent')])
+                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'units' => 'kilometers']);
+                        } catch (\Throwable $e) {
+                            Log::warning('Routing matrix unavailable: ' . $e->getMessage() . " ($n points)");
+
+                            return null;
+                        }
+                        if (! $response->ok()) {
+                            Log::warning('Routing matrix error: HTTP ' . $response->status() . ' ' . substr($response->body(), 0, 160) . " ($n points)");
+
+                            return null;
+                        }
+                    }
+                    $rows = $response->json('sources_to_targets');
+                    if (! is_array($rows) || count($rows) !== count($sources)) {
+                        return null;
+                    }
+                    foreach ($rows as $r => $row) {
+                        foreach ($row as $c => $cell) {
+                            $t = $cell['time'] ?? null;
+                            $minutes[$sources[$r]][$c] = $t === null ? null : (int) ceil($t / 60);
+                            $km[$sources[$r]][$c] = round((float) ($cell['distance'] ?? 0), 2);
+                        }
+                    }
+                }
+            }
+
+            return ['minutes' => $minutes, 'km' => $km, 'source' => 'valhalla'];
+        }) : null;
+
+        // Cases inaccessibles ou service indisponible : estimation à vol d'oiseau.
+        $minutes = $result['minutes'] ?? [];
+        $km = $result['km'] ?? [];
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = 0; $j < $n; $j++) {
+                if (! isset($minutes[$i][$j])) {
+                    $minutes[$i][$j] = $i === $j ? 0 : $this->estimateMinutes($points[$i]['lat'], $points[$i]['lng'], $points[$j]['lat'], $points[$j]['lng'], $mode);
+                    $km[$i][$j] = $i === $j ? 0.0 : round($this->haversineKm($points[$i]['lat'], $points[$i]['lng'], $points[$j]['lat'], $points[$j]['lng']) * 1.3, 2);
+                }
+            }
+        }
+
+        return ['minutes' => $minutes, 'km' => $km, 'source' => $result['source'] ?? 'estimate'];
+    }
+
+    /**
      * Estimation rapide (sans appel réseau) de la durée entre deux points.
      */
     public function estimateMinutes(float $lat1, float $lng1, float $lat2, float $lng2, string $mode = self::MODE_WALK): int

@@ -11,6 +11,17 @@ Route::prefix('v1')->group(function () {
     Route::get('poi/{id}', [PoiController::class, 'show']);
     Route::get('alerts', [CommunityController::class, 'alertsApi']);
     Route::get('weather', [WeatherController::class, 'show']);
+    // Adresse (BAN) + lieux CAMINO par nom : on peut partir d'une gare, d'un musée ou d'une rue.
+    Route::get('geocode', function (\Illuminate\Http\Request $request, \App\Services\GeocodingService $geo) {
+        $q = trim((string) $request->query('q', ''));
+        $places = mb_strlen($q) >= 3 ? \App\Models\Place::visible()->search($q)->whereNotNull('lat')->orderByRaw('cover_image_url is null')->limit(3)->get()->map(fn ($p) => ['label' => $p->title . ($p->address ? ' · ' . \Illuminate\Support\Str::limit($p->address, 40, '') : ''), 'city' => null, 'type' => 'place', 'lat' => (float) $p->lat, 'lng' => (float) $p->lng])->all() : [];
+        $addresses = $geo->search($q, $request->float('lat') ?: null, $request->float('lng') ?: null);
+
+        return response()->json(array_slice(array_merge($places, $addresses), 0, 8));
+    })->middleware('throttle:60,1');
+    Route::get('geocode/reverse', function (\Illuminate\Http\Request $request, \App\Services\GeocodingService $geo) {
+        return response()->json(['label' => $geo->reverse($request->float('lat'), $request->float('lng'))]);
+    })->middleware('throttle:60,1');
 
     Route::post('itineraries/generate', [ItineraryController::class, 'generate']);
 

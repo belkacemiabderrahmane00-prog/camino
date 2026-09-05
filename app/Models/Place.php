@@ -187,4 +187,13 @@ class Place extends Model
         }
         return null;
     }
+    /**
+     * Fenêtre d'ouverture pour une date : statut open/closed/unknown, minutes depuis minuit.
+     *
+     * @return array{status:string, opens:?int, closes:?int, note:?string}
+     */
+    public function hoursFor(\Illuminate\Support\Carbon $date): array
+    {
+        return app(\App\Services\OpeningHoursParser::class)->windowFor($this->opening_hours, $date);
+    }
 }

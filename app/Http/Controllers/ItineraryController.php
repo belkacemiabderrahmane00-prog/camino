@@ -6,6 +6,8 @@ use App\Http\Requests\StoreItineraryRequest;
 use App\Models\Category;
 use App\Models\Itinerary;
 use App\Models\Place;
+use App\Models\PlaceAlert;
+use App\Services\GeocodingService;
 use App\Services\ItineraryGenerator;
 use App\Services\UserPreferenceService;
 use App\Services\WeatherService;
@@ -19,12 +21,11 @@ class ItineraryController extends Controller
 
     private const MAX_PLACES = 15;
 
-    private const DEFAULT_RADIUS_KM = 4;
-
     public function __construct(
         private readonly ItineraryGenerator $generator,
         private readonly UserPreferenceService $preferences,
         private readonly WeatherService $weather,
+        private readonly GeocodingService $geocoder,
     ) {}
 
     public function create()
@@ -52,6 +53,7 @@ class ItineraryController extends Controller
             'forecast' => $forecast,
             'profile' => $profile,
             'defaultStart' => $start,
+            'user' => Auth::user(),
         ]);
     }
 
@@ -68,26 +70,48 @@ class ItineraryController extends Controller
             $interests = array_values((array) Auth::user()->interests);
         }
         $tags = array_values($data['tags'] ?? []);
-        $radiusKm = (int) ($data['radius_km'] ?? self::DEFAULT_RADIUS_KM);
-        if ($mode === 'bike') {
-            $radiusKm = max($radiusKm, 8);
+
+        // Départ : adresse / position / carte, sinon le centre de Paris.
+        $default = config('camino.default_start');
+        $hasStart = isset($data['start_lat'], $data['start_lng']);
+        $start = [
+            'lat' => $hasStart ? (float) $data['start_lat'] : (float) $default['lat'],
+            'lng' => $hasStart ? (float) $data['start_lng'] : (float) $default['lng'],
+            'label' => $data['start_label'] ?? ($hasStart ? 'Ma position' : $default['label']),
+        ];
+        if ($hasStart && in_array($start['label'], ['Ma position', 'Point sur la carte'], true)) {
+            $start['label'] = $this->geocoder->reverse($start['lat'], $start['lng']) ?? $start['label'];
         }
 
-        $default = config('camino.default_start');
-        $start = [
-            'lat' => isset($data['start_lat']) ? (float) $data['start_lat'] : (float) $default['lat'],
-            'lng' => isset($data['start_lng']) ? (float) $data['start_lng'] : (float) $default['lng'],
-            'label' => $data['start_label'] ?? (isset($data['start_lat']) ? 'Ma position' : $default['label']),
-        ];
+        // Arrivée : boucle, libre, ou point précis.
+        $endMode = $data['end_mode'] ?? 'open';
+        $end = null;
+        if ($endMode === 'point' && isset($data['end_lat'], $data['end_lng'])) {
+            $end = ['lat' => (float) $data['end_lat'], 'lng' => (float) $data['end_lng'], 'label' => $data['end_label'] ?? 'Arrivée'];
+        }
 
-        $startsAt = Carbon::now(config('app.timezone'));
+        // Date et heure de départ.
+        $now = Carbon::now(config('app.timezone'));
+        $startsAt = ! empty($data['date']) ? Carbon::createFromFormat('Y-m-d', $data['date'], config('app.timezone'))->startOfDay() : $now->copy();
         if (! empty($data['starts_at'])) {
             [$h, $m] = explode(':', $data['starts_at']);
-            $candidate = $startsAt->copy()->setTime((int) $h, (int) $m);
-            $startsAt = $candidate->lt($startsAt->copy()->subMinutes(30)) ? $candidate->addDay() : $candidate;
+            $startsAt = $startsAt->copy()->setTime((int) $h, (int) $m);
+            if (empty($data['date']) && $startsAt->lt($now->copy()->subMinutes(30))) {
+                $startsAt->addDay();
+            }
+        } elseif (! empty($data['date']) && ! $startsAt->isSameDay($now)) {
+            $startsAt->setTime(10, 0);
+        }
+        if ($startsAt->lt($now->copy()->subMinutes(5))) {
+            $startsAt = $now->copy();
         }
 
+        // Rayon de recherche : auto selon temps et mobilité, sauf choix explicite.
+        $radiusKm = isset($data['radius_km']) ? (int) $data['radius_km'] : $this->autoRadius($duration, $mode);
+
         [$candidates, $fromSession] = $this->candidates($interests, $freeOnly, $start, $radiusKm);
+        $withLunch = ! empty($data['with_lunch']);
+        $restaurants = $withLunch ? $this->restaurants($start, $candidates, $radiusKm) : collect();
 
         $result = $this->generator->generate($candidates, [
             'time_budget_min' => $duration,
@@ -95,12 +119,17 @@ class ItineraryController extends Controller
             'free_only' => $freeOnly,
             'mode' => $mode,
             'start' => $start,
+            'end' => $end,
+            'loop' => $endMode === 'loop',
             'starts_at' => $startsAt,
             'interests' => $fromSession ? [] : $interests,
             'tags' => $tags,
             'profile' => $this->preferences->profile(Auth::user())['weights'],
             'preserve_order' => $fromSession,
             'use_weather' => array_key_exists('use_weather', $data) ? (bool) $data['use_weather'] : true,
+            'with_lunch' => $withLunch,
+            'restaurants' => $restaurants,
+            'alerts' => $this->activeAlerts($candidates),
         ]);
 
         $result['params'] = [
@@ -109,7 +138,14 @@ class ItineraryController extends Controller
             'free_only' => $freeOnly,
             'mode' => $mode,
             'interests' => $interests,
-            'radius_km' => $radiusKm,
+            'radius_km' => $data['radius_km'] ?? null,
+            'end_mode' => $endMode,
+            'end' => $end,
+            'date' => $startsAt->format('Y-m-d'),
+            'starts_at' => $startsAt->format('H:i'),
+            'with_lunch' => $withLunch,
+            'use_weather' => array_key_exists('use_weather', $data) ? (bool) $data['use_weather'] : true,
+            'start_source' => $data['start_label'] ?? null,
         ];
 
         if (Auth::check() && $result['steps'] !== []) {
@@ -188,6 +224,16 @@ class ItineraryController extends Controller
         return redirect()->route('itineraries.index')->with('status', 'Parcours supprimé.');
     }
 
+    /** Rayon raisonnable : à pied ~1 km par heure disponible, à vélo ~2,5 km. */
+    private function autoRadius(int $minutes, string $mode): int
+    {
+        $hours = $minutes / 60;
+
+        return $mode === 'bike'
+            ? (int) max(5, min(20, round(3 + $hours * 2.5)))
+            : (int) max(2, min(8, round(1.5 + $hours * 1.0)));
+    }
+
     /**
      * Candidats : la sélection manuelle (session) si elle existe, sinon les lieux visibles
      * dans un carré de ±rayon autour du départ, filtrés par intérêts et gratuité.
@@ -215,8 +261,7 @@ class ItineraryController extends Controller
             ->whereBetween('lng', [$start['lng'] - $dLng, $start['lng'] + $dLng]);
 
         if ($interests !== []) {
-            // Les intérêts guident le scoring ; on garde une part de "hors intérêts" pour la diversité.
-            $query->whereHas('category', fn ($q) => $q->whereIn('slug', array_merge($interests, ['restauration'])));
+            $query->whereHas('category', fn ($q) => $q->whereIn('slug', $interests));
         } else {
             $query->whereHas('category', fn ($q) => $q->where('slug', '!=', 'restauration'));
         }
@@ -224,11 +269,46 @@ class ItineraryController extends Controller
             $query->where('is_free', true);
         }
 
-        $candidates = $query->limit(600)->get()
-            ->sortBy(fn (Place $p) => (($p->lat - $start['lat']) ** 2 + (($p->lng - $start['lng']) * 0.66) ** 2))
-            ->take(80)
+        // Priorité aux fiches renseignées (photo, description), puis proximité.
+        // Doublons du flux (même lieu importé deux fois) : on garde la fiche la mieux renseignée.
+        $candidates = $query->limit(700)->get()
+            ->sortByDesc(fn (Place $p) => ($p->cover_image_url ? 2 : 0) + ($p->opening_hours ? 1 : 0) + ($p->description ? 1 : 0))
+            ->unique(fn (Place $p) => mb_strtolower(trim(preg_replace('/\s+/u', ' ', $p->title))))
+            ->sortBy(fn (Place $p) => (($p->lat - $start['lat']) ** 2 + (($p->lng - $start['lng']) * 0.66) ** 2) * ($p->cover_image_url ? 0.6 : 1.0) * ($p->opening_hours ? 0.85 : 1.0))
+            ->take(90)
             ->values();
 
         return [$candidates, false];
+    }
+
+    /** Restaurants proches du centre de gravité des candidats, pour la pause déjeuner. */
+    private function restaurants(array $start, \Illuminate\Support\Collection $candidates, int $radiusKm): \Illuminate\Support\Collection
+    {
+        $lat = $candidates->isNotEmpty() ? (float) $candidates->avg('lat') : $start['lat'];
+        $lng = $candidates->isNotEmpty() ? (float) $candidates->avg('lng') : $start['lng'];
+        $d = max(1.5, $radiusKm * 0.6);
+
+        return Place::query()->with('category')->visible()
+            ->whereHas('category', fn ($q) => $q->where('slug', 'restauration'))
+            ->whereBetween('lat', [$lat - $d / 111, $lat + $d / 111])
+            ->whereBetween('lng', [$lng - $d / 73, $lng + $d / 73])
+            ->limit(200)->get()
+            ->sortBy(fn (Place $p) => (($p->lat - $lat) ** 2 + (($p->lng - $lng) * 0.66) ** 2) * ($p->cover_image_url ? 0.7 : 1.0))
+            ->take(8)->values();
+    }
+
+    /** Alertes communautaires actives par lieu (fermeture, affluence). */
+    private function activeAlerts(\Illuminate\Support\Collection $candidates): array
+    {
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+        $out = [];
+        PlaceAlert::active()->whereIn('place_id', $candidates->pluck('id'))->get(['place_id', 'type'])
+            ->each(function ($a) use (&$out) {
+                $out[$a->place_id][] = $a->type;
+            });
+
+        return $out;
     }
 }
