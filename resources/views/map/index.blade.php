@@ -97,8 +97,8 @@
             <button @click="$dispatch('open-alert', center())" class="btn btn-md btn-primary shadow-float" title="Signaler un événement, une affluence, une fermeture">
                 <span class="material-symbols-outlined">campaign</span><span class="hidden sm:inline">Signaler</span>
             </button>
-            <button @click="zoomIn()" class="btn btn-icon btn-soft"><span class="material-symbols-outlined">add</span></button>
-            <button @click="zoomOut()" class="btn btn-icon btn-soft"><span class="material-symbols-outlined">remove</span></button>
+            <button @click="zoomIn()" class="btn btn-icon btn-soft hidden md:inline-flex"><span class="material-symbols-outlined">add</span></button>
+            <button @click="zoomOut()" class="btn btn-icon btn-soft hidden md:inline-flex"><span class="material-symbols-outlined">remove</span></button>
         </div>
 
         {{-- Feuille mobile --}}
