@@ -133,15 +133,21 @@
                     </div>
                 @endif
                 @auth
-                    <form method="POST" action="{{ route('places.photos.store', $place) }}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2" x-data="{ name: '' }">
+                    <form method="POST" action="{{ route('places.photos.store', $place) }}" enctype="multipart/form-data" class="space-y-2" x-data="{ name: '', preview: null, pick(camera) { const i = this.$refs.photo; if (camera) { i.setAttribute('capture', 'environment'); } else { i.removeAttribute('capture'); } i.click(); }, onFile(e) { const f = e.target.files[0]; this.name = f ? f.name : ''; this.preview = f ? URL.createObjectURL(f) : null; } }">
                         @csrf
-                        <label class="flex-1 flex items-center gap-2 rounded-2xl border border-dashed border-ink/20 px-4 py-3 text-sm cursor-pointer hover:border-ink/50">
-                            <span class="material-symbols-outlined text-ink-muted">add_a_photo</span>
-                            <span x-text="name || 'Partager une photo (JPEG, PNG, WebP · 8 Mo max)'" class="truncate"></span>
-                            <input type="file" name="photo" accept="image/*" class="sr-only" required @change="name = $event.target.files[0]?.name">
-                        </label>
-                        <input type="text" name="caption" maxlength="160" placeholder="Légende (optionnel)" class="field sm:w-56">
-                        <button class="btn btn-md btn-ink">Envoyer</button>
+                        <input type="file" name="photo" accept="image/*" class="sr-only" required x-ref="photo" @change="onFile($event)">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" @click="pick(true)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-coral">photo_camera</span>Prendre une photo</button>
+                            <button type="button" @click="pick(false)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-ink-muted">photo_library</span>Galerie</button>
+                        </div>
+                        <div x-show="preview" x-cloak class="flex items-center gap-3">
+                            <img :src="preview" alt="" class="h-16 w-16 rounded-xl object-cover shrink-0">
+                            <div class="flex-1 min-w-0 flex flex-col sm:flex-row gap-2">
+                                <input type="text" name="caption" maxlength="160" placeholder="Légende (optionnel)" class="field flex-1 min-w-0">
+                                <button class="btn btn-md btn-ink shrink-0"><span class="material-symbols-outlined" style="font-size:18px">upload</span>Envoyer</button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-ink-muted">JPEG, PNG ou WebP · 8 Mo max · publiée après validation.</p>
                     </form>
                     <p class="mt-2 text-[11px] text-ink-muted">Ta photo sera visible après validation. Merci de ne partager que tes propres photos.</p>
                 @else
