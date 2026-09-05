@@ -193,6 +193,12 @@
     .phone.phone-hero { width: 100%; }
 }
 .hero-map .leaflet-tile-pane { filter: saturate(0.75) contrast(1.05); }
+
+/* Carte : fiche centrée avec carte inclinée en arrière-plan */
+#camino-map { transition: transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), filter 0.7s ease; transform-origin: 50% 60%; }
+#camino-map.map-3d { transform: perspective(1400px) rotateX(10deg) scale(1.08); filter: saturate(0.7); }
+@keyframes sheet-pop { 0% { opacity: 0; transform: translateY(28px) scale(0.96); } 100% { opacity: 1; transform: none; } }
+.sheet-pop { animation: sheet-pop 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .hero-map .leaflet-control-attribution { display: none; }
 
 @media (prefers-reduced-motion: reduce) {

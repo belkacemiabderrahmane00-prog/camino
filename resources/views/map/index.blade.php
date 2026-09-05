@@ -129,6 +129,56 @@
             <span class="material-symbols-outlined">list</span><span x-text="countLabel()"></span>
         </button>
 
+        {{-- Fiche lieu / alerte centrée, carte en arrière-plan floutée et inclinée --}}
+        <div x-cloak x-show="selected || selectedAlert" x-transition.opacity.duration.300ms @click="closeSheet()" class="absolute inset-0 z-[600] bg-ink/35 backdrop-blur-[3px]"></div>
+        <div x-cloak x-show="selected || selectedAlert" class="absolute inset-0 z-[610] flex items-end sm:items-center justify-center p-3 sm:p-6 pointer-events-none">
+            <template x-if="selected">
+                <div class="card w-full max-w-sm overflow-hidden pointer-events-auto sheet-pop" @click.stop>
+                    <div class="relative h-44 placeholder-cover flex items-center justify-center" :style="`--c1:${style(selected).color};--c2:#12161C`">
+                        <template x-if="selected.media && selected.media.cover"><img :src="selected.media.cover" :alt="selected.title" class="absolute inset-0 w-full h-full object-cover"></template>
+                        <template x-if="!(selected.media && selected.media.cover)"><span class="material-symbols-outlined text-white/80" style="font-size:44px" x-text="style(selected).icon"></span></template>
+                        <div class="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent"></div>
+                        <button @click="closeSheet()" class="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 text-ink flex items-center justify-center hover:bg-white" aria-label="Fermer"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+                        <div class="absolute bottom-3 left-4 right-4 text-white">
+                            <p class="text-[10px] uppercase tracking-widest opacity-90" x-text="selected.category ? selected.category.name : 'Lieu'"></p>
+                            <p class="font-display text-xl leading-tight" x-text="selected.title"></p>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <p class="text-sm text-ink-muted flex items-start gap-1.5"><span class="material-symbols-outlined" style="font-size:18px">location_on</span><span x-text="selected.address || 'Adresse non renseignée'"></span></p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="badge" :class="selected.is_free ? 'badge-free' : 'badge-paid'" x-text="priceLabel(selected)"></span>
+                            <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span><span x-text="'≈ ' + (selected.visit_duration_min || 60) + ' min'"></span></span>
+                            <span x-show="selected.rating" class="badge bg-amber-50 text-amber-700"><span class="material-symbols-outlined filled" style="font-size:14px">star</span><span x-text="selected.rating"></span></span>
+                            <span x-show="selected.alerts" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">campaign</span><span x-text="selected.alerts + ' alerte' + (selected.alerts > 1 ? 's' : '')"></span></span>
+                            <span x-show="selected.event" class="badge badge-event">Événement</span>
+                        </div>
+                        <p x-show="selected.description" class="text-sm text-ink-soft line-clamp-3" x-text="selected.description"></p>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <a :href="`{{ url('/lieux') }}/${selected.id}`" class="btn btn-md btn-ink col-span-2"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>Voir la fiche</a>
+                            <form method="POST" :action="`{{ url('/parcours/ajouter-lieu') }}/${selected.id}`">@csrf<button class="btn btn-md btn-soft w-full"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>Au parcours</button></form>
+                            <a :href="gmaps(selected)" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Y aller</a>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="selectedAlert">
+                <div class="card w-full max-w-sm overflow-hidden pointer-events-auto sheet-pop p-5" @click.stop>
+                    <div class="flex items-start gap-3">
+                        <span class="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 text-white" :style="`background:${selectedAlert.color}`"><span class="material-symbols-outlined" x-text="selectedAlert.icon"></span></span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-bold uppercase tracking-widest" :style="`color:${selectedAlert.color}`" x-text="selectedAlert.label"></p>
+                            <p class="font-display text-xl leading-tight" x-text="selectedAlert.title"></p>
+                            <p x-show="selectedAlert.message" class="text-sm text-ink-soft mt-2" x-text="selectedAlert.message"></p>
+                            <p class="text-xs text-ink-muted mt-2"><span x-show="selectedAlert.place" x-text="selectedAlert.place ? selectedAlert.place.title + ' · ' : ''"></span>expire dans <span x-text="selectedAlert.expires_in"></span></p>
+                        </div>
+                        <button @click="closeSheet()" class="h-9 w-9 rounded-full bg-paper text-ink flex items-center justify-center" aria-label="Fermer"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+                    </div>
+                    <template x-if="selectedAlert.place"><a :href="`{{ url('/lieux') }}/${selectedAlert.place.id}`" class="btn btn-md btn-ink w-full mt-4">Voir le lieu</a></template>
+                </div>
+            </template>
+        </div>
+
         <x-alert-modal :types="$alertTypes" />
     </div>
 
@@ -137,7 +187,7 @@
         function caminoMap() {
             const C = window.Camino;
             return {
-                map: null, markers: {}, alertMarkers: [], places: [], alerts: [], loading: false,
+                map: null, markers: {}, alertMarkers: [], places: [], alerts: [], loading: false, selected: null, selectedAlert: null,
                 query: @js(request('q', '')), filter: @js(request('filtre', 'all')), budget: '', listMode: 'places', sheet: false,
                 apiPois: @js(url('/api/v1/pois')), apiAlerts: @js(url('/api/v1/alerts')),
                 filters: [
@@ -168,6 +218,19 @@
                 style(p) { return C.categoryStyle(p.category ? p.category.slug : null); },
                 center() { const c = this.map.getCenter(); return { lat: c.lat, lng: c.lng }; },
                 zoomIn() { this.map.zoomIn(); }, zoomOut() { this.map.zoomOut(); },
+                openPlace(p) {
+                    this.selectedAlert = null; this.selected = p;
+                    document.getElementById('camino-map').classList.add('map-3d');
+                    this.map.flyTo([p.lat, p.lng], Math.max(this.map.getZoom(), 15), { duration: 0.8 });
+                },
+                openAlert(a) {
+                    this.selected = null; this.selectedAlert = a;
+                    document.getElementById('camino-map').classList.add('map-3d');
+                    this.map.flyTo([a.lat, a.lng], Math.max(this.map.getZoom(), 15), { duration: 0.8 });
+                },
+                closeSheet() { this.selected = null; this.selectedAlert = null; document.getElementById('camino-map').classList.remove('map-3d'); },
+                priceLabel(p) { return p.is_free ? 'Gratuit' : (p.price_level ? '€'.repeat(p.price_level) : 'Tarif non renseigné'); },
+                gmaps(p) { return `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`; },
                 setFilter(key) { this.filter = key; this.load(); },
                 countLabel() {
                     const n = this.places.length;
@@ -204,20 +267,19 @@
                         if (!p.lat || !p.lng) return;
                         const st = this.style(p);
                         const m = L.marker([p.lat, p.lng], { icon: C.placeIcon(p.category ? p.category.slug : null) }).addTo(this.map);
-                        const cover = p.media && p.media.cover ? `<img src="${p.media.cover}" alt="" class="w-full h-28 object-cover rounded-t-[18px]">` : `<div class="w-full h-20 placeholder-cover rounded-t-[18px] flex items-center justify-center" style="--c1:${st.color};--c2:#12161C"><span class="material-symbols-outlined text-white/80" style="font-size:32px">${st.icon}</span></div>`;
-                        m.bindPopup(`${cover}<div class="p-3"><p class="text-[10px] font-semibold" style="color:${st.color}">${C.escapeHtml(p.category ? p.category.name : 'Lieu')}</p><p class="font-semibold text-sm leading-snug">${C.escapeHtml(p.title)}</p><p class="text-[11px] text-ink-muted mt-0.5">${C.escapeHtml(p.address || '')}</p><div class="mt-2 flex items-center justify-between"><span class="text-[11px] ${p.is_free ? 'text-emerald-700 font-semibold' : 'text-ink-muted'}">${p.is_free ? 'Gratuit' : (p.price_level ? '€'.repeat(p.price_level) : '')}</span><a href="{{ url('/lieux') }}/${p.id}" class="btn btn-sm btn-ink">Voir le lieu</a></div></div>`, { maxWidth: 280 });
+                        m.on('click', () => this.openPlace(p));
                         this.markers[p.id] = m;
                     });
                     this.alerts.forEach(a => {
                         const m = L.marker([a.lat, a.lng], { icon: C.alertIcon(a.color, a.icon), zIndexOffset: 500 }).addTo(this.map);
-                        m.bindPopup(`<div class="p-3"><p class="text-[10px] font-semibold" style="color:${a.color}">${C.escapeHtml(a.label)}</p><p class="font-semibold text-sm leading-snug">${C.escapeHtml(a.title)}</p>${a.message ? `<p class="text-[11px] text-ink-muted mt-1">${C.escapeHtml(a.message)}</p>` : ''}<p class="text-[10px] text-ink-muted mt-2">${a.place ? C.escapeHtml(a.place.title) + ' · ' : ''}expire dans ${C.escapeHtml(a.expires_in)}</p></div>`);
+                        m.on('click', () => this.openAlert(a));
                         this.alertMarkers.push(m);
                     });
                 },
                 highlight(id) {
                     Object.entries(this.markers).forEach(([k, m]) => { const el = m.getElement(); if (el) el.style.zIndex = String(k == id ? 1000 : 0); const pin = el && el.querySelector('.camino-pin'); if (pin) pin.style.transform = k == id ? 'scale(1.25)' : ''; });
                 },
-                focusAlert(a) { this.map.setView([a.lat, a.lng], Math.max(this.map.getZoom(), 15)); const m = this.alertMarkers.find(m => m.getLatLng().lat === a.lat && m.getLatLng().lng === a.lng); if (m) m.openPopup(); },
+                focusAlert(a) { this.openAlert(a); },
             };
         }
     </script>

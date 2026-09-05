@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Database\PgsqlConnection;
 use App\Models\User;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -12,7 +14,10 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Postgres derrière le pooler Neon : requêtes préparées émulées + booléens liés correctement.
+        Connection::resolverFor('pgsql', function ($connection, $database, $prefix, $config) {
+            return new PgsqlConnection($connection, $database, $prefix, $config);
+        });
     }
 
     public function boot(): void

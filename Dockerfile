@@ -28,6 +28,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/camino.ini
 RUN rm -f /etc/nginx/sites-enabled/default
 
 COPY docker/start.sh /start.sh
