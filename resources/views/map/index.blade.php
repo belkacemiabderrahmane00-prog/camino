@@ -3,7 +3,7 @@
         <x-weather-chip :forecast="$forecast" label="Paris" class="hidden lg:inline-flex !py-1 !pr-3" />
     </x-slot>
 
-    <div id="map-page" class="absolute inset-0" x-data="caminoMap()" x-init="init()">
+    <div id="map-page" class="absolute inset-0" x-data="caminoMap()" x-init="init()" @keydown.escape.window="closeSheet()">
         {{-- Carte --}}
         <div id="camino-map" class="absolute inset-0 z-0"></div>
 
