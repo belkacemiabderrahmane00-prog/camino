@@ -6,14 +6,14 @@
 <x-app-layout description="CAMINO, le GPS culturel qui rend la ville fun : carte vivante, parcours générés selon ta météo et ton budget, bons plans de la communauté.">
 
     {{-- ================================================================ HERO --}}
-    <section class="relative min-h-[92vh] -mt-[4.6rem] flex items-center overflow-hidden grain">
+    <section class="relative lg:min-h-[92vh] -mt-[4.6rem] flex items-center overflow-hidden grain">
         <div class="absolute inset-0 -z-10 bg-ink">
             <img src="{{ asset('images/photo_paris.avif') }}" alt="" class="kenburns absolute inset-0 h-full w-full object-cover opacity-90" fetchpriority="high">
             <div class="absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/55 to-ink/20"></div>
             <div class="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-paper to-transparent"></div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-32 pb-24 w-full grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center"
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-16 lg:pt-32 lg:pb-24 w-full grid lg:grid-cols-[1.1fr_0.9fr] gap-8 lg:gap-10 items-center"
              x-data="{ words: ['autrement.', 'à pied.', 'gratuitement.', 'sous le soleil.', 'entre amis.', 'sans plan.'], i: 0, flip: false }"
              x-init="setInterval(() => { i = (i + 1) % words.length; flip = !flip; }, 2400)">
             <div class="text-white animate-fade-up">
@@ -56,10 +56,10 @@
             </div>
 
             {{-- Téléphone vivant --}}
-            <div class="relative flex justify-center lg:justify-end" x-data="heroPhone()" x-init="init()" @mousemove.window="tilt($event)">
+            <div class="relative flex flex-col items-center lg:block lg:justify-end" x-data="heroPhone()" x-init="init()" @mousemove.window="tilt($event)">
                 <div class="absolute h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
                 <div class="absolute -bottom-10 right-10 h-56 w-56 rounded-full bg-teal/30 blur-3xl"></div>
-                <div class="phone float-soft" :style="`--tilt:${rot}deg`">
+                <div class="phone phone-hero lg:float-soft" :style="`--tilt:${rot}deg`">
                     <div class="phone-screen hero-map">
                         <div x-ref="map" class="absolute inset-0"></div>
                         <div class="absolute top-12 inset-x-3 z-[400] flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-card text-[11px] text-ink-muted">
@@ -81,14 +81,14 @@
                         </template>
                     </div>
                 </div>
-                <div class="absolute -left-2 sm:left-6 bottom-6 card px-3 py-2 flex items-center gap-2 text-xs animate-fade-up" style="animation-delay:.5s">
+                <div class="mt-3 lg:mt-0 lg:absolute lg:left-6 lg:bottom-6 card px-3 py-2 flex items-center gap-2 text-xs animate-fade-up w-full lg:w-auto" style="animation-delay:.5s">
                     <span class="h-8 w-8 rounded-full bg-sun-soft text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:18px">celebration</span></span>
                     <div><p class="font-semibold leading-tight">Concert gratuit ce soir</p><p class="text-[10px] text-ink-muted">Signalé par la communauté · il y a 12 min</p></div>
                 </div>
             </div>
         </div>
 
-        <a href="#detour" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-ink-muted hover:text-ink flex flex-col items-center text-[10px] uppercase tracking-widest">
+        <a href="#detour" class="hidden lg:flex absolute bottom-6 left-1/2 -translate-x-1/2 text-ink-muted hover:text-ink flex-col items-center text-[10px] uppercase tracking-widest">
             Découvrir <span class="material-symbols-outlined animate-bounce">keyboard_arrow_down</span>
         </a>
     </section>
@@ -217,10 +217,11 @@
             <div class="mt-6 flex flex-wrap items-center gap-3">
                 <span class="btn btn-md btn-ink opacity-90 cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
                 <span class="btn btn-md btn-ink opacity-90 cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                <a href="{{ route('map.index', ['source' => 'pwa']) }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer sur mon écran d'accueil</a>
+                <button type="button" data-install class="hidden btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
+                <span data-ios-tip class="hidden text-xs text-ink-muted"><span class="material-symbols-outlined align-middle" style="font-size:16px">ios_share</span> Sur iPhone : Partager, puis « Sur l'écran d'accueil ».</span>
             </div>
             <div class="mt-6 flex items-center gap-4 card p-4 max-w-md">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=4&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="96" height="96" class="rounded-xl" loading="lazy">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=4&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="96" height="96" class="rounded-xl shrink-0 h-24 w-24" loading="lazy">
                 <div class="text-sm">
                     <p class="font-semibold">Scanne pour l'ouvrir sur ton téléphone</p>
                     <p class="text-ink-muted text-xs mt-1">Puis « Ajouter à l'écran d'accueil » dans le menu du navigateur. Ça marche déjà sur iPhone et Android.</p>
@@ -233,10 +234,10 @@
             </ul>
         </div>
 
-        <div class="relative flex justify-center gap-6 reveal reveal-delay-1">
+        <div class="relative reveal reveal-delay-1 -mx-4 px-4 lg:mx-0 lg:px-0 flex gap-5 lg:gap-8 overflow-x-auto lg:overflow-visible snap-x snap-mandatory hide-scrollbar lg:justify-center items-start">
             <div class="absolute h-80 w-80 rounded-full bg-coral/20 blur-3xl"></div>
             {{-- Mockup carte --}}
-            <div class="phone" style="--tilt:-5deg; transform: rotate(-5deg)">
+            <div class="snap-center shrink-0 text-center"><span class="inline-flex items-center gap-1.5 mb-3 badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">ios</span>iPhone · iOS</span><div class="phone phone-ios lg:-rotate-6">
                 <div class="phone-screen">
                     <div class="absolute inset-0" style="background: radial-gradient(circle at 30% 30%, #E9F5EA 0, transparent 35%), radial-gradient(circle at 70% 60%, #FCE8E1 0, transparent 40%), repeating-linear-gradient(90deg, rgba(18,22,28,0.05) 0 1px, transparent 1px 34px), repeating-linear-gradient(0deg, rgba(18,22,28,0.05) 0 1px, transparent 1px 34px), #F3EFE6;"></div>
                     <svg class="absolute inset-0 w-full h-full" viewBox="0 0 270 560" fill="none"><path d="M-10 200 C 60 160, 120 260, 200 220 S 300 180, 320 220" stroke="#fff" stroke-width="14" stroke-linecap="round"/><path d="M60 -10 C 90 120, 40 260, 110 400 S 140 520, 130 580" stroke="#fff" stroke-width="10"/><path d="M-10 380 C 80 350, 160 420, 290 360" stroke="#fff" stroke-width="10"/></svg>
@@ -255,7 +256,7 @@
                 </div>
             </div>
             {{-- Mockup parcours --}}
-            <div class="phone hidden sm:block mt-16" style="--tilt:4deg; transform: rotate(4deg)">
+            </div><div class="snap-center shrink-0 text-center lg:mt-14"><span class="inline-flex items-center gap-1.5 mb-3 badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">android</span>Galaxy · Android</span><div class="phone phone-android lg:rotate-3">
                 <div class="phone-screen p-3 pt-12 space-y-2 text-ink">
                     <p class="eyebrow">Parcours généré</p>
                     <p class="font-display text-lg leading-tight">Balade musées & monuments</p>
@@ -272,7 +273,7 @@
                     @endforeach
                     <span class="btn btn-sm btn-primary w-full !text-[11px]"><span class="material-symbols-outlined" style="font-size:14px">navigation</span>Lancer</span>
                 </div>
-            </div>
+            </div></div>
         </div>
     </section>
 
@@ -369,6 +370,7 @@
                 init() {
                     if (!window.L || !this.$refs.map) return;
                     const center = [48.858, 2.345];
+                    const mobile = window.innerWidth < 1024;
                     this.map = L.map(this.$refs.map, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false }).setView(center, 13);
                     C.tileLayer().addTo(this.map);
                     const pts = this.places.filter(p => p.lat && p.lng);
@@ -395,6 +397,11 @@
                 requestAnimationFrame(step);
             }), { threshold: 0.5 });
             document.querySelectorAll('[data-count]').forEach(el => co.observe(el));
+            // Installation PWA : vrai bouton quand le navigateur le permet (Android/Chrome), astuce sur iPhone.
+            let deferredInstall = null;
+            window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; document.querySelectorAll('[data-install]').forEach(b => b.classList.remove('hidden')); });
+            document.querySelectorAll('[data-install]').forEach(b => b.addEventListener('click', async () => { if (!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; b.classList.add('hidden'); }));
+            if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !window.navigator.standalone) document.querySelectorAll('[data-ios-tip]').forEach(t => t.classList.remove('hidden'));
         });
     </script>
     @endpush

@@ -179,6 +179,19 @@
 }
 .phone::before { content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 84px; height: 24px; border-radius: 999px; background: #0d1015; z-index: 5; }
 .phone-screen { position: relative; width: 100%; height: 100%; border-radius: 2rem; overflow: hidden; background: #F6F3EC; }
+/* Variante Android : coins moins arrondis, caméra perforée au lieu de l'îlot */
+.phone-android { border-radius: 1.7rem; background: linear-gradient(160deg, #1f2a33, #0b0f14); }
+.phone-android::before { width: 12px; height: 12px; top: 16px; border-radius: 50%; background: #0b0f14; box-shadow: inset 0 0 0 2px #223; }
+.phone-android .phone-screen { border-radius: 1.15rem; }
+/* Sur mobile, le téléphone du hero devient une carte pleine largeur (on est déjà sur un téléphone) */
+@media (max-width: 1023px) {
+    .phone-hero { width: 100%; aspect-ratio: 4 / 3; padding: 0; border-radius: 1.75rem; background: none; box-shadow: 0 24px 50px -24px rgba(18, 22, 28, 0.6); animation: none; }
+    .phone-hero::before { display: none; }
+    .phone-hero .phone-screen { border-radius: 1.75rem; }
+    .phone-hero .absolute.top-12 { top: 0.75rem; }
+    .phone { width: 250px; }
+    .phone.phone-hero { width: 100%; }
+}
 .hero-map .leaflet-tile-pane { filter: saturate(0.75) contrast(1.05); }
 .hero-map .leaflet-control-attribution { display: none; }
 
