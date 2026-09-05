@@ -209,10 +209,15 @@ class ItineraryGenerator
                 $trimmedForOrder = true;
             }
         } else {
-            [$sequence, $skippedBudget] = $this->plan($rows, $ctx, $budgetEur, $maxSteps);
+            [$sequence, $skippedBudget, $ctx['nodes']] = $this->plan($rows, $ctx, $budgetEur, $maxSteps);
+            $nodes = $ctx['nodes'];
             $sequence = $this->twoOpt($sequence, $ctx);
             if ($lunchRows !== []) {
                 $sequence = $this->insertLunch($sequence, $ctx, count($rows), $budgetEur);
+                // Le déjeuner a pu coûter une visite : on remplit le temps restant.
+                [$sequence, $skippedAgain, $ctx['nodes']] = $this->plan($rows, $ctx, $budgetEur, $maxSteps + 1, $sequence);
+                $nodes = $ctx['nodes'];
+                $skippedBudget = max($skippedBudget, $skippedAgain);
             }
         }
 
@@ -277,6 +282,7 @@ class ItineraryGenerator
                 'price_level' => $place->price_level,
                 'cost_eur' => round($node['cost'], 2),
                 'visit_minutes' => $node['visit'],
+                'short_visit' => ! empty($node['short']),
                 'travel_minutes' => (int) $leg['duration_min'],
                 'travel_km' => round((float) $leg['distance_km'], 2),
                 'wait_minutes' => $s['wait'],
@@ -290,7 +296,7 @@ class ItineraryGenerator
                     'note' => $node['hours']['note'],
                 ],
                 'alternative' => $alternative,
-                'reason' => $node['kind'] === 'lunch' ? 'Pause déjeuner sur le chemin' : $this->reason($place, $interests, $weather, $node['hours']),
+                'reason' => $node['kind'] === 'lunch' ? 'Pause déjeuner sur le chemin' : (! empty($node['short']) ? 'Visite express pour tenir dans le temps' : $this->reason($place, $interests, $weather, $node['hours'])),
             ];
         }
 
@@ -345,16 +351,24 @@ class ItineraryGenerator
      * score par minute de détour tout en restant faisable (temps, fenêtres horaires, budget, diversité).
      *
      * @param array<int,array<string,mixed>> $rows
-     * @return array{0:array<int,int>,1:int}
+     * @return array{0:array<int,int>,1:int,2:array<int,array<string,mixed>>}
      */
-    private function plan(array $rows, array $ctx, ?float $budgetEur, int $maxSteps): array
+    private function plan(array $rows, array $ctx, ?float $budgetEur, int $maxSteps, array $sequence = []): array
     {
-        $sequence = [];
         $used = [];
         $perCategory = [];
         $spent = 0.0;
+        // Reprise d'une séquence existante (après insertion du déjeuner) : on repart de son état.
+        foreach ($sequence as $idx) {
+            $used[$idx] = true;
+            if (isset($rows[$idx - 1])) {
+                $perCategory[$rows[$idx - 1]['slug']] = ($perCategory[$rows[$idx - 1]['slug']] ?? 0) + 1;
+                $spent += $rows[$idx - 1]['cost'];
+            }
+        }
         $skippedBudget = 0;
         $base = $this->simulate($sequence, $ctx);
+        $factor = 1.0;
 
         while (count($sequence) < $maxSteps) {
             $best = null;
@@ -362,6 +376,11 @@ class ItineraryGenerator
                 $idx = $i + 1;
                 if (isset($used[$idx])) {
                     continue;
+                }
+                if ($factor < 1.0) {
+                    // Seconde passe : visite raccourcie pour remplir le temps restant.
+                    $ctx['nodes'][$i]['visit'] = max(30, (int) round($row['visit'] * $factor));
+                    $ctx['nodes'][$i]['short'] = true;
                 }
                 $cap = self::MAX_PER_CATEGORY[$row['slug']] ?? self::MAX_PER_CATEGORY['default'];
                 if (($perCategory[$row['slug']] ?? 0) >= $cap) {
@@ -388,6 +407,11 @@ class ItineraryGenerator
                 }
             }
             if ($best === null) {
+                if ($factor === 1.0) {
+                    $factor = 0.7;
+
+                    continue;
+                }
                 break;
             }
             $sequence = $best['seq'];
@@ -397,7 +421,16 @@ class ItineraryGenerator
             $base = $best['sim'];
         }
 
-        return [$sequence, $skippedBudget];
+        // Les visites non retenues retrouvent leur durée normale.
+        foreach ($ctx['nodes'] as $i => &$node) {
+            if (! in_array($i + 1, $sequence, true) && ! empty($node['short'])) {
+                $node['visit'] = $rows[$i]['visit'] ?? $node['visit'];
+                $node['short'] = false;
+            }
+        }
+        unset($node);
+
+        return [$sequence, $skippedBudget, $ctx['nodes']];
     }
 
     /** Amélioration locale : inversion de segments tant que le temps total baisse et que tout reste faisable. */
