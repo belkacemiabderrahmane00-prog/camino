@@ -15,6 +15,25 @@ Route::prefix('v1')->group(function () {
     Route::post('itineraries/generate', [ItineraryController::class, 'generate']);
 
     // Diagnostic : dernières lignes du journal applicatif (clé dérivée de APP_KEY).
+    Route::get('diag/php', function (\Illuminate\Http\Request $request) {
+        abort_unless(hash_equals(substr(sha1((string) config('app.key')), 0, 16), (string) $request->query('key')), 404);
+        $tmp = @tempnam(sys_get_temp_dir(), 'camino');
+        $gd = function_exists('gd_info') ? gd_info() : [];
+
+        return response()->json([
+            'php' => PHP_VERSION,
+            'user' => get_current_user(),
+            'sys_temp_dir' => sys_get_temp_dir(),
+            'upload_tmp_dir' => ini_get('upload_tmp_dir'),
+            'tempnam_ok' => $tmp !== false && is_file($tmp),
+            'file_uploads' => ini_get('file_uploads'),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'gd_jpeg' => (bool) ($gd['JPEG Support'] ?? false),
+            'gd_webp' => (bool) ($gd['WebP Support'] ?? false),
+            'exif' => function_exists('exif_read_data'),
+        ]);
+    });
     Route::get('diag/log', function (\Illuminate\Http\Request $request) {
         abort_unless(hash_equals(substr(sha1((string) config('app.key')), 0, 16), (string) $request->query('key')), 404);
         $files = glob(storage_path('logs/laravel*.log')) ?: [];
