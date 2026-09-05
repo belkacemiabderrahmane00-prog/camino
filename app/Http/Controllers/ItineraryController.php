@@ -17,6 +17,11 @@ class ItineraryController extends Controller
 
     private const MAX_PLACES = 15;
 
+    /** Point de départ par défaut : centre de Paris (Notre-Dame). */
+    private const DEFAULT_START = [48.8530, 2.3499];
+
+    private const DEFAULT_RADIUS_KM = 4;
+
     public function __construct(
         private ItineraryGenerator $itineraryGenerator
     ) {}
@@ -71,8 +76,11 @@ class ItineraryController extends Controller
         $budget = (float) $data['budget_eur'];
         $freeOnly = ! empty($data['free_only']);
         $categoryIds = $data['category_ids'] ?? [];
+        $startLat = isset($data['start_lat']) ? (float) $data['start_lat'] : self::DEFAULT_START[0];
+        $startLng = isset($data['start_lng']) ? (float) $data['start_lng'] : self::DEFAULT_START[1];
+        $radiusKm = (int) ($data['radius_km'] ?? self::DEFAULT_RADIUS_KM);
 
-        [$places, $fromSession] = $this->getPlacesForItinerary($categoryIds, $freeOnly);
+        [$places, $fromSession] = $this->getPlacesForItinerary($categoryIds, $freeOnly, $startLat, $startLng, $radiusKm);
 
         if ($places->isEmpty()) {
             $result = [
@@ -80,15 +88,15 @@ class ItineraryController extends Controller
                 'estimated_total_budget' => 0,
                 'steps' => [],
                 'warnings' => [
-                    $freeOnly ? 'Aucun lieu gratuit trouvé. Ajoute des lieux depuis la carte ou décoche « Prioriser les lieux gratuits ».' : 'Aucun lieu trouvé. Ajoute des lieux depuis la carte ou élargis les catégories.',
+                    $freeOnly ? 'Aucun lieu gratuit trouvé autour du point de départ. Élargis le rayon, change de point de départ ou décoche « Prioriser les lieux gratuits ».' : 'Aucun lieu trouvé autour du point de départ. Élargis le rayon ou change de catégories.',
                 ],
             ];
         } else {
             $raw = $this->itineraryGenerator->generate(
                 $places,
                 $duration,
-                null,
-                null,
+                $fromSession ? null : $startLat,
+                $fromSession ? null : $startLng,
                 [
                     'free_only' => $freeOnly,
                     'budget_eur' => $budget > 0 ? $budget : null,
@@ -171,7 +179,7 @@ class ItineraryController extends Controller
      *
      * @return array{0: \Illuminate\Support\Collection, 1: bool}
      */
-    private function getPlacesForItinerary(array $categoryIds, bool $freeOnly): array
+    private function getPlacesForItinerary(array $categoryIds, bool $freeOnly, float $startLat, float $startLng, int $radiusKm): array
     {
         $placeIds = session(self::SESSION_KEY, []);
 
@@ -193,12 +201,15 @@ class ItineraryController extends Controller
             return [$places, true];
         }
 
+        // Candidats : lieux dans un carré de ±rayon autour du départ (1° lat ≈ 111 km, 1° lng ≈ 73 km à Paris).
+        $dLat = $radiusKm / 111;
+        $dLng = $radiusKm / 73;
+
         $query = Place::query()
             ->with('category')
             ->approved()
-            ->whereNotNull('lat')
-            ->whereNotNull('lng')
-            ->latest();
+            ->whereBetween('lat', [$startLat - $dLat, $startLat + $dLat])
+            ->whereBetween('lng', [$startLng - $dLng, $startLng + $dLng]);
 
         if ($categoryIds !== []) {
             $query->whereIn('category_id', $categoryIds);
@@ -208,6 +219,12 @@ class ItineraryController extends Controller
             $query->where('is_free', true);
         }
 
-        return [$query->limit(50)->get(), false];
+        // Les lieux avec image et les catégories "visite" d'abord, puis les plus proches du départ.
+        $candidates = $query->limit(400)->get()
+            ->sortBy(fn (Place $p) => ($p->lat - $startLat) ** 2 + (($p->lng - $startLng) * 0.66) ** 2)
+            ->take(60)
+            ->values();
+
+        return [$candidates, false];
     }
 }

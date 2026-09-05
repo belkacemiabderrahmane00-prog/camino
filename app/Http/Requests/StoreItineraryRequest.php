@@ -19,6 +19,9 @@ class StoreItineraryRequest extends FormRequest
             'free_only' => ['nullable', 'boolean'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
+            'start_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'start_lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'radius_km' => ['nullable', 'integer', 'min:1', 'max:30'],
         ];
     }
 }

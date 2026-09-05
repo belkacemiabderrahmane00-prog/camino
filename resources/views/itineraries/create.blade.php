@@ -64,6 +64,39 @@
                         />
                     </div>
 
+                    <div class="space-y-2 text-xs" x-data="{ mode: '{{ old('start_lat') ? 'me' : 'paris' }}', locating: false, label: '{{ old('start_lat') ? 'Ma position' : '' }}',
+                        useMe() {
+                            if (!navigator.geolocation) { alert('Géolocalisation indisponible sur cet appareil.'); return; }
+                            this.locating = true;
+                            navigator.geolocation.getCurrentPosition((pos) => {
+                                this.$refs.lat.value = pos.coords.latitude.toFixed(6);
+                                this.$refs.lng.value = pos.coords.longitude.toFixed(6);
+                                this.mode = 'me'; this.locating = false; this.label = 'Ma position';
+                            }, () => { this.locating = false; alert('Impossible de récupérer ta position.'); }, { enableHighAccuracy: true, timeout: 10000 });
+                        },
+                        useParis() { this.$refs.lat.value = ''; this.$refs.lng.value = ''; this.mode = 'paris'; this.label = ''; }
+                    }">
+                        <p class="text-slate-950 dark:text-slate-200 font-semibold">Point de départ</p>
+                        <input type="hidden" name="start_lat" x-ref="lat" value="{{ old('start_lat') }}">
+                        <input type="hidden" name="start_lng" x-ref="lng" value="{{ old('start_lng') }}">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" @click="useParis()" :class="mode === 'paris' ? 'bg-primary text-slate-900 border-primary' : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-700/80'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 border text-[11px] transition-colors">
+                                <span class="material-symbols-outlined text-[14px]">location_city</span> Centre de Paris
+                            </button>
+                            <button type="button" @click="useMe()" :class="mode === 'me' ? 'bg-primary text-slate-900 border-primary' : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-700/80'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 border text-[11px] transition-colors">
+                                <span class="material-symbols-outlined text-[14px]" x-text="locating ? 'progress_activity' : 'my_location'">my_location</span> Ma position
+                            </button>
+                            <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400 ml-auto">
+                                Rayon
+                                <select name="radius_km" class="rounded-full border-slate-200 bg-white py-1 pl-2 pr-7 text-[11px] text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100">
+                                    @foreach([2, 4, 8, 15] as $r)
+                                        <option value="{{ $r }}" @selected((int) old('radius_km', 4) === $r)>{{ $r }} km</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-between gap-4 text-xs">
                         <div class="flex items-center gap-2">
                             <input
