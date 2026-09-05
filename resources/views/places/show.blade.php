@@ -82,6 +82,16 @@
                                         </div>
                                     @endif
             </div>
+                            @else
+                                @php
+                                    $placeholderIcon = match($place->category->slug ?? '') {
+                                        'musee' => 'museum', 'monument' => 'castle', 'parc-jardin' => 'park', 'restauration' => 'restaurant',
+                                        'street-art' => 'brush', 'itineraire' => 'route', 'evenement-culturel' => 'event', default => 'apartment',
+                                    };
+                                @endphp
+                                <div class="mb-1 rounded-2xl overflow-hidden border border-slate-800 h-32 sm:h-40 bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950 flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-[56px] text-primary/70" style="font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;">{{ $placeholderIcon }}</span>
+                                </div>
                             @endif
                             <div class="flex items-start justify-between gap-3">
                     <div>

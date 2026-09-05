@@ -319,36 +319,9 @@ class EnrichPoiMediaCommand extends Command
                 }
             }
 
-            // 7. Fallback final par catégorie (assets locaux)
+            // 7. Aucun fallback fichier : sans image, les vues affichent un visuel de catégorie.
             if (! $place->cover_image_url) {
-                $fallbackUrl = $this->categoryFallbackImage($place);
-                if ($fallbackUrl) {
-                    $this->line(sprintf('   Utilisation d\'une image de catégorie fallback: %s', $fallbackUrl));
-                    PoiMedia::create([
-                        'place_id' => $place->id,
-                        'source' => 'category_fallback',
-                        'title' => $place->title,
-                        'image_url_original' => $fallbackUrl,
-                        'image_url_thumb' => $fallbackUrl,
-                        'license' => null,
-                        'author' => null,
-                        'attribution_url' => null,
-                        'is_cover' => true,
-                        'extra' => [
-                            'category_slug' => optional($place->category)->slug,
-                        ],
-                    ]);
-
-                    $place->cover_image_url = $fallbackUrl;
-                    $place->cover_image_source = 'category_fallback';
-                    $place->cover_image_license = null;
-                    $place->cover_image_author = null;
-                    $place->cover_image_attribution = null;
-                    $place->cover_image_page_url = null;
-                    $fallbackReason = 'category';
-                } else {
-                    $this->line('   Aucun fallback de catégorie défini.');
-                }
+                $this->line('   Aucune image trouvée en ligne : visuel de catégorie affiché côté vues.');
             }
 
             if ($place->cover_image_url) {
@@ -394,22 +367,6 @@ class EnrichPoiMediaCommand extends Command
         $city = trim(implode(' ', $tokens));
 
         return $city !== '' ? $city : null;
-    }
-
-    private function categoryFallbackImage(Place $place): ?string
-    {
-        $slug = optional($place->category)->slug;
-        if (! $slug) {
-            return null;
-        }
-
-        return match ($slug) {
-            'musee' => '/img/fallback/museum.jpg',
-            'monument' => '/img/fallback/monument.jpg',
-            'lieu-culturel' => '/img/fallback/culture.jpg',
-            'parc-jardin' => '/img/fallback/park.jpg',
-            default => null,
-        };
     }
 }
 
