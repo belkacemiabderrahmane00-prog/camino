@@ -92,6 +92,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Requêtes préparées émulées : indispensable derrière un pooler (Neon/PgBouncer),
+            // sinon les plans mis en cache cassent après chaque migration ("cached plan must not change result type").
+            'options' => extension_loaded('pdo_pgsql') ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [
