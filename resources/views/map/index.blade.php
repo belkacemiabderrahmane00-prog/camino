@@ -131,10 +131,10 @@
 
         {{-- Fiche lieu / alerte centrée, carte en arrière-plan floutée et inclinée --}}
         <div x-cloak x-show="selected || selectedAlert" x-transition.opacity.duration.300ms @click="closeSheet()" class="absolute inset-0 z-[600] bg-ink/35 backdrop-blur-[3px]"></div>
-        <div x-cloak x-show="selected || selectedAlert" class="absolute inset-0 z-[610] flex items-end sm:items-center justify-center p-3 sm:p-6 pointer-events-none">
+        <div x-cloak x-show="selected || selectedAlert" class="absolute inset-0 z-[610] flex items-end sm:items-center justify-center p-3 pb-24 sm:p-6 md:pb-6 pointer-events-none">
             <template x-if="selected">
-                <div class="card w-full max-w-sm overflow-hidden pointer-events-auto sheet-pop" @click.stop>
-                    <div class="relative h-44 placeholder-cover flex items-center justify-center" :style="`--c1:${style(selected).color};--c2:#12161C`">
+                <div class="card w-full max-w-sm overflow-hidden pointer-events-auto sheet-pop max-h-[calc(100vh-9rem)] sm:max-h-[85vh] overflow-y-auto" @click.stop>
+                    <div class="relative h-36 sm:h-44 placeholder-cover flex items-center justify-center" :style="`--c1:${style(selected).color};--c2:#12161C`">
                         <template x-if="selected.media && selected.media.cover"><img :src="selected.media.cover" :alt="selected.title" class="absolute inset-0 w-full h-full object-cover"></template>
                         <template x-if="!(selected.media && selected.media.cover)"><span class="material-symbols-outlined text-white/80" style="font-size:44px" x-text="style(selected).icon"></span></template>
                         <div class="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent"></div>

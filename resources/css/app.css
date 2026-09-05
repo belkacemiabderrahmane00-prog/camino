@@ -130,6 +130,12 @@
     100% { transform: scale(1.14) translate(-1.5%, -1%); }
 }
 .kenburns { animation: kenburns 30s ease-in-out infinite alternate; will-change: transform; }
+/* Hero : la tour Eiffel est décalée vers la gauche sur grand écran pour laisser le téléphone sur le ciel */
+.hero-photo { object-position: 60% center; }
+@media (min-width: 1024px) {
+    /* Image élargie et ancrée à droite : la tour glisse au centre-gauche, entre le texte et le téléphone */
+    img.hero-photo { width: 140%; max-width: none; left: auto; right: 0; object-position: 100% center; }
+}
 
 @keyframes marquee {
     0% { transform: translateX(0); }

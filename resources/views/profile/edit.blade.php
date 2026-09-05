@@ -52,6 +52,7 @@
 
         <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data" class="mt-4 space-y-6">
             @csrf @method('PATCH')
+            <input type="hidden" name="email" value="{{ $user->email }}">
 
             {{-- Profil --}}
             <div x-show="tab === 'profil'" class="card p-6 sm:p-8 grid md:grid-cols-[220px_1fr] gap-6" x-data="{ preview: null, remove: false }">
