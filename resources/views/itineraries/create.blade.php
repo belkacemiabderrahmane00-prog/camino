@@ -16,12 +16,18 @@
                 </p>
             </div>
             <div class="hidden sm:flex items-center gap-2">
-                <x-ui.button variant="ghost" size="sm" class="rounded-full text-xs">
-                    <span class="material-symbols-outlined text-[16px]">help</span>
-                    Aide
-                </x-ui.button>
+                @auth
+                    <a href="{{ route('itineraries.index') }}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">history</span>
+                        Mes parcours
+                    </a>
+                @endauth
             </div>
         </div>
+
+        @if(session('status'))
+            <div class="mb-4 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-2 text-xs text-slate-800 dark:text-slate-100">{{ session('status') }}</div>
+        @endif
 
         <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <!-- Wizard form -->
@@ -149,11 +155,11 @@
                     @if(count($addrs) >= 1)
                         <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                             @if(count($addrs) >= 2)
-                                <a href="https://www.google.com/maps/dir/?api=1&origin={{ urlencode($addrs[0]) }}&destination={{ urlencode($addrs[count($addrs)-1]) }}{{ count($addrs) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addrs, 1, -1))) : '' }}&travelmode=driving" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
+                                <a href="https://www.google.com/maps/dir/?api=1&origin={{ urlencode($addrs[0]) }}&destination={{ urlencode($addrs[count($addrs)-1]) }}{{ count($addrs) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addrs, 1, -1))) : '' }}&travelmode=walking" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
                                     <span class="material-symbols-outlined text-[14px]">map</span> Google Maps
                                 </a>
                             @else
-                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($addrs[0]) }}&travelmode=driving" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($addrs[0]) }}&travelmode=walking" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 text-primary px-3 py-1.5 text-[11px] font-semibold hover:bg-primary/30">
                                     <span class="material-symbols-outlined text-[14px]">map</span> Google Maps
                                 </a>
                             @endif
@@ -179,6 +185,12 @@
                                 <span class="text-slate-500 dark:text-slate-500">Durée</span>
                                 <span class="font-semibold">{{ $result['estimated_total_minutes'] ?? '–' }} min</span>
                             </div>
+                            @if(isset($result['total_distance_km']))
+                                <div class="flex flex-col items-end">
+                                    <span class="text-slate-500 dark:text-slate-500">Marche</span>
+                                    <span class="font-semibold">{{ number_format($result['total_distance_km'], 1, ',', ' ') }} km</span>
+                                </div>
+                            @endif
                             <div class="flex flex-col items-end">
                                 <span class="text-slate-500 dark:text-slate-500">Budget</span>
                                 <span class="font-semibold">
@@ -203,6 +215,10 @@
                         </div>
                     @endif
 
+                    @if(!empty($steps))
+                        <div id="itinerary-map" class="h-56 sm:h-64 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900"></div>
+                    @endif
+
                     <div class="relative mt-2 pb-4">
                         <div class="absolute left-4 top-0 bottom-2 w-[3px] bg-gradient-to-b from-primary via-primary/40 to-primary/10 rounded-full"></div>
                         <div class="space-y-6 pl-8">
@@ -214,7 +230,14 @@
                                     <div class="rounded-2xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 dark:bg-slate-900/80 dark:border-slate-800 transition-colors duration-150">
                                         <div class="flex items-center justify-between gap-2">
                                             <p class="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                                                {{ $step['title'] ?? 'Étape' }}
+                                                @if(!empty($step['place_id']))
+                                                    <a href="{{ route('places.show', $step['place_id']) }}" class="hover:text-primary transition-colors">{{ $step['title'] ?? 'Étape' }}</a>
+                                                @else
+                                                    {{ $step['title'] ?? 'Étape' }}
+                                                @endif
+                                                @if(!empty($step['category']))
+                                                    <span class="ml-1 text-[10px] font-normal text-slate-500 dark:text-slate-400">· {{ $step['category'] }}</span>
+                                                @endif
                                             </p>
                                             <p class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                                 <span class="material-symbols-outlined text-[14px]">timer</span>
@@ -249,8 +272,8 @@
                         @php
                             $addresses = collect($steps)->pluck('address')->filter(fn ($a) => $a && $a !== 'Adresse à venir')->values()->all();
                             $gmParcoursUrl = count($addresses) >= 2
-                                ? 'https://www.google.com/maps/dir/?api=1&origin=' . urlencode($addresses[0]) . '&destination=' . urlencode($addresses[count($addresses) - 1]) . (count($addresses) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addresses, 1, -1))) : '') . '&travelmode=driving'
-                                : (count($addresses) === 1 ? 'https://www.google.com/maps/dir/?api=1&destination=' . urlencode($addresses[0]) . '&travelmode=driving' : null);
+                                ? 'https://www.google.com/maps/dir/?api=1&origin=' . urlencode($addresses[0]) . '&destination=' . urlencode($addresses[count($addresses) - 1]) . (count($addresses) > 2 ? '&waypoints=' . implode('|', array_map('urlencode', array_slice($addresses, 1, -1))) : '') . '&travelmode=walking'
+                                : (count($addresses) === 1 ? 'https://www.google.com/maps/dir/?api=1&destination=' . urlencode($addresses[0]) . '&travelmode=walking' : null);
                             $wazeParcoursUrl = !empty($addresses) ? 'https://waze.com/ul?q=' . urlencode($addresses[0]) . '&navigate=yes' : null;
                         @endphp
                         <div class="mt-4 flex flex-wrap gap-2 justify-end">
@@ -291,4 +314,38 @@
             </x-ui.card>
         </div>
     </div>
+    @if(!empty($itinerary) && !empty(($itinerary->result_json ?? [])['steps']))
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                if (!window.L) return;
+                const el = document.getElementById('itinerary-map');
+                if (!el) return;
+                const steps = @json(($itinerary->result_json ?? [])['steps'] ?? []);
+                const points = steps.filter(s => s.lat && s.lng).map(s => [s.lat, s.lng]);
+                if (!points.length) return;
+
+                const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors',
+                }).addTo(map);
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                const line = L.polyline(points, { color: '#13ecec', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round' }).addTo(map);
+                steps.forEach((s, i) => {
+                    if (!s.lat || !s.lng) return;
+                    const icon = L.divIcon({
+                        html: `<div style="width:28px;height:28px;border-radius:50%;background:#13ecec;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:700 12px/1 system-ui;color:#0f172a;">${s.order || i + 1}</div>`,
+                        className: 'camino-marker-wrapper',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14],
+                    });
+                    L.marker([s.lat, s.lng], { icon })
+                        .addTo(map)
+                        .bindPopup(`<div class="text-[11px] font-sans"><p class="font-semibold">${s.order || i + 1}. ${s.title}</p><p class="text-slate-500">${s.address || ''}</p><p class="text-slate-500">${s.visit_minutes || 0} min sur place${s.travel_minutes ? ' · ' + s.travel_minutes + ' min de marche' : ''}</p></div>`);
+                });
+                map.fitBounds(line.getBounds(), { padding: [24, 24] });
+            });
+        </script>
+    @endif
 </x-app-layout>

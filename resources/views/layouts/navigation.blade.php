@@ -80,6 +80,12 @@
                     </x-slot>
 
                     <x-slot name="content">
+                        <x-dropdown-link :href="route('itineraries.index')">
+                            Mes parcours
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('places.favorites')">
+                            Mes favoris
+                        </x-dropdown-link>
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
                         </x-dropdown-link>
@@ -141,6 +147,8 @@
             </div>
 
             <div class="mt-3 space-y-1 px-4 pb-2">
+                <x-responsive-nav-link :href="route('itineraries.index')">Mes parcours</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('places.favorites')">Mes favoris</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('profile.edit')">
                     {{ __('Profile') }}
                 </x-responsive-nav-link>

@@ -99,6 +99,86 @@
                         <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Déplace ou zoome la carte pour explorer d'autres lieux. Les 80 plus récents de la zone sont affichés.</p>
                     </div>
                 </div>
+            </x-ui.card>
+        </aside>
+
+        <!-- Bottom sheet façon Stitch : visible uniquement au clic sur l'icône list -->
+        <div
+            x-show="drawerOpen"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-y-full opacity-0"
+            x-transition:enter-end="translate-y-0 opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="translate-y-0 opacity-100"
+            x-transition:leave-end="translate-y-full opacity-0"
+            class="fixed inset-x-0 bottom-24 sm:bottom-0 z-50 flex flex-col items-center"
+        >
+            <div class="relative w-full max-w-md bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-700/80 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.25)] dark:shadow-[0_-16px_50px_rgba(0,0,0,0.7)] pb-6 max-h-[70vh] flex flex-col text-slate-900 dark:text-slate-50">
+                <div class="w-full flex justify-center py-3">
+                    <div class="w-12 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full"></div>
+                </div>
+                <button
+                    type="button"
+                    @click="drawerOpen = false"
+                    class="absolute -top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/90 text-slate-100 shadow-xl border border-slate-700 hover:bg-slate-800 hover:text-primary hover:border-primary transition-colors"
+                    title="Fermer"
+                >
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+
+                <div class="px-5 flex-1 overflow-y-auto pt-1">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-slate-50">À proximité</h2>
+                        <button type="button" class="text-primary text-sm font-semibold hover:text-cyan-400 transition">Voir tout</button>
+                    </div>
+                    <div id="nearby-loading" class="hidden items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mb-2">
+                        <span class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                        <span>Chargement des lieux…</span>
+                    </div>
+                    <div class="space-y-3" id="nearby-list">
+                        @forelse($places->take(10) as $place)
+                            <a href="{{ route('places.show', $place) }}" class="flex gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                <div class="relative shrink-0 overflow-hidden bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center" style="width:56px;height:56px;border-radius:9999px;">
+                                    <span class="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">museum</span>
+                                </div>
+                                <div class="flex flex-col justify-center flex-1 min-w-0">
+                                    <div class="flex justify-between items-start gap-2">
+                                        <h3 class="font-bold text-base leading-tight text-slate-900 dark:text-slate-50 line-clamp-2">{{ $place->title }}</h3>
+                                        @auth
+                                            <span class="material-symbols-outlined text-slate-300 dark:text-slate-500 group-hover:text-primary shrink-0" style="font-variation-settings: 'FILL' 0">favorite</span>
+                                        @endauth
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                                        <span>{{ $place->category->name ?? 'Lieu culturel' }} • {{ Str::limit($place->address ?? 'Adresse à venir', 25) }}</span>
+                                        @if($place->is_free)
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">GRATUIT</span>
+                                        @else
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">INDOOR</span>
+                                        @endif
+                                    </p>
+                                    <div class="flex items-center gap-3 mt-2">
+                                        <span class="flex items-center text-primary text-xs font-bold">
+                                            <span class="material-symbols-outlined text-[14px] mr-0.5">near_me</span>
+                                            —
+                                        </span>
+                                        @if($place->reviews_avg_rating ?? null)
+                                            <span class="flex items-center text-amber-500 text-xs font-bold">
+                                                <span class="material-symbols-outlined text-[14px] mr-0.5 text-amber-500">star</span>
+                                                {{ number_format($place->reviews_avg_rating, 1) }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </a>
+                        @empty
+                            <div class="py-8 text-center text-slate-500 dark:text-slate-400 text-sm">
+                                <span class="material-symbols-outlined text-4xl mb-2 block">place</span>
+                                Aucun lieu sur la carte pour l'instant.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -126,8 +206,6 @@
             let markerById = {};
             const loadingEl = document.getElementById('nearby-loading');
             const searchInput = document.getElementById('map-search');
-            const budgetSelect = document.getElementById('map-budget');
-            const countEl = document.getElementById('map-count');
             const budgetSelect = document.getElementById('map-budget');
             const countEl = document.getElementById('map-count');
             const filterChips = document.querySelectorAll('#map-filters [data-filter]');
@@ -357,11 +435,6 @@
                             ? 'Aucun lieu ici avec ces filtres.'
                             : (list.length >= 80 ? '80 lieux affichés (zoome pour affiner).' : `${list.length} lieu${list.length > 1 ? 'x' : ''} affiché${list.length > 1 ? 's' : ''}.`);
                     }
-                    if (countEl) {
-                        countEl.textContent = list.length === 0
-                            ? 'Aucun lieu ici avec ces filtres.'
-                            : (list.length >= 80 ? '80 lieux affichés (zoome pour affiner).' : `${list.length} lieu${list.length > 1 ? 'x' : ''} affiché${list.length > 1 ? 's' : ''}.`);
-                    }
                 } catch (e) {
                     console.error('Erreur lors du chargement des POI', e);
                 } finally {
@@ -411,10 +484,6 @@
                         loadPlacesForCurrentView();
                     });
                 });
-            }
-
-            if (budgetSelect) {
-                budgetSelect.addEventListener('change', () => loadPlacesForCurrentView());
             }
 
             if (budgetSelect) {

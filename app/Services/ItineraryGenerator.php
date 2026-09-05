@@ -7,12 +7,18 @@ use Illuminate\Support\Collection;
 
 class ItineraryGenerator
 {
+    /** Vitesse de marche retenue (km/h). */
+    private const WALK_SPEED_KMH = 4.0;
+
     /**
-     * Génère un itinéraire à partir d'une collection de lieux : ordre au plus proche (greedy),
-     * durée de visite + temps de marche (4 km/h), estimation du coût par étape.
+     * Génère un itinéraire à pied à partir d'une collection de lieux.
+     *
+     * Algorithme "plus proche voisin" : depuis le point de départ (ou le barycentre des lieux),
+     * on ajoute à chaque étape le lieu le plus proche de la position courante qui tient encore
+     * dans le temps et le budget restants. Avec preserve_order, l'ordre fourni est conservé.
      *
      * @param \Illuminate\Support\Collection<int,Place> $places
-     * @param array{free_only?: bool, budget_eur?: float} $options
+     * @param array{free_only?: bool, budget_eur?: ?float, preserve_order?: bool} $options
      */
     public function generate(
         Collection $places,
@@ -32,25 +38,11 @@ class ItineraryGenerator
         }
 
         if ($places->isEmpty()) {
-            return [
-                'title' => 'Parcours CAMINO',
-                'mode' => 'walk',
-                'totalDurationMin' => 0,
-                'totalDistanceKm' => 0,
-                'totalBudgetEur' => 0,
-                'steps' => [],
-                'warnings' => [$freeOnly ? 'Aucun lieu gratuit disponible pour ce périmètre.' : 'Aucun lieu disponible pour ce périmètre.'],
-            ];
+            return $this->emptyResult($freeOnly ? 'Aucun lieu gratuit disponible pour ce périmètre.' : 'Aucun lieu disponible pour ce périmètre.');
         }
 
         $originLat = $startLat ?? (float) $places->avg('lat');
         $originLng = $startLng ?? (float) $places->avg('lng');
-
-        $sorted = $preserveOrder
-            ? $places
-            : $places->sortBy(function (Place $p) use ($originLat, $originLng) {
-                return $this->distanceKm($originLat, $originLng, (float) $p->lat, (float) $p->lng);
-            })->values();
 
         $steps = [];
         $remaining = max($timeBudgetMin, 30);
@@ -59,18 +51,36 @@ class ItineraryGenerator
         $currentLat = $originLat;
         $currentLng = $originLng;
         $order = 1;
+        $skippedForBudget = 0;
 
-        foreach ($sorted as $place) {
-            $distKm = $this->distanceKm($currentLat, $currentLng, (float) $place->lat, (float) $place->lng);
-            $travelMin = (int) round(($distKm / 4) * 60); // 4 km/h marche
-            $visitMin = (int) ($place->visit_duration_min ?: 60);
+        /** @var Collection<int,Place> $pool */
+        $pool = $places;
+
+        while ($pool->isNotEmpty()) {
+            // Candidat suivant : ordre imposé, ou le plus proche de la position courante.
+            $candidate = $preserveOrder
+                ? $pool->first()
+                : $pool->sortBy(fn (Place $p) => $this->distanceKm($currentLat, $currentLng, (float) $p->lat, (float) $p->lng))->first();
+
+            $pool = $pool->reject(fn (Place $p) => $p->id === $candidate->id)->values();
+
+            $distKm = $this->distanceKm($currentLat, $currentLng, (float) $candidate->lat, (float) $candidate->lng);
+            $travelMin = (int) round(($distKm / self::WALK_SPEED_KMH) * 60);
+            $visitMin = (int) ($candidate->visit_duration_min ?: 60);
 
             if ($remaining - ($travelMin + $visitMin) < 0) {
-                break;
+                // Ne tient plus dans le temps : en ordre libre on tente les autres, sinon on s'arrête.
+                if ($preserveOrder) {
+                    break;
+                }
+
+                continue;
             }
 
-            $costEur = $this->estimateCost($place);
+            $costEur = $this->estimateCost($candidate);
             if ($budgetEur !== null && $totalCost + $costEur > $budgetEur) {
+                $skippedForBudget++;
+
                 continue;
             }
 
@@ -80,29 +90,40 @@ class ItineraryGenerator
 
             $steps[] = [
                 'order' => $order++,
-                'place_id' => $place->id,
-                'title' => $place->title,
-                'address' => $place->address ?? 'Adresse à venir',
-                'lat' => (float) $place->lat,
-                'lng' => (float) $place->lng,
+                'place_id' => $candidate->id,
+                'title' => $candidate->title,
+                'address' => $candidate->address ?? 'Adresse à venir',
+                'category' => $candidate->relationLoaded('category') ? $candidate->category?->name : null,
+                'lat' => (float) $candidate->lat,
+                'lng' => (float) $candidate->lng,
                 'visitDurationMin' => $visitMin,
                 'travelDurationMin' => $travelMin,
                 'distanceKmFromPrevious' => round($distKm, 2),
                 'costEur' => round($costEur, 2),
             ];
 
-            $currentLat = (float) $place->lat;
-            $currentLng = (float) $place->lng;
+            $currentLat = (float) $candidate->lat;
+            $currentLng = (float) $candidate->lng;
+        }
+
+        $warnings = [];
+        if ($steps === []) {
+            $warnings[] = $skippedForBudget > 0
+                ? 'Le budget indiqué est trop faible pour les lieux disponibles.'
+                : 'Le temps disponible est trop court pour proposer un parcours.';
+        } elseif ($skippedForBudget > 0) {
+            $warnings[] = $skippedForBudget . ' lieu(x) écarté(s) pour rester dans le budget.';
         }
 
         return [
             'title' => 'Parcours CAMINO',
             'mode' => 'walk',
+            'start' => ['lat' => $originLat, 'lng' => $originLng],
             'totalDurationMin' => $timeBudgetMin - $remaining,
             'totalDistanceKm' => round($totalDistance, 2),
             'totalBudgetEur' => round($totalCost, 2),
             'steps' => $steps,
-            'warnings' => $steps === [] ? ['Le temps disponible est trop court pour proposer un parcours.'] : [],
+            'warnings' => $warnings,
         ];
     }
 
@@ -114,14 +135,29 @@ class ItineraryGenerator
         if ($place->is_free) {
             return 0.0;
         }
-        // price_level typique : 1 = €, 2 = €€, 3 = €€€
+        // price_level : 1 = € (≈ 5 €), 2 = €€ (≈ 15 €), 3 = €€€ (≈ 30 €)
         $level = (int) ($place->price_level ?? 0);
+
         return match ($level) {
             1 => 5.0,
             2 => 15.0,
             3 => 30.0,
             default => 0.0,
         };
+    }
+
+    private function emptyResult(string $warning): array
+    {
+        return [
+            'title' => 'Parcours CAMINO',
+            'mode' => 'walk',
+            'start' => null,
+            'totalDurationMin' => 0,
+            'totalDistanceKm' => 0,
+            'totalBudgetEur' => 0,
+            'steps' => [],
+            'warnings' => [$warning],
+        ];
     }
 
     private function distanceKm(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -135,4 +171,3 @@ class ItineraryGenerator
         return $earthRadius * $c;
     }
 }
-

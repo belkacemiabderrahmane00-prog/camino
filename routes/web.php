@@ -28,6 +28,10 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/favoris', [PlaceController::class, 'favorites'])->name('places.favorites');
 
+    Route::get('/mes-parcours', [ItineraryController::class, 'index'])->name('itineraries.index');
+    Route::post('/mes-parcours/{itinerary}/revoir', [ItineraryController::class, 'replay'])->name('itineraries.replay');
+    Route::delete('/mes-parcours/{itinerary}', [ItineraryController::class, 'destroy'])->name('itineraries.destroy');
+
     Route::post('/lieux/{place}/favori', [PlaceController::class, 'toggleFavorite'])
         ->name('places.toggle-favorite');
 

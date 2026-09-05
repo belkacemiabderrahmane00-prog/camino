@@ -58,24 +58,26 @@
                                         loading="lazy"
                                     >
                                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/10 to-transparent"></div>
-                                    @if($coverMedia && $coverMedia->source === 'wikimedia_commons')
+                                    @php
+                                        $creditAuthor = $place->cover_image_author ?: ($coverMedia->author ?? null);
+                                        $creditLicense = $place->cover_image_license ?: ($coverMedia->license ?? null);
+                                        $creditUrl = $place->cover_image_page_url ?: ($coverMedia->attribution_url ?? null);
+                                    @endphp
+                                    @if($creditAuthor || $creditLicense)
                                         <div class="absolute bottom-2 left-3 right-3 flex items-center justify-between gap-2 text-[10px] text-slate-300">
-                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2 py-0.5 border border-slate-700/80">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2 py-0.5 border border-slate-700/80 min-w-0">
                                                 <span class="material-symbols-outlined text-[14px] text-cyan-300">photo_camera</span>
-                                                <span>
-                                                    {{ $coverMedia->author ?: 'Wikimedia Commons' }}
-                                                </span>
+                                                <span class="truncate">{{ $creditAuthor ?: 'Crédit photo' }}</span>
                                             </span>
-                                            @if($coverMedia->license || $coverMedia->attribution_url)
-                                                <a
-                                                    href="{{ $coverMedia->attribution_url ?? '#' }}"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                    class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2 py-0.5 border border-slate-700/80 hover:border-cyan-300 hover:text-cyan-300 transition-colors"
-                                                >
-                                                    <span>{{ $coverMedia->license ?? 'Licence Commons' }}</span>
-                                                    <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-                                                </a>
+                                            @if($creditLicense)
+                                                @if($creditUrl)
+                                                    <a href="{{ $creditUrl }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2 py-0.5 border border-slate-700/80 hover:border-cyan-300 hover:text-cyan-300 transition-colors shrink-0">
+                                                        <span>{{ $creditLicense }}</span>
+                                                        <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                                                    </a>
+                                                @else
+                                                    <span class="inline-flex items-center rounded-full bg-slate-900/80 px-2 py-0.5 border border-slate-700/80 shrink-0">{{ $creditLicense }}</span>
+                                                @endif
                                             @endif
                                         </div>
                                     @endif
@@ -84,7 +86,13 @@
                             <div class="flex items-start justify-between gap-3">
                     <div>
                                     <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-[10px] text-slate-300 mb-2">
-                                        <span class="material-symbols-outlined text-[14px] text-primary">museum</span>
+                                        @php
+                                            $categoryIcon = match($place->category->slug ?? '') {
+                                                'musee' => 'museum', 'monument' => 'castle', 'parc-jardin' => 'park', 'restauration' => 'restaurant',
+                                                'street-art' => 'brush', 'itineraire' => 'route', 'evenement-culturel' => 'event', default => 'apartment',
+                                            };
+                                        @endphp
+                                        <span class="material-symbols-outlined text-[14px] text-primary">{{ $categoryIcon }}</span>
                                         <span>{{ $place->category->name ?? 'Lieu culturel' }}</span>
                                     </div>
                                     <h1 class="text-lg sm:text-xl font-semibold text-slate-50">
@@ -99,8 +107,9 @@
                             {{ $place->is_free ? 'Gratuit' : str_repeat('€', (int) ($place->price_level ?? 2)) }}
                         </x-ui.badge>
                         <x-ui.badge tone="neutral">
-                                        Statut : {{ ucfirst($place->status) }}
-                        </x-ui.badge>
+                                        <span class="material-symbols-outlined text-[12px] mr-0.5">schedule</span>
+                                        ≈ {{ $place->visit_duration_min ?? 60 }} min
+                                    </x-ui.badge>
                     </div>
                 </div>
 

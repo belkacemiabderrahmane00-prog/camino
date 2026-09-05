@@ -1,70 +1,55 @@
-# Camino
+# CAMINO — GPS culturel intelligent
 
-Application Laravel de découverte de lieux et génération de parcours touristiques.
+Application web de découverte culturelle en Île-de-France : carte interactive de plus de
+6 000 lieux (musées, monuments, parcs, scènes, restaurants, événements), fiches détaillées,
+favoris, avis, et **générateur de parcours à pied** selon le temps et le budget disponibles.
 
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Site : https://camino-u0eo.onrender.com
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Stack
 
-## About Laravel
+- Laravel 11 · PHP 8.4 · Breeze (auth)
+- Blade · Tailwind CSS · Alpine.js · Leaflet (OpenStreetMap)
+- Postgres (Neon) en production, SQLite/MySQL possibles en local
+- Docker (nginx + php-fpm) déployé sur Render
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Données
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Les lieux proviennent du flux ouvert [DATAtourisme](https://www.datatourisme.fr/) (Île-de-France,
+JSON-LD). L'import classe chaque objet dans une catégorie CAMINO selon son type le plus précis,
+masque les objets hors sujet (hôtels, équipements sportifs, boutiques…), lit les tarifs et les
+images fournies avec leur licence.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+# Import / mise à jour (upsert par external_id, ~1 min)
+php artisan camino:ingest-datatourisme --file=storage/app/datatourisme/idf-poi.json.zip
 
-## Learning Laravel
+# Images libres (Wikidata / Wikimedia Commons / Wikipedia) pour les lieux sans image
+php artisan camino:enrich-poi-media --limit=200
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Installation locale
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+composer install
+npm install && npm run build
+cp .env.example .env && php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Tests : `php vendor/bin/phpunit` (SQLite en mémoire : `DB_CONNECTION=sqlite DB_DATABASE=:memory:`).
 
-## Laravel Sponsors
+## API interne
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+| Route | Description |
+|---|---|
+| `GET /api/v1/pois` | Lieux visibles. Filtres : `bbox`, `category_slugs`, `q`, `free=1`, `price_max=1..3`, `tags`, `limit` |
+| `GET /api/v1/poi/{id}` | Détail d'un lieu |
+| `POST /api/v1/itineraries/generate` | Parcours à pied : `time_budget_min`, `bbox`, `category_slugs`, `free`, `start_lat/lng` |
 
-### Premium Partners
+## Déploiement
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+`render.yaml` décrit le service (Docker, plan gratuit). Variables secrètes à renseigner dans Render :
+`APP_KEY`, `APP_URL`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
+Au démarrage, `docker/start.sh` exécute les migrations et le seed des catégories.

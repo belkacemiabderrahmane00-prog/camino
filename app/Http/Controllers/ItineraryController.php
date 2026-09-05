@@ -109,8 +109,12 @@ class ItineraryController extends Controller
                         'visit_minutes' => $step['visitDurationMin'],
                         'travel_minutes' => $step['travelDurationMin'],
                         'cost_eur' => $step['costEur'],
+                        'category' => $step['category'] ?? null,
+                        'lat' => $step['lat'],
+                        'lng' => $step['lng'],
                     ];
                 }, $raw['steps']),
+                'start' => $raw['start'] ?? null,
                 'warnings' => $raw['warnings'],
             ];
         }
@@ -129,6 +133,37 @@ class ItineraryController extends Controller
 
         return redirect()->route('itineraries.create')
             ->with('status', Auth::check() ? 'Parcours enregistré !' : 'Parcours généré.');
+    }
+
+    /**
+     * Historique des parcours de l'utilisateur connecté.
+     */
+    public function index()
+    {
+        $itineraries = Auth::user()->itineraries()->latest()->paginate(10);
+
+        return view('itineraries.index', ['itineraries' => $itineraries]);
+    }
+
+    /**
+     * Recharge un parcours enregistré dans la page de génération.
+     */
+    public function replay(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id(), 403);
+
+        session()->put('itinerary', $itinerary);
+
+        return redirect()->route('itineraries.create')->with('status', 'Parcours « ' . $itinerary->name . ' » rechargé.');
+    }
+
+    public function destroy(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id(), 403);
+
+        $itinerary->delete();
+
+        return redirect()->route('itineraries.index')->with('status', 'Parcours supprimé.');
     }
 
     /**

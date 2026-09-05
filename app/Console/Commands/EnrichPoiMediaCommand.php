@@ -43,6 +43,7 @@ class EnrichPoiMediaCommand extends Command
         $wikipedia = new WikipediaClient();
 
         $places = Place::query()
+            ->where('status', 'approved')
             ->whereNull('cover_image_url')
             ->whereNotNull('lat')
             ->whereNotNull('lng')

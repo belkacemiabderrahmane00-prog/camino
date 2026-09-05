@@ -20,6 +20,7 @@ class PoiController extends Controller
      * - q (search in title / address)
      * - free=1 (only free places)
  * - price_max (1..3: places free or with price_level <= value)
+ * - price_max (1..3: places free or with price_level <= value)
      * - limit
      */
     public function index(Request $request): JsonResponse
