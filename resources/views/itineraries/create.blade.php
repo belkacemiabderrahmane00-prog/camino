@@ -287,7 +287,8 @@
                                 $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . $destination . ($waypoints ? '&waypoints=' . implode('|', $waypoints) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : 'walking');
                             @endphp
                             <div class="mt-6 flex flex-wrap gap-2">
-                                <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Lancer dans Google Maps</a>
+                                <a href="{{ route('itineraries.navigate') }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Suivre le parcours</a>
+                                <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>Google Maps</a>
                                 @auth
                                     @if(!empty($result['itinerary_id']))
                                         <a href="{{ route('itineraries.show', $result['itinerary_id']) }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Enregistré · voir la fiche</a>

@@ -25,7 +25,8 @@
                     @endforeach
                 </ol>
                 <div class="mt-6 flex flex-wrap gap-2">
-                    <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">replay</span>Rouvrir dans le générateur</button></form>
+                    @if($v2)<a href="{{ route('itineraries.navigate-saved', $itinerary) }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Suivre le parcours</a>@endif
+                    <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">replay</span>Rouvrir dans le générateur</button></form>
                     <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-md btn-ghost text-ink-muted">Supprimer</button></form>
                 </div>
             </div>

@@ -222,9 +222,13 @@ class ItineraryGenerator
         }
 
         if ($sequence === []) {
-            return $this->result($start, $end, $loop, $startsAt, $mode, [], [], $weather, [
-                $skippedBudget > 0 ? 'Le budget indiqué est trop faible pour les lieux disponibles.' : 'Le temps disponible est trop court pour proposer un parcours avec ces lieux.',
-            ]);
+            $closingSoon = count(array_filter($rows, fn ($r) => $r['hours']['status'] === 'open' && $r['hours']['closes'] !== null && $r['hours']['closes'] < $startMin + 45));
+            $why = $skippedBudget > 0 ? 'Le budget indiqué est trop faible pour les lieux disponibles.' : 'Le temps disponible est trop court pour proposer un parcours avec ces lieux.';
+            if ($closingSoon > 0 && $closingSoon >= count($rows) * 0.6) {
+                $why = 'À cette heure, les lieux autour du départ sont fermés ou ferment bientôt. Choisis un autre créneau ou une autre date.';
+            }
+
+            return $this->result($start, $end, $loop, $startsAt, $mode, [], [], $weather, [$why]);
         }
 
         // --- 5. Tracé réel + horaires ------------------------------------------------------------------
@@ -611,6 +615,7 @@ class ItineraryGenerator
             'total_cost_eur' => $totalCost,
             'steps' => $steps,
             'geometry' => $route['geometry'] ?? [],
+            'legs' => array_map(fn ($l) => ['distance_km' => $l['distance_km'], 'duration_min' => $l['duration_min'], 'shape' => $l['shape'] ?? [], 'maneuvers' => $l['maneuvers'] ?? []], $route['legs'] ?? []),
             'routing_source' => $route['source'] ?? 'none',
             'matrix_source' => $matrixSource,
             'weather' => $weather,

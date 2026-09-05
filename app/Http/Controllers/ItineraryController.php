@@ -215,6 +215,25 @@ class ItineraryController extends Controller
         return redirect()->route('itineraries.create')->with('status', 'Parcours « ' . $itinerary->name . ' » rechargé.');
     }
 
+    /** Guidage en direct du parcours en session. */
+    public function navigate()
+    {
+        $result = session('itinerary_result');
+        if (! $result || empty($result['steps'])) {
+            return redirect()->route('itineraries.create')->with('status', 'Génère un parcours avant de lancer le guidage.');
+        }
+
+        return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create')]);
+    }
+
+    /** Guidage d'un parcours enregistré. */
+    public function navigateSaved(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id() || Auth::user()?->is_admin, 403);
+
+        return view('itineraries.navigate', ['result' => $itinerary->result_json, 'backUrl' => route('itineraries.show', $itinerary)]);
+    }
+
     public function destroy(Itinerary $itinerary)
     {
         abort_unless($itinerary->user_id === Auth::id(), 403);

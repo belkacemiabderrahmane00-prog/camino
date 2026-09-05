@@ -1,6 +1,7 @@
 @props([
     'title' => null,
     'fullscreen' => false,
+    'bottomNav' => true,
     'description' => 'CAMINO, le GPS culturel intelligent : carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.',
 ])
 <!DOCTYPE html>
@@ -201,6 +202,7 @@
     <div x-data="{ msg: null, t: null }" x-on:toast.window="msg = $event.detail; clearTimeout(t); t = setTimeout(() => msg = null, 3500)" x-cloak x-show="msg" x-transition class="fixed bottom-24 md:bottom-6 inset-x-0 z-[1100] flex justify-center px-4 pointer-events-none"><div class="card px-4 py-3 text-sm shadow-float bg-ink text-white" x-text="msg"></div></div>
 
     {{-- ======================================================= Nav mobile --}}
+    @if($bottomNav)
     <nav class="md:hidden fixed bottom-0 inset-x-0 z-[1000] pb-[env(safe-area-inset-bottom)]">
         <div class="mx-3 mb-3 glass rounded-3xl px-2 py-1.5 grid grid-cols-5 text-[10px] font-semibold">
             @php
@@ -226,6 +228,7 @@
             @endforeach
         </div>
     </nav>
+    @endif
 
     <x-weather-sheet />
 

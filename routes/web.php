@@ -20,6 +20,7 @@ Route::post('/parcours', [ItineraryController::class, 'store'])->name('itinerari
 Route::post('/parcours/ajouter-lieu/{place}', [ItineraryController::class, 'addPlace'])->name('itineraries.add-place');
 Route::delete('/parcours/retirer-lieu/{place}', [ItineraryController::class, 'removePlace'])->name('itineraries.remove-place');
 Route::post('/parcours/vider-lieux', [ItineraryController::class, 'clearPlaces'])->name('itineraries.clear-places');
+Route::get('/parcours/suivre', [ItineraryController::class, 'navigate'])->name('itineraries.navigate');
 
 Route::get('/lieux/{place}', [PlaceController::class, 'show'])->name('places.show');
 Route::post('/lieux/{place}/signaler', [PlaceController::class, 'report'])->name('places.report');
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/mes-parcours', [ItineraryController::class, 'index'])->name('itineraries.index');
     Route::get('/mes-parcours/{itinerary}', [ItineraryController::class, 'show'])->name('itineraries.show');
     Route::post('/mes-parcours/{itinerary}/revoir', [ItineraryController::class, 'replay'])->name('itineraries.replay');
+    Route::get('/mes-parcours/{itinerary}/suivre', [ItineraryController::class, 'navigateSaved'])->name('itineraries.navigate-saved');
     Route::delete('/mes-parcours/{itinerary}', [ItineraryController::class, 'destroy'])->name('itineraries.destroy');
 
     // Communauté (façon Waze)

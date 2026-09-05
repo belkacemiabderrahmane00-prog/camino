@@ -216,11 +216,28 @@ class RoutingService
         $legs = [];
         $geometry = [];
         foreach ($trip['legs'] ?? [] as $leg) {
+            $shape = $this->decodePolyline((string) ($leg['shape'] ?? ''));
+            $maneuvers = [];
+            foreach ($leg['maneuvers'] ?? [] as $m) {
+                $maneuvers[] = [
+                    'type' => (int) ($m['type'] ?? 8),
+                    'text' => (string) ($m['instruction'] ?? ''),
+                    'verbal' => (string) ($m['verbal_pre_transition_instruction'] ?? $m['instruction'] ?? ''),
+                    'after' => (string) ($m['verbal_post_transition_instruction'] ?? ''),
+                    'street' => implode(', ', (array) ($m['street_names'] ?? [])),
+                    'km' => round((float) ($m['length'] ?? 0), 3),
+                    'sec' => (int) round((float) ($m['time'] ?? 0)),
+                    'begin' => (int) ($m['begin_shape_index'] ?? 0),
+                    'end' => (int) ($m['end_shape_index'] ?? 0),
+                ];
+            }
             $legs[] = [
                 'distance_km' => round((float) ($leg['summary']['length'] ?? 0), 2),
                 'duration_min' => (int) ceil(((float) ($leg['summary']['time'] ?? 0)) / 60),
+                'shape' => $shape,
+                'maneuvers' => $maneuvers,
             ];
-            foreach ($this->decodePolyline((string) ($leg['shape'] ?? '')) as $pt) {
+            foreach ($shape as $pt) {
                 $geometry[] = $pt;
             }
         }
@@ -285,7 +302,7 @@ class RoutingService
             if ($prev) {
                 $km = round($this->haversineKm($prev['lat'], $prev['lng'], $p['lat'], $p['lng']) * 1.3, 2);
                 $min = $this->estimateMinutes($prev['lat'], $prev['lng'], $p['lat'], $p['lng'], $mode);
-                $legs[] = ['distance_km' => $km, 'duration_min' => $min];
+                $legs[] = ['distance_km' => $km, 'duration_min' => $min, 'shape' => [[(float) $prev['lat'], (float) $prev['lng']], [(float) $p['lat'], (float) $p['lng']]], 'maneuvers' => []];
                 $totalKm += $km;
                 $totalMin += $min;
             }

@@ -25,6 +25,19 @@ Route::prefix('v1')->group(function () {
 
     Route::post('itineraries/generate', [ItineraryController::class, 'generate']);
 
+    // Recalcul d'un tronçon pendant le guidage (position actuelle → prochaine étape).
+    Route::post('route', function (\Illuminate\Http\Request $request, \App\Services\RoutingService $routing) {
+        $data = $request->validate([
+            'points' => ['required', 'array', 'min:2', 'max:4'],
+            'points.*.lat' => ['required', 'numeric', 'between:-90,90'],
+            'points.*.lng' => ['required', 'numeric', 'between:-180,180'],
+            'mode' => ['nullable', 'in:walk,bike'],
+        ]);
+        $route = $routing->route($data['points'], $data['mode'] ?? 'walk');
+
+        return response()->json(['source' => $route['source'], 'distance_km' => $route['distance_km'], 'duration_min' => $route['duration_min'], 'legs' => $route['legs']]);
+    })->middleware('throttle:30,1');
+
     // Diagnostic : dernières lignes du journal applicatif (clé dérivée de APP_KEY).
     Route::get('diag/php', function (\Illuminate\Http\Request $request) {
         abort_unless(hash_equals(substr(sha1((string) config('app.key')), 0, 16), (string) $request->query('key')), 404);
