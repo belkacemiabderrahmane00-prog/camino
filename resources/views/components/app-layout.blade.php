@@ -35,12 +35,12 @@
     >
         <div class="{{ $fullscreen ? 'pointer-events-none' : '' }}">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-3">
-                <div class="glass rounded-full pl-4 pr-2 py-2 flex items-center gap-3 pointer-events-auto">
+                <div class="glass rounded-full pl-3 sm:pl-4 pr-2 py-2 flex items-center gap-2 sm:gap-3 pointer-events-auto overflow-hidden">
                     <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="CAMINO — accueil">
                         <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card group-hover:rotate-6 transition-transform">
                             <span class="material-symbols-outlined filled" style="font-size:18px">location_on</span>
                         </span>
-                        <span class="font-display text-[22px] font-semibold tracking-tight leading-none">CAMINO</span>
+                        <span class="font-display text-[20px] sm:text-[22px] font-semibold tracking-tight leading-none">CAMINO</span>
                     </a>
 
                     <nav class="hidden md:flex items-center gap-1 ml-4 text-sm font-medium">
@@ -112,7 +112,7 @@
                             </div>
                         @else
                             <a href="{{ route('login') }}" class="hidden sm:inline-flex btn btn-sm btn-ghost">Connexion</a>
-                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink">Créer un compte</a>
+                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink !px-2.5 sm:!px-4" aria-label="Créer un compte"><span class="material-symbols-outlined sm:hidden" style="font-size:18px">person_add</span><span class="hidden sm:inline">Créer un compte</span></a>
                         @endauth
 
                         <button @click="open = !open" class="md:hidden btn btn-icon btn-ghost" aria-label="Menu">

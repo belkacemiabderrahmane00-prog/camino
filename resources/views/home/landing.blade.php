@@ -14,10 +14,10 @@
             <div class="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-paper to-transparent"></div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-14 lg:pt-32 lg:pb-24 w-full grid lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-10 items-center"
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-14 lg:pt-32 lg:pb-24 w-full grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-10 items-center"
              x-data="{ words: ['autrement.', 'à pied.', 'gratuitement.', 'sous le soleil.', 'entre amis.', 'sans plan.'], i: 0, flip: false }"
              x-init="setInterval(() => { i = (i + 1) % words.length; flip = !flip; }, 2400)">
-            <div class="text-white animate-fade-up">
+            <div class="text-white animate-fade-up min-w-0">
                 <div class="flex flex-wrap items-center gap-2 mb-5">
                     <span class="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] border border-white/15">
                         <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full rounded-full bg-coral opacity-75 animate-ping"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-coral"></span></span>
@@ -57,7 +57,7 @@
             </div>
 
             {{-- Démo produit : un vrai enchaînement d'écrans CAMINO --}}
-            <div class="relative flex items-center gap-5 pl-4 sm:pl-8 lg:block lg:pl-10 lg:pr-0" x-data="heroDemo()">
+            <div class="relative min-w-0 flex items-center gap-5 pl-4 sm:pl-8 lg:block lg:pl-10 lg:pr-0" x-data="heroDemo()">
                 <div class="hidden lg:block absolute h-80 w-80 rounded-full bg-coral/25 blur-3xl right-10 top-10"></div>
                 <div class="hidden lg:block absolute h-56 w-56 rounded-full bg-teal/25 blur-3xl right-40 bottom-0"></div>
 
@@ -305,29 +305,75 @@
 
     {{-- ================================================================ L'app dans ta poche --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 reveal">
-        <div class="card p-6 sm:p-10 grid lg:grid-cols-[1.2fr_1fr] gap-8 items-center overflow-hidden relative">
-            <div class="absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-teal/15 blur-3xl"></div>
-            <div class="relative">
+        <div class="rounded-4xl bg-ink text-white relative overflow-hidden grid lg:grid-cols-[1fr_1.05fr] items-center">
+            <div class="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-coral/30 blur-3xl"></div>
+            <div class="absolute -right-10 -bottom-24 h-96 w-96 rounded-full bg-teal/25 blur-3xl"></div>
+            <div class="absolute inset-0 opacity-[0.12]" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 26px 26px;"></div>
+
+            <div class="relative p-6 sm:p-10 order-2 lg:order-1">
                 <p class="eyebrow">Bientôt dans ta poche</p>
-                <h2 class="display text-3xl sm:text-5xl mt-2">L'app arrive sur iOS et Android.</h2>
-                <p class="mt-4 text-ink-soft">En attendant, CAMINO est déjà une vraie app sur ton téléphone : installe-la depuis ton navigateur et retrouve la carte, les alertes et tes parcours en plein écran, avec son icône.</p>
+                <h2 class="display text-3xl sm:text-5xl mt-2">Sur iPhone et Android.</h2>
+                <p class="mt-4 text-white/75">Les apps natives arrivent. En attendant, CAMINO s'installe déjà depuis ton navigateur : icône sur l'écran d'accueil, plein écran, carte, alertes et parcours au même endroit.</p>
                 <div class="mt-6 flex flex-wrap items-center gap-2.5">
-                    <span class="btn btn-md btn-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                    <span class="btn btn-md btn-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                    <button type="button" data-install class="hidden btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
+                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
+                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
+                    <button type="button" data-install class="hidden btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
                 </div>
-                <p data-ios-tip class="hidden mt-3 text-sm text-ink-muted"><span class="material-symbols-outlined align-middle text-teal" style="font-size:18px">ios_share</span> Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p>
-                <ul class="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
-                    @foreach([['my_location', 'Autour de toi', 'Les lieux apparaissent selon ta position.'], ['campaign', 'Alertes live', 'Événement gratuit, affluence, fermeture.'], ['auto_awesome', 'Parcours réels', 'Trajets calculés dans les rues, météo comprise.']] as [$i, $t, $d])
-                        <li class="rounded-2xl bg-paper p-3"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-1">{{ $t }}</p><p class="text-xs text-ink-muted">{{ $d }}</p></li>
+                <p data-ios-tip class="hidden mt-3 text-sm text-white/70"><span class="material-symbols-outlined align-middle text-sun" style="font-size:18px">ios_share</span> Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p>
+                <ul class="mt-6 grid grid-cols-3 gap-2 text-xs sm:text-sm">
+                    @foreach([['my_location', 'Autour de toi'], ['campaign', 'Alertes live'], ['auto_awesome', 'Parcours réels']] as [$i, $t])
+                        <li class="rounded-2xl bg-white/10 p-3 text-center"><span class="material-symbols-outlined text-sun">{{ $i }}</span><p class="font-semibold mt-1 leading-tight">{{ $t }}</p></li>
                     @endforeach
                 </ul>
+                <div class="hidden sm:flex mt-6 items-center gap-4 rounded-3xl bg-white/10 p-3 pr-5">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=3&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="72" height="72" class="rounded-xl h-[72px] w-[72px] bg-white p-1 shrink-0" loading="lazy">
+                    <p class="text-sm text-white/80"><span class="font-semibold text-white">Scanne pour l'ouvrir sur ton téléphone,</span> puis « Ajouter à l'écran d'accueil ». Ça marche déjà, sans passer par un store.</p>
+                </div>
             </div>
-            <div class="relative flex items-center gap-4 rounded-3xl bg-paper p-4 sm:p-5">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&color=12161C&bgcolor=F6F3EC&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="120" height="120" class="rounded-2xl shrink-0 h-24 w-24 sm:h-32 sm:w-32" loading="lazy">
-                <div class="text-sm">
-                    <p class="font-semibold text-base">Scanne pour l'ouvrir sur ton téléphone</p>
-                    <p class="text-ink-muted mt-1">Puis « Ajouter à l'écran d'accueil ». Ça marche déjà sur iPhone et Android, sans passer par un store.</p>
+
+            {{-- Deux téléphones : iPhone (carte) et Samsung (parcours) --}}
+            <div class="relative order-1 lg:order-2 phone-duo">
+                <div class="phone phone-duo-ios">
+                    <div class="phone-screen">
+                        <div class="absolute inset-0 overflow-hidden">
+                            <div class="absolute -left-36 -top-16 w-[512px] h-[512px] grid grid-cols-2 opacity-95">
+                                @foreach([[16596, 11270], [16597, 11270], [16596, 11271], [16597, 11271]] as [$tx, $ty])
+                                    <img src="https://a.tile.openstreetmap.fr/osmfr/15/{{ $tx }}/{{ $ty }}.png" alt="" width="256" height="256" loading="lazy" class="block w-64 h-64">
+                                @endforeach
+                            </div>
+                            @foreach([['musee', 'palette', '#7C3AED', '34%', '38%'], ['monument', 'account_balance', '#B45309', '62%', '30%'], ['parc-jardin', 'park', '#15803D', '48%', '56%'], ['lieu-culturel', 'theater_comedy', '#0369A1', '24%', '66%']] as [$slug, $icon, $color, $left, $top])
+                                <span class="absolute h-7 w-7 rounded-full border-2 border-white shadow-card flex items-center justify-center text-white" style="left: {{ $left }}; top: {{ $top }}; background: {{ $color }}"><span class="material-symbols-outlined" style="font-size:15px">{{ $icon }}</span></span>
+                            @endforeach
+                            <span class="absolute left-[44%] top-[46%] h-4 w-4 rounded-full bg-coral border-2 border-white shadow-card"><span class="absolute inset-0 rounded-full bg-coral animate-ping opacity-60"></span></span>
+                        </div>
+                        <div class="absolute top-10 inset-x-2.5 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-card text-[10px] text-ink-muted"><span class="material-symbols-outlined shrink-0" style="font-size:14px">search</span><span class="truncate">Autour de moi</span><span class="ml-auto h-5 w-5 rounded-full bg-coral text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:12px">my_location</span></span></div>
+                        @if($demoFocus)
+                            <div class="absolute bottom-2.5 inset-x-2.5 card p-2 flex gap-2 items-center text-ink">
+                                <div class="h-11 w-11 rounded-xl overflow-hidden shrink-0 placeholder-cover"><img src="{{ $demoFocus['cover'] }}" alt="" class="h-full w-full object-cover" loading="lazy"></div>
+                                <div class="min-w-0"><p class="text-[9px] font-bold uppercase tracking-wider text-teal">{{ $demoFocus['category'] }}</p><p class="text-[11px] font-semibold leading-snug line-clamp-2">{{ $demoFocus['title'] }}</p><p class="text-[9px] text-ink-muted">{{ $demoFocus['free'] ? 'Gratuit · ' : '' }}à 6 min à pied</p></div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                <div class="phone phone-android phone-duo-android">
+                    <div class="phone-screen bg-paper p-3 pt-9 text-ink">
+                        <p class="eyebrow !text-[9px]">Parcours généré</p>
+                        <p class="font-display text-base leading-tight">Balade du week-end</p>
+                        <p class="text-[10px] text-ink-muted">3 h 10 · 4,2 km · à pied</p>
+                        <div class="mt-2 h-14 rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg,#E9F5EA,#FCE8E1)">
+                            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 80" fill="none"><path d="M20 60 C 60 10, 110 70, 150 30 S 210 20, 225 40" stroke="#FF5A3C" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="6 5"/><circle cx="20" cy="60" r="5" fill="#FF5A3C"/><circle cx="150" cy="30" r="5" fill="#12161C"/><circle cx="225" cy="40" r="5" fill="#12161C"/></svg>
+                        </div>
+                        <div class="mt-2 space-y-1.5">
+                            @foreach($demoRoute as $i => $p)
+                                <div class="flex items-center gap-2 rounded-xl bg-white p-1.5 shadow-card">
+                                    <span class="h-6 w-6 rounded-full bg-ink text-white text-[10px] font-bold flex items-center justify-center shrink-0">{{ $i + 1 }}</span>
+                                    <div class="min-w-0 flex-1"><p class="text-[10px] font-semibold leading-tight truncate">{{ $p['title'] }}</p><p class="text-[9px] text-ink-muted truncate">{{ $p['category'] }} · {{ $p['minutes'] }} min</p></div>
+                                    <span class="text-[9px] font-semibold text-ink-muted shrink-0">{{ ['10:15', '12:05', '13:10'][$i] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                        <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px]"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>Lancer</span>
+                    </div>
                 </div>
             </div>
         </div>

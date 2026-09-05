@@ -85,6 +85,9 @@ class UserStatsService
                 'hint' => $target . ' ' . $label,
                 'missing' => max(0, (int) ceil($target - $value)),
                 'label' => $label,
+                'target' => $target,
+                'value' => $value,
+                'progress' => (int) min(100, round($value / max(1, $target) * 100)),
             ];
         }
 

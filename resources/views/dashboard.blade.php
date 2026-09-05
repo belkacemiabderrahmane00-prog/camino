@@ -37,21 +37,34 @@
                 @endif
             </div>
 
-            <button type="button" @click="$dispatch('open-weather')" class="text-left rounded-4xl bg-gradient-to-br {{ $tones[$advice['tone']] ?? $tones['neutral'] }} text-white p-5 sm:p-6 relative overflow-hidden hover:-translate-y-0.5 transition">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-[11px] font-bold uppercase tracking-[0.16em] opacity-90">Paris · maintenant</p>
-                        <p class="font-display text-5xl leading-none mt-1">{{ $advice['temp'] !== null ? round($advice['temp']) . '°' : '—' }}</p>
-                        <p class="text-sm opacity-90 mt-1">{{ $advice['label'] ?? 'Météo indisponible' }}</p>
+            @php $idea = $recommended->first(); @endphp
+            @if($idea)
+                <div class="relative rounded-4xl overflow-hidden min-h-[260px] lg:min-h-0 flex flex-col justify-end text-white group">
+                    <a href="{{ route('places.show', $idea) }}" class="absolute inset-0" aria-label="{{ $idea->title }}">
+                        <img src="{{ $idea->coverThumb(960) }}" alt="" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/45 to-ink/10"></div>
+                    </a>
+                    <div class="relative p-5 sm:p-6 pointer-events-none">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-coral px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"><span class="material-symbols-outlined" style="font-size:14px">lightbulb</span>Idée du jour</span>
+                            <button type="button" @click="$dispatch('open-weather')" class="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] hover:bg-white/25 transition"><span class="material-symbols-outlined filled text-sun" style="font-size:14px">{{ $advice['icon'] }}</span>{{ $advice['title'] }}</button>
+                        </div>
+                        <p class="text-[11px] uppercase tracking-widest text-white/70 mt-3">{{ $idea->category->name ?? 'Lieu' }}{{ $idea->is_free ? ' · Gratuit' : '' }}</p>
+                        <p class="font-display text-2xl sm:text-3xl leading-tight mt-0.5 line-clamp-2">{{ $idea->title }}</p>
+                        <p class="text-sm text-white/75 mt-1 line-clamp-1">{{ $reason }}</p>
+                        <div class="mt-3 flex gap-2 pointer-events-auto">
+                            <a href="{{ route('places.show', $idea) }}" class="btn btn-sm bg-white text-ink">Voir la fiche</a>
+                            <form method="POST" action="{{ route('itineraries.add-place', $idea) }}">@csrf<button type="submit" class="btn btn-sm bg-white/15 text-white border border-white/20 hover:bg-white/25"><span class="material-symbols-outlined" style="font-size:16px">add_location_alt</span>Au parcours</button></form>
+                        </div>
                     </div>
-                    <span class="material-symbols-outlined filled" style="font-size:48px">{{ $advice['icon'] }}</span>
                 </div>
-                <div class="mt-4 rounded-2xl bg-white/15 backdrop-blur p-3">
-                    <p class="font-semibold text-sm flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:16px">auto_awesome</span>{{ $advice['title'] }}</p>
-                    <p class="text-xs opacity-90 mt-0.5 line-clamp-2">{{ $advice['text'] }}</p>
-                </div>
-                <p class="mt-3 text-[11px] opacity-80 flex items-center gap-1">Prévisions sur 3 jours <span class="material-symbols-outlined" style="font-size:14px">chevron_right</span></p>
-            </button>
+            @else
+                <a href="{{ route('map.index') }}" class="rounded-4xl bg-teal text-white p-6 flex flex-col justify-end min-h-[200px] hover:-translate-y-0.5 transition">
+                    <span class="material-symbols-outlined" style="font-size:40px">explore</span>
+                    <p class="font-display text-2xl mt-2">Explore la carte</p>
+                    <p class="text-sm text-white/80 mt-1">Ajoute des favoris et l'idée du jour apparaîtra ici, adaptée à la météo.</p>
+                </a>
+            @endif
         </div>
 
         {{-- ============================================================ Raccourcis --}}

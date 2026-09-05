@@ -307,3 +307,25 @@
 .camino-pin-start {
     background: #FF5A3C;
 }
+
+/* Duo de téléphones (section « bientôt sur iOS et Android ») */
+.phone-duo { position: relative; height: 540px; }
+.phone-duo .phone { position: absolute; width: 230px; }
+.phone-duo .phone-duo-ios { left: 10%; top: 40px; z-index: 2; transform: perspective(1400px) rotateY(12deg) rotate(-6deg); animation: float-soft 7s ease-in-out infinite; }
+.phone-duo .phone-duo-android { right: 6%; top: 100px; width: 212px; z-index: 1; transform: perspective(1400px) rotateY(-14deg) rotate(7deg); animation: float-soft 8s ease-in-out infinite reverse; }
+.phone-duo .phone::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,0.16) 0%, transparent 35%, transparent 65%, rgba(255,255,255,0.06) 100%); }
+.phone-duo .phone-android::after { background: linear-gradient(245deg, rgba(255,255,255,0.14) 0%, transparent 35%, transparent 65%, rgba(255,255,255,0.05) 100%); }
+@media (max-width: 1023px) {
+    .phone-duo { height: 330px; }
+    .phone-duo .phone { width: 150px; padding: 6px; border-radius: 1.6rem; }
+    .phone-duo .phone::before { width: 52px; height: 15px; top: 11px; }
+    .phone-duo .phone-android::before { width: 10px; height: 10px; }
+    .phone-duo .phone .phone-screen { border-radius: 1.25rem; }
+    .phone-duo .phone-android .phone-screen { border-radius: 1rem; }
+    .phone-duo .phone-duo-ios { left: calc(50% - 160px); top: 18px; animation: none; }
+    .phone-duo .phone-duo-android { width: 140px; right: calc(50% - 155px); top: 48px; animation: none; }
+    .phone-duo .demo-screen, .phone-duo .phone-screen { font-size: 0.85em; }
+}
+/* Anneau de progression (profil) */
+.progress-ring { transform: rotate(-90deg); }
+.progress-ring circle { fill: none; stroke-width: 6; stroke-linecap: round; }
