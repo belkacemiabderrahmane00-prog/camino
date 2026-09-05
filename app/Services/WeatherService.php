@@ -92,6 +92,11 @@ class WeatherService
             return $this->parse($response->json());
         })();
 
+        // Repli : MET Norway (Locationforecast, sans clé) quand Open-Meteo est indisponible ou limité (429).
+        if (! $forecast['available']) {
+            $forecast = $this->fetchMetNo($lat, $lng);
+        }
+
         // Seuls les résultats valides sont mis en cache : une panne ne doit pas masquer la météo 30 minutes.
         if ($forecast['available']) {
             Cache::put($key, $forecast, now()->addMinutes(config('camino.weather.cache_minutes', 30)));
@@ -187,6 +192,117 @@ class WeatherService
         }
 
         return ['current' => $current, 'hours' => $hours, 'days' => $days, 'available' => true];
+    }
+
+    /**
+     * MET Norway Locationforecast 2.0 (compact) → même structure que Open-Meteo.
+     * Les codes symboliques MET sont convertis en codes WMO pour réutiliser describe().
+     */
+    private function fetchMetNo(float $lat, float $lng): array
+    {
+        try {
+            $response = Http::timeout(config('camino.weather.timeout', 10))
+                ->withHeaders(['User-Agent' => config('camino.user_agent') . ' contact: webmaster@camino.app'])
+                ->get('https://api.met.no/weatherapi/locationforecast/2.0/compact', [
+                    'lat' => round($lat, 3),
+                    'lon' => round($lng, 3),
+                ]);
+        } catch (\Throwable $e) {
+            $this->lastError .= ' | met.no: ' . mb_substr($e->getMessage(), 0, 120);
+
+            return $this->unavailable();
+        }
+
+        if (! $response->ok()) {
+            $this->lastError .= ' | met.no: HTTP ' . $response->status();
+
+            return $this->unavailable();
+        }
+
+        $series = $response->json()['properties']['timeseries'] ?? [];
+        if ($series === []) {
+            return $this->unavailable();
+        }
+
+        $tz = config('app.timezone', 'Europe/Paris');
+        $hours = [];
+        $byDay = [];
+        foreach ($series as $entry) {
+            $time = Carbon::parse($entry['time'])->setTimezone($tz);
+            $details = $entry['data']['instant']['details'] ?? [];
+            $next = $entry['data']['next_1_hours'] ?? $entry['data']['next_6_hours'] ?? null;
+            $symbol = (string) ($next['summary']['symbol_code'] ?? 'cloudy');
+            $precip = (float) ($next['details']['precipitation_amount'] ?? 0);
+            $code = $this->metSymbolToWmo($symbol);
+            [$label, $icon, $indoor] = $this->describe($code);
+            $rainProbability = $precip <= 0 ? 5 : ($precip < 0.5 ? 40 : ($precip < 2 ? 70 : 90));
+            $temp = round((float) ($details['air_temperature'] ?? 0), 1);
+
+            if (count($hours) < 72) {
+                $hours[] = [
+                    'time' => $time->format('Y-m-d\TH:i'),
+                    'temp' => $temp,
+                    'code' => $code,
+                    'label' => $label,
+                    'icon' => $icon,
+                    'rain_probability' => $rainProbability,
+                    'indoor' => $indoor,
+                ];
+            }
+            $day = $time->toDateString();
+            $byDay[$day]['temps'][] = $temp;
+            $byDay[$day]['rain'][] = $rainProbability;
+            if ($time->hour >= 11 && $time->hour <= 15 && ! isset($byDay[$day]['code'])) {
+                $byDay[$day]['code'] = $code;
+            }
+        }
+
+        $days = [];
+        foreach (array_slice($byDay, 0, 3, true) as $date => $d) {
+            $code = $d['code'] ?? $this->metSymbolToWmo('cloudy');
+            [$label, $icon] = $this->describe($code);
+            $days[] = [
+                'date' => $date,
+                'code' => $code,
+                'label' => $label,
+                'icon' => $icon,
+                'tmin' => round(min($d['temps'])),
+                'tmax' => round(max($d['temps'])),
+                'rain_probability' => (int) max($d['rain']),
+            ];
+        }
+
+        $first = $hours[0] ?? null;
+        $current = $first ? [
+            'temp' => $first['temp'],
+            'code' => $first['code'],
+            'label' => $first['label'],
+            'icon' => $first['icon'],
+            'precipitation' => 0.0,
+            'wind' => round((float) ($series[0]['data']['instant']['details']['wind_speed'] ?? 0) * 3.6, 1),
+            'indoor' => $first['indoor'],
+        ] : null;
+
+        return ['current' => $current, 'hours' => $hours, 'days' => $days, 'available' => $current !== null, 'provider' => 'met.no'];
+    }
+
+    private function metSymbolToWmo(string $symbol): int
+    {
+        $base = preg_replace('/_(day|night|polartwilight)$/', '', $symbol) ?? $symbol;
+
+        return match (true) {
+            $base === 'clearsky' => 0,
+            $base === 'fair' => 1,
+            $base === 'partlycloudy' => 2,
+            $base === 'cloudy' => 3,
+            $base === 'fog' => 45,
+            str_contains($base, 'thunder') => 95,
+            str_starts_with($base, 'lightrain') || str_starts_with($base, 'lightsleet') => 61,
+            str_starts_with($base, 'heavyrain') => 65,
+            str_starts_with($base, 'rain') || str_contains($base, 'sleet') => 63,
+            str_contains($base, 'snow') => 73,
+            default => 3,
+        };
     }
 
     /** @return array{0:string,1:string,2:bool} */
