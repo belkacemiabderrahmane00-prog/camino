@@ -72,10 +72,7 @@ class PoiController extends Controller
         }
 
         if ($search = trim($request->string('q')->toString())) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('address', 'like', '%' . $search . '%');
-            });
+            $query->search($search);
         }
 
         $limit = min((int) $request->get('limit', 100), 200);

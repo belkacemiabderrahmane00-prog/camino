@@ -25,7 +25,7 @@
                     @endphp
 
                     <a
-                        href="{{ route('dashboard') }}"
+                        href="{{ auth()->check() ? route('dashboard') : url('/') }}"
                         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border {{ $isDashboard ? 'bg-slate-100 text-slate-900 border-slate-100 shadow-camino-chip' : 'bg-slate-900/80 border-slate-700/80 text-slate-100 shadow-sm shadow-slate-900/60 hover:border-primary/70 hover:text-primary' }}"
                     >
                         <span class="material-symbols-outlined text-[16px]">space_dashboard</span>
@@ -60,7 +60,7 @@
                 >
                     <span class="material-symbols-outlined text-[18px]">dark_mode</span>
                 </button>
-
+                @auth
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs leading-4 font-medium rounded-full text-slate-200 bg-slate-900/80 border border-slate-700/80 hover:border-primary hover:text-primary focus:outline-none transition ease-in-out duration-150">
@@ -97,6 +97,11 @@
                         </form>
                     </x-slot>
                 </x-dropdown>
+                @else
+                <a href="{{ route('login') }}" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full text-slate-200 border border-slate-700/80 hover:border-primary hover:text-primary transition-colors duration-150">Connexion</a>
+
+                <a href="{{ route('register') }}" class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full bg-primary text-slate-900 hover:brightness-110 transition duration-150">Inscription</a>
+                @endauth
             </div>
 
             <!-- Hamburger -->
@@ -127,7 +132,7 @@
                 Parcours
             </x-responsive-nav-link>
         </div>
-
+        @auth
         <!-- Responsive Settings Options -->
         <div class="pt-3 pb-4 border-t border-slate-800">
             <div class="px-4">
@@ -153,5 +158,14 @@
                 </form>
             </div>
         </div>
+        @else
+        <div class="pt-3 pb-4 border-t border-slate-800 space-y-1 px-4">
+
+            <x-responsive-nav-link :href="route('login')">Connexion</x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('register')">Inscription</x-responsive-nav-link>
+
+        </div>
+        @endauth
     </div>
 </nav>

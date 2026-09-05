@@ -27,7 +27,7 @@ class DatatourismeReclassifyParksCommand extends Command
 
         $baseQuery = Place::query()
             ->where('category_id', '!=', $parcCategory->id)
-            ->where('sources', 'like', '%"datatourisme"%')
+            ->whereJsonContains('sources', 'datatourisme')
             ->where(function ($q) use ($keywords) {
                 foreach ($keywords as $word) {
                     $q->orWhereRaw('LOWER(title) LIKE ?', ['%' . mb_strtolower($word, 'UTF-8') . '%']);

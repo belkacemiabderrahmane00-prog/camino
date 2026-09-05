@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePlaceReportRequest;
 use App\Models\Place;
 use App\Models\PlaceReport;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PlaceController extends Controller
@@ -59,10 +60,7 @@ class PlaceController extends Controller
 
         $search = $request->filled('q') ? trim($request->string('q')->toString()) : '';
         if ($query && $search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('address', 'like', '%' . $search . '%');
-            });
+            $query->search($search);
         }
 
         $places = $query ? $query->get() : collect();

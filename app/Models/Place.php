@@ -55,6 +55,19 @@ class Place extends Model
         return $query->where('status', 'approved');
     }
 
+    /**
+     * Recherche insensible à la casse sur le titre et l'adresse (MySQL, Postgres, SQLite).
+     */
+    public function scopeSearch($query, string $term)
+    {
+        $like = '%' . mb_strtolower(trim($term)) . '%';
+
+        return $query->where(function ($q) use ($like) {
+            $q->whereRaw('LOWER(title) LIKE ?', [$like])
+                ->orWhereRaw("LOWER(COALESCE(address, '')) LIKE ?", [$like]);
+        });
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);

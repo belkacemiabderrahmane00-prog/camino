@@ -55,10 +55,7 @@ class ItineraryController extends Controller
 
         if (! empty($data['q'])) {
             $search = trim($data['q']);
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('address', 'like', '%' . $search . '%');
-            });
+            $query->search($search);
         }
 
         if (! empty($data['free'])) {
