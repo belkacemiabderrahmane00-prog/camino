@@ -83,6 +83,18 @@ class User extends Authenticatable
         return $this->avatar_mime ? route('users.avatar', [$this, 'v' => $this->updated_at?->timestamp]) : null;
     }
 
+    /** pdo_pgsql renvoie les colonnes bytea sous forme de flux : on les lit en chaîne. */
+    public function getAvatarAttribute($value): ?string
+    {
+        if (is_resource($value)) {
+            rewind($value);
+            $value = stream_get_contents($value);
+            $this->attributes['avatar'] = $value;
+        }
+
+        return $value;
+    }
+
     public function getInitialAttribute(): string
     {
         return mb_strtoupper(mb_substr($this->name, 0, 1));

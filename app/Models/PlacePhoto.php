@@ -13,6 +13,18 @@ class PlacePhoto extends Model
 
     protected $hidden = ['data'];
 
+    /** pdo_pgsql renvoie les colonnes bytea sous forme de flux : on les lit en chaîne. */
+    public function getDataAttribute($value): ?string
+    {
+        if (is_resource($value)) {
+            rewind($value);
+            $value = stream_get_contents($value);
+            $this->attributes['data'] = $value;
+        }
+
+        return $value;
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');

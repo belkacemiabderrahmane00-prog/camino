@@ -56,10 +56,6 @@ class ProfileController extends Controller
             $user->avatar_mime = null;
         }
 
-        if (str_starts_with((string) $request->header('Content-Type'), 'multipart/form-data')) {
-            Log::info('Profil multipart', ['FILES' => $_FILES, 'has' => $request->hasFile('avatar'), 'count' => $request->files->count(), 'error' => $request->file('avatar')?->getError(), 'length' => $request->header('Content-Length'), 'method' => $request->method()]);
-        }
-
         if (! $request->hasFile('avatar') && $request->files->count() === 0 && str_starts_with((string) $request->header('Content-Type'), 'multipart/form-data') && (int) $request->header('Content-Length') > 4000) {
             // PHP n'a pas pu créer le fichier temporaire (dossier tmp non inscriptible) : on le dit au lieu d'ignorer.
             Log::warning('Upload avatar sans fichier reçu', ['files' => $_FILES, 'tmp' => sys_get_temp_dir(), 'length' => $request->header('Content-Length')]);
