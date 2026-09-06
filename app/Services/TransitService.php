@@ -32,7 +32,7 @@ class TransitService
         }
         // Les horaires changent peu à l'échelle d'un quart d'heure : cache par créneau.
         $slot = $at->copy()->minute(intdiv($at->minute, 15) * 15)->second(0);
-        $key = 'transit:v1:' . md5(round($from['lat'], 4) . ',' . round($from['lng'], 4) . '|' . round($to['lat'], 4) . ',' . round($to['lng'], 4) . '|' . $slot->format('YmdHi'));
+        $key = 'transit:v1:' . md5(round($from['lat'], 4) . ',' . round($from['lng'], 4) . '|' . round($to['lat'], 4) . ',' . round($to['lng'], 4) . '|' . $slot->format('YmdHi')) . ':' . app()->getLocale();
 
         return Cache::remember($key, now()->addMinutes((int) config('camino.transit.cache_minutes', 60)), function () use ($from, $to, $slot) {
             try {
@@ -107,23 +107,23 @@ class TransitService
                 $sections[] = ['type' => 'pt', 'minutes' => $minutes, 'from' => $fromName, 'to' => $toName, 'stops' => $stops, 'direction' => $direction] + $line;
                 $maneuvers[] = [
                     'type' => 40, 'kind' => 'board', 'line' => $line,
-                    'text' => "Prends $mode $code direction $direction",
-                    'verbal' => "Prenez " . $this->article($mode) . " $code direction $direction. Descendez à $toName" . ($stops > 0 ? ", dans $stops arrêt" . ($stops > 1 ? 's' : '') : '') . '.',
+                    'text' => __('Prends :line direction :direction', ['line' => trim("$mode $code"), 'direction' => $direction]),
+                    'verbal' => __('Prenez :line direction :direction. Descendez à :stop', ['line' => trim($this->article($mode) . " $code"), 'direction' => $direction, 'stop' => $toName]) . ($stops > 0 ? trans_choice(', dans :n arrêt|, dans :n arrêts', $stops, ['n' => $stops]) : '') . '.',
                     'street' => $fromName, 'begin' => $begin, 'end' => count($shape) - 1, 'km' => round($this->lengthKm($coords), 3), 'sec' => (int) ($s['duration'] ?? 0),
                 ];
                 $maneuvers[] = [
                     'type' => 41, 'kind' => 'alight', 'line' => $line,
-                    'text' => "Descends à $toName",
-                    'verbal' => "Descendez à $toName.",
+                    'text' => __('Descends à :stop', ['stop' => $toName]),
+                    'verbal' => __('Descendez à :stop.', ['stop' => $toName]),
                     'street' => '', 'begin' => count($shape) - 1, 'end' => count($shape) - 1, 'km' => 0, 'sec' => 0,
                 ];
             } else {
                 $sections[] = ['type' => 'walk', 'minutes' => $minutes, 'from' => $fromName, 'to' => $toName];
-                $target = $toName !== '' ? $toName : 'la prochaine étape';
+                $target = $toName !== '' ? $toName : __('la prochaine étape');
                 $maneuvers[] = [
                     'type' => 8, 'kind' => 'walk',
-                    'text' => "Marche $minutes min jusqu'à $target",
-                    'verbal' => "Marchez $minutes minute" . ($minutes > 1 ? 's' : '') . " jusqu'à $target.",
+                    'text' => __('Marche :n min jusqu\'à :target', ['n' => $minutes, 'target' => $target]),
+                    'verbal' => trans_choice('Marchez :n minute jusqu\'à :target.|Marchez :n minutes jusqu\'à :target.', $minutes, ['n' => $minutes, 'target' => $target]),
                     'street' => '', 'begin' => $begin, 'end' => max($begin, count($shape) - 1), 'km' => round($this->lengthKm($coords), 3), 'sec' => (int) ($s['duration'] ?? 0),
                 ];
             }
@@ -159,9 +159,9 @@ class TransitService
     private function article(string $mode): string
     {
         return match ($mode) {
-            'Métro', 'RER', 'Tram', 'Train' => 'le ' . $mode,
-            'Bus' => 'le bus',
-            default => 'la ligne',
+            'Métro', 'RER', 'Tram', 'Train' => app()->getLocale() === 'fr' ? 'le ' . $mode : $mode,
+            'Bus' => app()->getLocale() === 'fr' ? 'le bus' : 'Bus',
+            default => app()->getLocale() === 'fr' ? 'la ligne' : __('la ligne'),
         };
     }
 

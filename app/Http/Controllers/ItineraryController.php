@@ -188,7 +188,7 @@ class ItineraryController extends Controller
         $this->persist($result);
 
         return redirect()->route('itineraries.create')
-            ->with('status', $result['steps'] === [] ? null : (Auth::check() ? 'Parcours enregistré dans « Mes parcours ».' : 'Parcours généré. Connecte-toi pour le retrouver plus tard.'));
+            ->with('status', $result['steps'] === [] ? null : (Auth::check() ? __('Parcours enregistré dans « Mes parcours ».') : __('Parcours généré. Connecte-toi pour le retrouver plus tard.')));
     }
 
     /** Bascule vers une des propositions calculées. */
@@ -203,7 +203,7 @@ class ItineraryController extends Controller
         $chosen['itinerary_id'] = $current['itinerary_id'] ?? null;
         $this->persist($chosen);
 
-        return redirect()->route('itineraries.create')->with('status', 'Proposition « ' . self::VARIANTS[$key]['label'] . ' » sélectionnée.');
+        return redirect()->route('itineraries.create')->with('status', __('Proposition « :label » sélectionnée.', ['label' => __(self::VARIANTS[$key]['label'])]));
     }
 
     // ------------------------------------------------------------------ édition d'un parcours généré
@@ -213,14 +213,14 @@ class ItineraryController extends Controller
         $result = $this->current($index);
         $steps = array_values($result['steps']);
         if (count($steps) <= 1) {
-            return back()->with('status', 'Un parcours doit garder au moins une étape.');
+            return back()->with('status', __('Un parcours doit garder au moins une étape.'));
         }
         $removed = $steps[$index];
         array_splice($steps, $index, 1);
         $this->forgetLock((int) $removed['place_id']);
         $this->rebuild($result, $steps);
 
-        return back()->with('status', '« ' . $removed['title'] . ' » retiré, horaires recalculés.');
+        return back()->with('status', __('« :title » retiré, horaires recalculés.', ['title' => $removed['title']]));
     }
 
     public function editMove(Request $request, int $index)
@@ -234,7 +234,7 @@ class ItineraryController extends Controller
         [$steps[$index], $steps[$to]] = [$steps[$to], $steps[$index]];
         $this->rebuild($result, $steps);
 
-        return back()->with('status', 'Ordre modifié, trajets recalculés.');
+        return back()->with('status', __('Ordre modifié, trajets recalculés.'));
     }
 
     public function editDuration(Request $request, int $index)
@@ -245,7 +245,7 @@ class ItineraryController extends Controller
         $steps[$index]['visit_minutes'] = max(15, min(240, (int) $steps[$index]['visit_minutes'] + $delta));
         $this->rebuild($result, $steps);
 
-        return back()->with('status', 'Durée ajustée : ' . $steps[$index]['visit_minutes'] . ' min sur place.');
+        return back()->with('status', __('Durée ajustée : :n min sur place.', ['n' => $steps[$index]['visit_minutes']]));
     }
 
     public function editLock(int $index)
@@ -259,7 +259,7 @@ class ItineraryController extends Controller
         $result['steps'][$index]['locked'] = ! $isLocked;
         $this->persist($result);
 
-        return back()->with('status', $isLocked ? 'Étape déverrouillée.' : 'Étape verrouillée : elle restera dans le parcours si tu recalcules.');
+        return back()->with('status', $isLocked ? __('Étape déverrouillée.') : __('Étape verrouillée : elle restera dans le parcours si tu recalcules.'));
     }
 
     public function editReplace(int $index)
@@ -282,13 +282,13 @@ class ItineraryController extends Controller
 
         $replacement = $candidates->first();
         if (! $replacement) {
-            return back()->with('status', 'Aucun lieu similaire ouvert à proximité.');
+            return back()->with('status', __('Aucun lieu similaire ouvert à proximité.'));
         }
         $steps[$index] = ['place_id' => $replacement->id, 'visit_minutes' => $replacement->visit_duration_min ?: 60];
         $this->forgetLock((int) $step['place_id']);
         $this->rebuild($result, $steps);
 
-        return back()->with('status', '« ' . $step['title'] . ' » remplacé par « ' . $replacement->title . ' ».');
+        return back()->with('status', __('« :a » remplacé par « :b ».', ['a' => $step['title'], 'b' => $replacement->title]));
     }
 
     // ------------------------------------------------------------------ sélection manuelle
@@ -302,7 +302,7 @@ class ItineraryController extends Controller
         }
         session()->put(self::SESSION_KEY, $ids);
 
-        return back()->with('status', 'Lieu ajouté à ton parcours.');
+        return back()->with('status', __('Lieu ajouté à ton parcours.'));
     }
 
     public function removePlace(Place $place)
@@ -310,14 +310,14 @@ class ItineraryController extends Controller
         $ids = array_values(array_diff(session(self::SESSION_KEY, []), [$place->id]));
         session()->put(self::SESSION_KEY, $ids);
 
-        return back()->with('status', 'Lieu retiré du parcours.');
+        return back()->with('status', __('Lieu retiré du parcours.'));
     }
 
     public function clearPlaces(Request $request)
     {
         session()->forget(self::SESSION_KEY);
 
-        return redirect()->route('itineraries.create')->with('status', 'Sélection vidée.');
+        return redirect()->route('itineraries.create')->with('status', __('Sélection vidée.'));
     }
 
     // ------------------------------------------------------------------ parcours enregistrés
@@ -346,14 +346,14 @@ class ItineraryController extends Controller
         session()->forget(self::VARIANTS_KEY);
         session()->put('itinerary_result', $result);
 
-        return redirect()->route('itineraries.create')->with('status', 'Parcours « ' . $itinerary->name . ' » rechargé.');
+        return redirect()->route('itineraries.create')->with('status', __('Parcours « :name » rechargé.', ['name' => $itinerary->name]));
     }
 
     public function share(Itinerary $itinerary)
     {
         abort_unless($itinerary->user_id === Auth::id(), 403);
 
-        return back()->with('status', 'Lien de partage prêt.')->with('share_url', $itinerary->shareUrl());
+        return back()->with('status', __('Lien de partage prêt.'))->with('share_url', $itinerary->shareUrl());
     }
 
     public function gpx(Itinerary $itinerary)
@@ -381,7 +381,7 @@ class ItineraryController extends Controller
         session()->forget(self::LOCKED_KEY);
         session()->put('itinerary_result', $result);
 
-        return redirect()->route('itineraries.create')->with('status', 'Parcours « ' . $itinerary->name . ' » ouvert. Tu peux le suivre ou le modifier.');
+        return redirect()->route('itineraries.create')->with('status', __('Parcours « :name » ouvert. Tu peux le suivre ou le modifier.', ['name' => $itinerary->name]));
     }
 
     public function sharedGpx(string $token)
@@ -394,7 +394,7 @@ class ItineraryController extends Controller
     {
         $result = session('itinerary_result');
         if (! $result || empty($result['steps'])) {
-            return redirect()->route('itineraries.create')->with('status', 'Génère un parcours avant de lancer le guidage.');
+            return redirect()->route('itineraries.create')->with('status', __('Génère un parcours avant de lancer le guidage.'));
         }
 
         return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create')]);
@@ -414,7 +414,7 @@ class ItineraryController extends Controller
 
         $itinerary->delete();
 
-        return redirect()->route('itineraries.index')->with('status', 'Parcours supprimé.');
+        return redirect()->route('itineraries.index')->with('status', __('Parcours supprimé.'));
     }
 
     // ------------------------------------------------------------------ internes

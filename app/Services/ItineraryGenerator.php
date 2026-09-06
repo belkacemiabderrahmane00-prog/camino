@@ -83,7 +83,7 @@ class ItineraryGenerator
                 ? ['lat' => (float) $candidates->avg('lat'), 'lng' => (float) $candidates->avg('lng'), 'label' => 'Point de départ']
                 : ['lat' => config('camino.default_start.lat'), 'lng' => config('camino.default_start.lng'), 'label' => config('camino.default_start.label')];
         }
-        $start['label'] = $start['label'] ?? 'Point de départ';
+        $start['label'] = $start['label'] ?? __('Point de départ');
         $loop = (bool) ($options['loop'] ?? false);
         $end = $options['end'] ?? null;
         if ($loop) {
@@ -91,7 +91,7 @@ class ItineraryGenerator
         } elseif (! $end || ! isset($end['lat'], $end['lng'])) {
             $end = null;
         } else {
-            $end['label'] = $end['label'] ?? 'Arrivée';
+            $end['label'] = $end['label'] ?? __('Arrivée');
         }
 
         $weather = $useWeather ? $this->weather->summaryFor((float) $start['lat'], (float) $start['lng'], $startsAt, $timeBudget) : null;
@@ -127,7 +127,7 @@ class ItineraryGenerator
         }
 
         if ($rows === []) {
-            $why = $closedCount > 0 ? 'Les lieux autour du départ sont fermés à cette date.' : ($freeOnly ? 'Aucun lieu gratuit disponible autour du point de départ.' : 'Aucun lieu disponible autour du point de départ.');
+            $why = $closedCount > 0 ? __('Les lieux autour du départ sont fermés à cette date.') : ($freeOnly ? __('Aucun lieu gratuit disponible autour du point de départ.') : __('Aucun lieu disponible autour du point de départ.'));
 
             return $this->result($start, $end, $loop, $startsAt, $travelMode, [], [], $weather, [$why]);
         }
@@ -278,9 +278,9 @@ class ItineraryGenerator
 
         if ($sequence === []) {
             $closingSoon = count(array_filter($rows, fn ($r) => $r['hours']['status'] === 'open' && $r['hours']['closes'] !== null && $r['hours']['closes'] < $startMin + 45));
-            $why = $skippedBudget > 0 ? 'Le budget indiqué est trop faible pour les lieux disponibles.' : 'Le temps disponible est trop court pour proposer un parcours avec ces lieux.';
+            $why = $skippedBudget > 0 ? __('Le budget indiqué est trop faible pour les lieux disponibles.') : __('Le temps disponible est trop court pour proposer un parcours avec ces lieux.');
             if ($closingSoon > 0 && $closingSoon >= count($rows) * 0.6) {
-                $why = 'À cette heure, les lieux autour du départ sont fermés ou ferment bientôt. Choisis un autre créneau ou une autre date.';
+                $why = __('À cette heure, les lieux autour du départ sont fermés ou ferment bientôt. Choisis un autre créneau ou une autre date.');
             }
 
             return $this->result($start, $end, $loop, $startsAt, $mode, [], [], $weather, [$why]);
@@ -385,7 +385,7 @@ class ItineraryGenerator
                     'note' => $node['hours']['note'],
                 ],
                 'alternative' => $alternative,
-                'reason' => $node['kind'] === 'lunch' ? 'Pause déjeuner sur le chemin' : (! empty($node['short']) ? 'Visite express pour tenir dans le temps' : $this->reason($place, $interests, $weather, $node['hours'])),
+                'reason' => $node['kind'] === 'lunch' ? __('Pause déjeuner sur le chemin') : (! empty($node['short']) ? __('Visite express pour tenir dans le temps') : $this->reason($place, $interests, $weather, $node['hours'])),
             ];
         }
 
@@ -397,40 +397,40 @@ class ItineraryGenerator
 
         $warnings = [];
         if ($skippedBudget > 0) {
-            $warnings[] = $skippedBudget . ' lieu(x) écarté(s) pour rester dans le budget.';
+            $warnings[] = __(':n lieu(x) écarté(s) pour rester dans le budget.', ['n' => $skippedBudget]);
         }
         if ($closedCount > 0) {
-            $warnings[] = $closedCount . ' lieu(x) fermé(s) à cette date ont été écartés.';
+            $warnings[] = __(':n lieu(x) fermé(s) à cette date ont été écartés.', ['n' => $closedCount]);
         }
         if ($trimmedForOrder) {
-            $warnings[] = 'Ta sélection a été raccourcie pour tenir dans le temps disponible.';
+            $warnings[] = __('Ta sélection a été raccourcie pour tenir dans le temps disponible.');
         }
         if ($transit && ! $this->transit->enabled()) {
-            $warnings[] = 'Transports en commun non configurés sur ce serveur : trajets calculés à pied.';
+            $warnings[] = __('Transports en commun non configurés sur ce serveur : trajets calculés à pied.');
         }
         if (($route['source'] ?? '') === 'estimate' || ($matrix['source'] ?? '') === 'estimate') {
-            $warnings[] = 'Service de routage indisponible : durées estimées à vol d\'oiseau.';
+            $warnings[] = __('Service de routage indisponible : durées estimées à vol d\'oiseau.');
         }
         if ($weather && $weather['indoor_recommended']) {
-            $warnings[] = sprintf('Météo : %s (%d %% de pluie). Les lieux couverts sont privilégiés et chaque étape en extérieur a un plan B.', $weather['label'], $weather['rain_probability']);
+            $warnings[] = __('Météo : :label (:rain % de pluie). Les lieux couverts sont privilégiés et chaque étape en extérieur a un plan B.', ['label' => $weather['label'], 'rain' => $weather['rain_probability']]);
         }
         if ($lenient && $sim['total'] > $timeBudget) {
-            $warnings[] = 'Ce parcours dépasse ton temps disponible de ' . ($sim['total'] - $timeBudget) . ' min.';
+            $warnings[] = __('Ce parcours dépasse ton temps disponible de :n min.', ['n' => $sim['total'] - $timeBudget]);
         }
         foreach ($steps as $st) {
             if ($st['conflict']) {
-                $warnings[] = $st['title'] . ' : la visite finirait après la fermeture (' . $st['hours']['closes'] . ').';
+                $warnings[] = __(':title : la visite finirait après la fermeture (:closes).', ['title' => $st['title'], 'closes' => $st['hours']['closes']]);
             }
         }
         if ($accessible) {
             $unknownAccess = count(array_filter($steps, fn ($s) => $s['accessible'] === null && $s['kind'] === 'visit'));
             if ($unknownAccess > 0) {
-                $warnings[] = $unknownAccess . ' étape(s) sans information d\'accessibilité vérifiée : le trajet évite les escaliers, mais vérifie l\'entrée.';
+                $warnings[] = __(':n étape(s) sans information d\'accessibilité vérifiée : le trajet évite les escaliers, mais vérifie l\'entrée.', ['n' => $unknownAccess]);
             }
         }
         $unknown = count(array_filter($steps, fn ($s) => $s['hours']['status'] === 'unknown'));
         if ($unknown > 0) {
-            $warnings[] = $unknown . ' étape(s) sans horaires connus : vérifie avant de partir.';
+            $warnings[] = __(':n étape(s) sans horaires connus : vérifie avant de partir.', ['n' => $unknown]);
         }
 
         $this->accessibleFlag = $accessible;
@@ -699,25 +699,25 @@ class ItineraryGenerator
     {
         $slug = $place->category->slug ?? '';
         if ($interests !== [] && in_array($slug, $interests, true)) {
-            return 'Correspond à tes centres d\'intérêt';
+            return __('Correspond à tes centres d\'intérêt');
         }
         if ($weather && $weather['indoor_recommended'] && in_array($slug, self::INDOOR, true)) {
-            return 'À l\'abri en cas de pluie';
+            return __('À l\'abri en cas de pluie');
         }
         if ($place->event_start_at || $place->event_end_at) {
-            return 'Événement en cours à cette date';
+            return __('Événement en cours à cette date');
         }
         if ($place->is_free) {
             return 'Gratuit';
         }
         if ($place->reviews_avg_rating) {
-            return 'Bien noté par la communauté';
+            return __('Bien noté par la communauté');
         }
         if ($hours['status'] === 'open') {
-            return 'Ouvert à ton passage';
+            return __('Ouvert à ton passage');
         }
 
-        return 'Proche de ton parcours';
+        return __('Proche de ton parcours');
     }
 
     private function result(array $start, ?array $end, bool $loop, Carbon $startsAt, string $mode, array $steps, array $route, ?array $weather, array $warnings, float $totalCost = 0.0, ?array $sim = null, ?array $finalLeg = null, string $matrixSource = 'none'): array
@@ -735,8 +735,8 @@ class ItineraryGenerator
             'title' => $this->title($categories, $start['label'] ?? null),
             'mode' => $mode,
             'accessible' => $this->accessibleFlag,
-            'start' => ['lat' => (float) $start['lat'], 'lng' => (float) $start['lng'], 'label' => $start['label'] ?? 'Point de départ'],
-            'end' => $end ? ['lat' => (float) $end['lat'], 'lng' => (float) $end['lng'], 'label' => $end['label'] ?? 'Arrivée'] + ($finalLeg ?? []) : null,
+            'start' => ['lat' => (float) $start['lat'], 'lng' => (float) $start['lng'], 'label' => $start['label'] ?? __('Point de départ')],
+            'end' => $end ? ['lat' => (float) $end['lat'], 'lng' => (float) $end['lng'], 'label' => $end['label'] ?? __('Arrivée')] + ($finalLeg ?? []) : null,
             'loop' => $loop,
             'date' => $startsAt->format('Y-m-d'),
             'starts_at' => $startsAt->toIso8601String(),
@@ -761,13 +761,13 @@ class ItineraryGenerator
     private function title(array $categories, ?string $startLabel): string
     {
         if ($categories === []) {
-            return 'Parcours CAMINO';
+            return __('Parcours CAMINO');
         }
         $main = array_slice($categories, 0, 2);
         $label = implode(' & ', array_map(fn ($c) => mb_strtolower($c), $main));
-        $from = $startLabel && ! in_array($startLabel, ['Point de départ', 'Ma position'], true) ? ' · ' . mb_substr($startLabel, 0, 40) : '';
+        $from = $startLabel && ! in_array($startLabel, ['Point de départ', 'Ma position', __('Point de départ'), __('Ma position')], true) ? ' · ' . mb_substr($startLabel, 0, 40) : '';
 
-        return 'Balade ' . $label . $from;
+        return __('Balade :label', ['label' => $label]) . $from;
     }
 
     private function hhmm(int $minutes): string
