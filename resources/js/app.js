@@ -103,6 +103,22 @@ export function locate(options = {}) {
     });
 }
 
-window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, tileLayer, escapeHtml, debounce, locate };
+/**
+ * Puce d'étape en HTML (pour les marqueurs MapLibre du guidage).
+ */
+export function stepPinHtml(number, isStart = false) {
+    return `<div class="camino-pin ${isStart ? 'camino-pin-start' : 'camino-pin-step'}" style="width:30px;height:30px">${isStart ? '<span class="material-symbols-outlined" style="font-size:16px">flag</span>' : number}</div>`;
+}
+export function placePinHtml(slug, size = 30) {
+    const style = categoryStyle(slug);
+    return `<div class="camino-pin" style="background:${style.color};width:${size}px;height:${size}px"><span class="material-symbols-outlined">${style.icon}</span></div>`;
+}
+
+/** Carte de navigation (MapLibre), chargée uniquement sur la page de guidage. */
+export function loadNavMap() {
+    return import('./nav-map.js').then((m) => m.NavMap);
+}
+
+window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap };
 
 Alpine.start();

@@ -345,3 +345,17 @@
 /* Bandeau de sections défilant sans barre visible */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Carte de navigation (MapLibre) ---------------------------------------------- */
+.nav-puck { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; position: relative; }
+.nav-puck-halo { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: rgba(29, 78, 216, 0.18); border: 1px solid rgba(29, 78, 216, 0.35); transition: width 0.4s ease, height 0.4s ease; }
+.nav-puck-arrow { position: relative; width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 30px solid #1D4ED8; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.45)); transform: translateY(-4px); }
+.nav-puck-arrow::after { content: ''; position: absolute; left: -6px; top: 10px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+.maplibregl-ctrl-attrib { font-size: 10px !important; background: rgba(255,255,255,0.75) !important; border-radius: 999px 0 0 0; }
+.maplibregl-ctrl-bottom-right { z-index: 500; }
+.maplibregl-canvas { outline: none; }
+#nav-map .camino-marker { cursor: default; }
+/* Bandeau de manœuvre : grande flèche */
+.nav-turn-icon { font-size: 40px; font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 48; }
+/* MapLibre force position:relative sur son conteneur : on garde le plein écran */
+#nav-map, #nav-map.maplibregl-map { position: absolute !important; inset: 0; width: 100%; height: 100%; }
