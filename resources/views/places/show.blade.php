@@ -164,7 +164,7 @@
             {{-- Avis --}}
             <div class="card p-6 sm:p-8" id="avis">
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <div><p class="eyebrow mb-1">{{ __('Avis') }}</p><h2 class="display text-2xl">{{ $reviewCount > 0 ? $averageRating . '/5 · ' . $reviewCount . ' avis' : 'Aucun avis pour l\'instant' }}</h2></div>
+                    <div><p class="eyebrow mb-1">{{ __('Avis') }}</p><h2 class="display text-2xl">{{ $reviewCount > 0 ? $averageRating . '/5 · ' . trans_choice(':n avis|:n avis', $reviewCount, ['n' => $reviewCount]) : __('Aucun avis pour l\'instant') }}</h2></div>
                 </div>
                 @auth
                     <form method="POST" action="{{ route('places.reviews.store', $place) }}" class="rounded-2xl bg-paper p-4 mb-5 space-y-3" x-data="{ rating: 5 }">
