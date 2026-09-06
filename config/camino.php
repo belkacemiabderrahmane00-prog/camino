@@ -37,5 +37,15 @@ return [
         'bike' => 13.0,
     ],
 
+    /*
+     * Transports en commun : API PRIM d'Île-de-France Mobilités (calculateur Navitia). Clé gratuite sur prim.iledefrance-mobilites.fr.
+     */
+    'transit' => [
+        'api_key' => env('CAMINO_PRIM_API_KEY', ''),
+        'base_url' => env('CAMINO_PRIM_URL', 'https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia'),
+        'timeout' => (int) env('CAMINO_PRIM_TIMEOUT', 10),
+        'cache_minutes' => (int) env('CAMINO_PRIM_CACHE', 60),
+    ],
+
     'user_agent' => 'CAMINO/2.0 (+https://camino-u0eo.onrender.com)',
 ];

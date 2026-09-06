@@ -9,7 +9,7 @@
                 <p class="text-sm text-ink-muted mt-1">
                     {{ $result['start']['label'] ?? '' }}{{ !empty($result['end']['label']) ? ' → ' . $result['end']['label'] : '' }}
                     @if($startsAt) · {{ ucfirst($startsAt->translatedFormat('l j F')) }} à {{ $startsAt->format('H\hi') }} @endif
-                    · {{ ($result['mode'] ?? 'walk') === 'bike' ? 'à vélo' : 'à pied' }} · {{ floor(($result['total_minutes'] ?? 0) / 60) }} h {{ str_pad(($result['total_minutes'] ?? 0) % 60, 2, '0', STR_PAD_LEFT) }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km
+                    · {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · {{ floor(($result['total_minutes'] ?? 0) / 60) }} h {{ str_pad(($result['total_minutes'] ?? 0) % 60, 2, '0', STR_PAD_LEFT) }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km
                 </p>
                 <ol class="mt-6 space-y-3">
                     @foreach($steps as $i => $step)

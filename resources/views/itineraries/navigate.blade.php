@@ -52,7 +52,7 @@
                     <div class="min-w-0 flex-1">
                         <p class="eyebrow">Guidage</p>
                         <p class="font-display text-xl leading-tight truncate">{{ $result['title'] }}</p>
-                        <p class="text-xs text-ink-muted mt-1">{{ count($steps) }} étape{{ count($steps) > 1 ? 's' : '' }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ ($result['mode'] ?? 'walk') === 'bike' ? 'à vélo' : 'à pied' }} · instructions vocales en français</p>
+                        <p class="text-xs text-ink-muted mt-1">{{ count($steps) }} étape{{ count($steps) > 1 ? 's' : '' }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · instructions vocales en français</p>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-2">
@@ -124,7 +124,7 @@
             const bearing = (a, b) => { const y = Math.sin(toRad(b[1] - a[1])) * Math.cos(toRad(b[0])); const x = Math.cos(toRad(a[0])) * Math.sin(toRad(b[0])) - Math.sin(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.cos(toRad(b[1] - a[1])); return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; };
             // Projection d'un point sur un segment [a,b] : retourne {t, d, p}
             const project = (p, a, b) => { const ax = a[1], ay = a[0], bx = b[1], by = b[0], px = p[1], py = p[0]; const kx = Math.cos(toRad(ay)); const dx = (bx - ax) * kx, dy = by - ay; const len2 = dx * dx + dy * dy; let t = len2 === 0 ? 0 : (((px - ax) * kx * dx + (py - ay) * dy) / len2); t = Math.max(0, Math.min(1, t)); const q = [ay + (by - ay) * t, ax + (bx - ax) * t]; return { t, d: dist(p, q), p: q }; };
-            const ICONS = { 1: 'straight', 2: 'straight', 3: 'straight', 4: 'sports_score', 5: 'sports_score', 6: 'sports_score', 7: 'straight', 8: 'straight', 9: 'turn_slight_right', 10: 'turn_right', 11: 'turn_sharp_right', 12: 'u_turn_right', 13: 'u_turn_left', 14: 'turn_sharp_left', 15: 'turn_left', 16: 'turn_slight_left', 17: 'straight', 18: 'turn_slight_right', 19: 'turn_slight_left', 20: 'turn_slight_right', 21: 'turn_slight_left', 22: 'straight', 23: 'turn_slight_right', 24: 'turn_slight_left', 25: 'merge', 26: 'roundabout_right', 27: 'roundabout_right', 37: 'merge', 38: 'merge' };
+            const ICONS = { 1: 'straight', 2: 'straight', 3: 'straight', 4: 'sports_score', 5: 'sports_score', 6: 'sports_score', 7: 'straight', 8: 'straight', 9: 'turn_slight_right', 10: 'turn_right', 11: 'turn_sharp_right', 12: 'u_turn_right', 13: 'u_turn_left', 14: 'turn_sharp_left', 15: 'turn_left', 16: 'turn_slight_left', 17: 'straight', 18: 'turn_slight_right', 19: 'turn_slight_left', 20: 'turn_slight_right', 21: 'turn_slight_left', 22: 'straight', 23: 'turn_slight_right', 24: 'turn_slight_left', 25: 'merge', 26: 'roundabout_right', 27: 'roundabout_right', 37: 'merge', 38: 'merge', 40: 'directions_subway', 41: 'exit_to_app' };
             let map = null, userMarker = null, accuracyCircle = null, routeLine = null, legLine = null, doneLine = null, watchId = null, wakeLock = null, simTimer = null, stepMarkers = [];
             let cum = [];
             const targets = data.steps.map(s => ({ ...s, kind: s.kind || 'visit' }));
@@ -174,15 +174,15 @@
                         shape = [from, [t.lat, t.lng]];
                         maneuvers = [t.kind === 'end' ? { type: 8, text: 'Retourne au point de départ', verbal: 'Retournez au point de départ.', street: '', begin: 0, end: 1 } : { type: 8, text: 'Dirige-toi vers ' + t.title, verbal: 'Dirigez-vous vers ' + t.title + '.', street: '', begin: 0, end: 1 }];
                     }
-                    this.setLeg(shape, maneuvers);
+                    this.setLeg(shape, maneuvers, !!(stored && stored.transit));
                 },
-                setLeg(shape, maneuvers) {
-                    this.leg = { shape, maneuvers: maneuvers.filter(m => m.type !== 4 && m.type !== 5 && m.type !== 6).concat(maneuvers.filter(m => m.type === 4 || m.type === 5 || m.type === 6).slice(0, 1)) };
+                setLeg(shape, maneuvers, transit = false) {
+                    this.leg = { transit, shape, maneuvers: maneuvers.filter(m => m.type !== 4 && m.type !== 5 && m.type !== 6).concat(maneuvers.filter(m => m.type === 4 || m.type === 5 || m.type === 6).slice(0, 1)) };
                     cum = [0];
                     for (let i = 1; i < shape.length; i++) cum[i] = cum[i - 1] + dist(shape[i - 1], shape[i]);
                     if (legLine) legLine.remove();
                     if (doneLine) doneLine.remove();
-                    legLine = L.polyline(shape, { color: data.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 6, opacity: 0.95, lineJoin: 'round' }).addTo(map);
+                    legLine = L.polyline(shape, { color: transit ? '#1D4ED8' : (data.mode === 'bike' ? '#0F8B8D' : '#FF5A3C'), weight: 6, opacity: 0.95, lineJoin: 'round', dashArray: transit ? '10 8' : null }).addTo(map);
                     doneLine = L.polyline([], { color: '#9CA3AF', weight: 6, opacity: 0.9 }).addTo(map);
                     this.segIdx = 0; this.along = 0; this.remaining = this.legTotal(); this.maneuverIdx = -1; this.spokenIdx = -1; this.spokenApproach = -1; this.offRoute = false; this.offRouteCount = 0;
                     this.updateInstruction(0);
@@ -221,7 +221,7 @@
                     const target = this.target;
                     const dTarget = dist(latlng, [target.lat, target.lng]);
                     if (dTarget < 30 || (dTarget < 45 && best.i >= shape.length - 2)) { this.onArrival(); return; }
-                    if (best.d > Math.max(45, (accuracy || 0) * 1.5)) {
+                    if (best.d > Math.max(45, (accuracy || 0) * 1.5) && !this.leg.transit) {
                         this.offRouteCount++;
                         if (this.offRouteCount >= 3 && !this.rerouting) this.reroute();
                         this.offRoute = this.offRouteCount >= 2;
@@ -299,7 +299,7 @@
                         const r = await fetch('/api/v1/route', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ points: [{ lat: this.pos[0], lng: this.pos[1] }, { lat: this.target.lat, lng: this.target.lng }], mode: data.mode }) });
                         const j = await r.json();
                         const leg = j.legs && j.legs[0];
-                        if (leg && leg.shape && leg.shape.length > 1) { this.setLeg(leg.shape, leg.maneuvers || []); if (!silent) this.speak('Itinéraire recalculé. ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : '')); }
+                        if (leg && leg.shape && leg.shape.length > 1) { this.setLeg(leg.shape, leg.maneuvers || [], false); if (!silent) this.speak('Itinéraire recalculé. ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : '')); }
                         else this.loadLeg(this.legIndex, this.pos);
                     } catch (e) { this.loadLeg(this.legIndex, this.pos); }
                     this.rerouting = false; this.offRoute = false; this.offRouteCount = 0;

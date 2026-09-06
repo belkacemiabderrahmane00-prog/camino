@@ -17,7 +17,7 @@ class StoreItineraryRequest extends FormRequest
             'duration_minutes' => ['required', 'integer', 'min:30', 'max:720'],
             'budget_eur' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'free_only' => ['nullable', 'boolean'],
-            'mode' => ['nullable', 'in:walk,bike'],
+            'mode' => ['nullable', 'in:walk,bike,transit'],
             'interests' => ['nullable', 'array', 'max:8'],
             'interests.*' => ['string', 'exists:categories,slug'],
             'tags' => ['nullable', 'array', 'max:10'],

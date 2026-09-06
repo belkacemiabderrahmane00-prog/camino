@@ -31,7 +31,7 @@ Route::prefix('v1')->group(function () {
             'points' => ['required', 'array', 'min:2', 'max:4'],
             'points.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'points.*.lng' => ['required', 'numeric', 'between:-180,180'],
-            'mode' => ['nullable', 'in:walk,bike'],
+            'mode' => ['nullable', 'in:walk,bike,transit'],
         ]);
         $route = $routing->route($data['points'], $data['mode'] ?? 'walk');
 

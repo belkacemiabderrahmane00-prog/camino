@@ -8,7 +8,7 @@
                 <p class="eyebrow">{{ $itinerary->created_at->translatedFormat('j F Y') }}</p>
                 <h1 class="display text-3xl sm:text-4xl mt-1">{{ $itinerary->name }}</h1>
                 @if($v2)
-                    <p class="text-sm text-ink-muted mt-1">{{ $result['start']['label'] ?? '' }}{{ !empty($result['end']['label']) ? ' → ' . $result['end']['label'] : '' }}{{ !empty($result['date']) ? ' · ' . \Illuminate\Support\Carbon::parse($result['date'])->translatedFormat('j F') : '' }} · {{ ($result['mode'] ?? 'walk') === 'bike' ? 'à vélo' : 'à pied' }} · {{ floor($result['total_minutes'] / 60) }} h {{ str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT) }} · {{ number_format($result['total_distance_km'], 1, ',', ' ') }} km · {{ number_format($result['total_cost_eur'], 0) }} €</p>
+                    <p class="text-sm text-ink-muted mt-1">{{ $result['start']['label'] ?? '' }}{{ !empty($result['end']['label']) ? ' → ' . $result['end']['label'] : '' }}{{ !empty($result['date']) ? ' · ' . \Illuminate\Support\Carbon::parse($result['date'])->translatedFormat('j F') : '' }} · {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · {{ floor($result['total_minutes'] / 60) }} h {{ str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT) }} · {{ number_format($result['total_distance_km'], 1, ',', ' ') }} km · {{ number_format($result['total_cost_eur'], 0) }} €</p>
                 @endif
                 @if(session('share_url'))
                     <div class="mt-4 rounded-2xl bg-teal-soft p-3 text-sm" x-data="{ copied: false }">

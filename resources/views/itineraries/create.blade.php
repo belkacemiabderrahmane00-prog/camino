@@ -19,7 +19,7 @@
         'showForm' => ! $hasResult,
         'hasResult' => $hasResult,
     ];
-    $mobIcon = ($result['mode'] ?? 'walk') === 'bike' ? 'directions_bike' : 'directions_walk';
+    $mobIcon = match ($result['mode'] ?? 'walk') { 'bike' => 'directions_bike', 'transit' => 'directions_subway', default => 'directions_walk' };
 @endphp
 <x-app-layout title="Générer un parcours">
     <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12">
@@ -144,8 +144,8 @@
                     <div class="flex items-center justify-between"><label class="label" for="duration">Temps disponible</label><span class="text-sm font-semibold" x-text="label(duration)"></span></div>
                     <input id="duration" type="range" name="duration_minutes" min="30" max="600" step="15" x-model="duration" class="w-full accent-coral">
                     <div class="flex justify-between text-[10px] text-ink-muted mt-1"><span>30 min</span><span>2 h</span><span>Demi-journée</span><span>Journée</span></div>
-                    <div class="mt-3 grid grid-cols-2 gap-2">
-                        @foreach(['walk' => ['directions_walk', 'À pied', 'rayon auto ~1 km/h'], 'bike' => ['directions_bike', 'À vélo', 'rayon auto ~2,5 km/h']] as $m => [$icon, $l, $hint])
+                    <div class="mt-3 grid {{ $transitEnabled ? 'grid-cols-3' : 'grid-cols-2' }} gap-2">
+                        @foreach(array_filter(['walk' => ['directions_walk', 'À pied', 'rayon auto ~1 km/h'], 'bike' => ['directions_bike', 'À vélo', 'rayon auto ~2,5 km/h'], 'transit' => $transitEnabled ? ['directions_subway', 'Transports', 'métro, RER, bus'] : null]) as $m => [$icon, $l, $hint])
                             <label class="cursor-pointer">
                                 <input type="radio" name="mode" value="{{ $m }}" class="peer sr-only" x-model="mode">
                                 <span class="flex items-center gap-2 rounded-2xl border border-ink/10 px-3 py-2.5 text-sm font-medium peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink transition">
@@ -239,7 +239,7 @@
                                     <p class="text-sm text-ink-muted mt-1 flex flex-wrap items-center gap-x-1.5">
                                         <span class="material-symbols-outlined text-coral" style="font-size:16px">trip_origin</span>{{ $result['start']['label'] }}
                                         @if(!empty($result['end']))<span class="material-symbols-outlined text-ink-muted" style="font-size:16px">arrow_forward</span>{{ $result['end']['label'] }}@endif
-                                        · {{ $result['mode'] === 'bike' ? 'à vélo' : 'à pied' }}
+                                        · {{ match($result['mode']) { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }}
                                         @if(($result['routing_source'] ?? '') === 'valhalla') · trajets réels @endif
                                     </p>
                                 </div>
@@ -287,7 +287,13 @@
                                     <li class="relative pl-11 pb-5">
                                         <span class="absolute left-0 top-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold {{ $lunch ? 'bg-sun text-ink' : 'bg-ink text-white' }}">@if($lunch)<span class="material-symbols-outlined" style="font-size:16px">restaurant</span>@else{{ $step['order'] }}@endif</span>
                                         <p class="text-[11px] text-ink-muted mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                            <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ $mobIcon }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</span>
+                                            @if(!empty($step['transit']))
+                                                <span class="inline-flex flex-wrap items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">directions_subway</span>{{ $step['travel_minutes'] }} min ·
+                                                    @foreach($step['transit']['lines'] as $line)<span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold" style="background: {{ $line['color'] }}; color: {{ $line['text_color'] }}">{{ $line['mode'] }} {{ $line['code'] }}</span>@endforeach
+                                                    <span>· {{ $step['transit']['walking_min'] }} min à pied</span></span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ ($step['travel_mode'] ?? '') === 'bike' ? 'directions_bike' : 'directions_walk' }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</span>
+                                            @endif
                                             @if(($step['wait_minutes'] ?? 0) > 0)<span class="inline-flex items-center gap-1 text-amber-700"><span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span>{{ $step['wait_minutes'] }} min d'attente avant l'ouverture</span>@endif
                                         </p>
                                         <a href="{{ route('places.show', $step['place_id']) }}" class="card card-hover flex gap-3 p-2.5 {{ $lunch ? 'border-sun/60' : '' }}">
@@ -482,13 +488,14 @@
             const el = document.getElementById('itinerary-map');
             if (!el || !window.L) return;
             const C = window.Camino;
-            const result = @js(['start' => $result['start'], 'end' => $result['end'] ?? null, 'steps' => collect($steps)->map(fn ($s) => ['lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'order' => $s['order'], 'arrive' => $s['arrive_at'], 'slug' => $s['category_slug'], 'kind' => $s['kind'] ?? 'visit'])->all(), 'geometry' => $result['geometry'], 'mode' => $result['mode']]);
+            const result = @js(['start' => $result['start'], 'end' => $result['end'] ?? null, 'steps' => collect($steps)->map(fn ($s) => ['lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'order' => $s['order'], 'arrive' => $s['arrive_at'], 'slug' => $s['category_slug'], 'kind' => $s['kind'] ?? 'visit'])->all(), 'geometry' => $result['geometry'], 'mode' => $result['mode'], 'legs' => collect($result['legs'] ?? [])->map(fn ($l) => ['transit' => $l['transit'] ?? false, 'shape' => $l['shape'] ?? [], 'color' => $l['lines'][0]['color'] ?? null])->all()]);
             const map = L.map(el, { zoomControl: false, scrollWheelZoom: false });
             C.tileLayer().addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
             const pts = (result.geometry && result.geometry.length > 1) ? result.geometry : [[result.start.lat, result.start.lng], ...result.steps.map(s => [s.lat, s.lng])];
             L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.25 }).addTo(map);
-            const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: 0.95, lineJoin: 'round' }).addTo(map);
+            const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: result.mode === 'transit' ? 0.35 : 0.95, lineJoin: 'round' }).addTo(map);
+            (result.legs || []).forEach(l => { if (l.shape && l.shape.length > 1) L.polyline(l.shape, { color: l.transit ? (l.color || '#1D4ED8') : '#FF5A3C', weight: l.transit ? 5 : 4, opacity: 0.95, dashArray: l.transit ? '8 8' : null, lineJoin: 'round' }).addTo(map); });
             L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Départ</div>');
             result.steps.forEach(s => L.marker([s.lat, s.lng], { icon: s.kind === 'lunch' ? C.placeIcon('restauration', { size: 30 }) : C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.kind === 'lunch' ? '🍽️ ' : s.order + '. '}${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`));
             if (result.end) L.marker([result.end.lat, result.end.lng], { icon: C.stepIcon('<span class="material-symbols-outlined" style="font-size:16px">sports_score</span>') }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Arrivée</div>');

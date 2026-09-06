@@ -66,6 +66,7 @@ class ItineraryController extends Controller
             'profile' => $profile,
             'defaultStart' => $start,
             'user' => Auth::user(),
+            'transitEnabled' => app(\App\Services\TransitService::class)->enabled(),
         ]);
     }
 
@@ -557,9 +558,11 @@ class ItineraryController extends Controller
     {
         $hours = $minutes / 60;
 
-        return $mode === 'bike'
-            ? (int) max(5, min(20, round(3 + $hours * 2.5)))
-            : (int) max(2, min(8, round(1.5 + $hours * 1.0)));
+        return match ($mode) {
+            'bike' => (int) max(5, min(20, round(3 + $hours * 2.5))),
+            'transit' => (int) max(4, min(18, round(3 + $hours * 3.0))),
+            default => (int) max(2, min(8, round(1.5 + $hours * 1.0))),
+        };
     }
 
     /**

@@ -38,6 +38,7 @@ class ItineraryGenerator
     public function __construct(
         private readonly RoutingService $routing,
         private readonly WeatherService $weather,
+        private readonly TransitService $transit,
     ) {}
 
     /**
@@ -55,7 +56,9 @@ class ItineraryGenerator
         $timeBudget = max(30, (int) ($options['time_budget_min'] ?? 180));
         $budgetEur = isset($options['budget_eur']) && $options['budget_eur'] !== null ? (float) $options['budget_eur'] : null;
         $freeOnly = (bool) ($options['free_only'] ?? false);
+        $transit = ($options['mode'] ?? null) === 'transit';
         $mode = in_array($options['mode'] ?? null, [RoutingService::MODE_WALK, RoutingService::MODE_BIKE], true) ? $options['mode'] : RoutingService::MODE_WALK;
+        $travelMode = $transit ? 'transit' : $mode;
         $startsAt = ($options['starts_at'] ?? null) instanceof Carbon ? $options['starts_at']->copy() : Carbon::now(config('app.timezone'));
         $interests = array_values(array_filter((array) ($options['interests'] ?? [])));
         $tags = array_map(fn ($t) => mb_strtolower((string) $t), array_filter((array) ($options['tags'] ?? [])));
@@ -126,7 +129,7 @@ class ItineraryGenerator
         if ($rows === []) {
             $why = $closedCount > 0 ? 'Les lieux autour du départ sont fermés à cette date.' : ($freeOnly ? 'Aucun lieu gratuit disponible autour du point de départ.' : 'Aucun lieu disponible autour du point de départ.');
 
-            return $this->result($start, $end, $loop, $startsAt, $mode, [], [], $weather, [$why]);
+            return $this->result($start, $end, $loop, $startsAt, $travelMode, [], [], $weather, [$why]);
         }
 
         // --- 2. Scoring ----------------------------------------------------------------------------
@@ -165,7 +168,7 @@ class ItineraryGenerator
                 $score += ($from === null || $date->gte($from)) && ($to === null || $date->lte($to)) ? 1.2 : -3.0;
             }
             $distanceKm = $this->routing->haversineKm((float) $start['lat'], (float) $start['lng'], (float) $p->lat, (float) $p->lng);
-            $score -= $distanceKm * ($mode === RoutingService::MODE_BIKE ? 0.15 : 0.45);
+            $score -= $distanceKm * ($mode === RoutingService::MODE_BIKE ? 0.15 : ($transit ? 0.12 : 0.45));
             $score += (float) ($scoreAdjust[$slug] ?? 0);
             if ($jitter > 0) {
                 $score += (mt_rand(-1000, 1000) / 1000) * $jitter;
@@ -231,6 +234,16 @@ class ItineraryGenerator
         $matrix = $this->routing->matrix($points, $mode, $accessible);
         $T = $matrix['minutes'];
         $K = $matrix['km'];
+        if ($transit) {
+            // Estimation transports pour la planification (8 min d'accès/attente + ~15 km/h porte à porte) ; le vrai trajet vient ensuite de l'API.
+            foreach ($T as $i => $row) {
+                foreach ($row as $j => $walk) {
+                    if ($i !== $j && ($K[$i][$j] ?? 0) > 1.2) {
+                        $T[$i][$j] = (int) min($walk, 8 + round(($K[$i][$j] ?? 0) * 4));
+                    }
+                }
+            }
+        }
 
         $requiredIdx = [];
         foreach ($rows as $i => $r) {
@@ -283,17 +296,41 @@ class ItineraryGenerator
         }
         $route = $this->routing->route($routePoints, $mode, $accessible);
         $legs = $route['legs'] ?? [];
-        // Si le tracé réel diffère de la matrice, on refait les horaires avec ses durées.
-        if (count($legs) === count($routePoints) - 1) {
-            foreach ($sequence as $i => $idx) {
-                $prev = $i === 0 ? 0 : $sequence[$i - 1];
-                $ctx['T'][$prev][$idx] = (int) $legs[$i]['duration_min'];
+        $applyLegs = function (array $legs) use (&$ctx, $sequence, $routePoints, $endIdx) {
+            if (count($legs) === count($routePoints) - 1) {
+                foreach ($sequence as $i => $idx) {
+                    $prev = $i === 0 ? 0 : $sequence[$i - 1];
+                    $ctx['T'][$prev][$idx] = (int) $legs[$i]['duration_min'];
+                }
+                if ($endIdx !== null) {
+                    $ctx['T'][end($sequence)][$endIdx] = (int) $legs[count($legs) - 1]['duration_min'];
+                }
             }
-            if ($endIdx !== null) {
-                $ctx['T'][end($sequence)][$endIdx] = (int) $legs[count($legs) - 1]['duration_min'];
+        };
+        $applyLegs($legs);
+        $sim = $this->simulate($sequence, $ctx, $lenient);
+        $transitUsed = false;
+        if ($transit && $this->transit->enabled() && count($legs) === count($routePoints) - 1) {
+            // Chaque tronçon de plus de 12 min à pied est comparé au meilleur trajet en transports à l'heure réelle de départ.
+            foreach ($legs as $i => $leg) {
+                if ((int) $leg['duration_min'] <= 12) {
+                    continue;
+                }
+                $departMin = $i === 0 ? $startMin : ($sim['steps'][$i - 1]['leave'] ?? $startMin);
+                $journey = $this->transit->journey($routePoints[$i], $routePoints[$i + 1], $date->copy()->addMinutes($departMin));
+                if ($journey && $journey['duration_min'] + 3 < (int) $leg['duration_min']) {
+                    $legs[$i] = ['distance_km' => $journey['distance_km'], 'duration_min' => $journey['duration_min'], 'shape' => $journey['shape'], 'maneuvers' => $journey['maneuvers'], 'transit' => true, 'sections' => $journey['sections'], 'lines' => $journey['lines'], 'summary' => $journey['summary'], 'walking_min' => $journey['walking_min']];
+                    $transitUsed = true;
+                }
+            }
+            if ($transitUsed) {
+                $route['legs'] = $legs;
+                $route['geometry'] = array_merge(...array_map(fn ($l) => $l['shape'] ?? [], $legs));
+                $route['distance_km'] = round(array_sum(array_map(fn ($l) => (float) $l['distance_km'], $legs)), 2);
+                $applyLegs($legs);
+                $sim = $this->simulate($sequence, $ctx, $lenient);
             }
         }
-        $sim = $this->simulate($sequence, $ctx, $lenient);
         $unusedIndoor = array_values(array_filter(array_keys($rows), fn ($i) => ! in_array($i + 1, $sequence, true) && in_array($rows[$i]['slug'], self::INDOOR, true) && $rows[$i]['slug'] !== 'restauration'));
 
         $steps = [];
@@ -331,6 +368,8 @@ class ItineraryGenerator
                 'short_visit' => ! empty($node['short']),
                 'travel_minutes' => (int) $leg['duration_min'],
                 'travel_km' => round((float) $leg['distance_km'], 2),
+                'travel_mode' => ! empty($leg['transit']) ? 'transit' : $mode,
+                'transit' => ! empty($leg['transit']) ? ['summary' => $leg['summary'], 'lines' => $leg['lines'], 'sections' => $leg['sections'], 'walking_min' => $leg['walking_min']] : null,
                 'wait_minutes' => $s['wait'],
                 'conflict' => $s['conflict'] ?? false,
                 'accessible' => $place->accessible,
@@ -353,7 +392,7 @@ class ItineraryGenerator
         $finalLeg = null;
         if ($endIdx !== null) {
             $lastLeg = $legs[count($sequence)] ?? ['distance_km' => $K[end($sequence)][$endIdx] ?? 0, 'duration_min' => $T[end($sequence)][$endIdx] ?? 0];
-            $finalLeg = ['travel_minutes' => (int) $lastLeg['duration_min'], 'travel_km' => round((float) $lastLeg['distance_km'], 2), 'arrive_at' => $date->copy()->addMinutes($sim['end'])->format('H:i')];
+            $finalLeg = ['travel_minutes' => (int) $lastLeg['duration_min'], 'travel_km' => round((float) $lastLeg['distance_km'], 2), 'arrive_at' => $date->copy()->addMinutes($sim['end'])->format('H:i'), 'travel_mode' => ! empty($lastLeg['transit']) ? 'transit' : $mode, 'transit' => ! empty($lastLeg['transit']) ? ['summary' => $lastLeg['summary'], 'lines' => $lastLeg['lines'], 'sections' => $lastLeg['sections'], 'walking_min' => $lastLeg['walking_min']] : null];
         }
 
         $warnings = [];
@@ -365,6 +404,9 @@ class ItineraryGenerator
         }
         if ($trimmedForOrder) {
             $warnings[] = 'Ta sélection a été raccourcie pour tenir dans le temps disponible.';
+        }
+        if ($transit && ! $this->transit->enabled()) {
+            $warnings[] = 'Transports en commun non configurés sur ce serveur : trajets calculés à pied.';
         }
         if (($route['source'] ?? '') === 'estimate' || ($matrix['source'] ?? '') === 'estimate') {
             $warnings[] = 'Service de routage indisponible : durées estimées à vol d\'oiseau.';
@@ -392,7 +434,8 @@ class ItineraryGenerator
         }
 
         $this->accessibleFlag = $accessible;
-        $out = $this->result($start, $end, $loop, $startsAt, $mode, $steps, $route, $weather, $warnings, round($totalCost, 2), $sim, $finalLeg, $matrix['source'] ?? 'estimate');
+        $out = $this->result($start, $end, $loop, $startsAt, $travelMode, $steps, $route, $weather, $warnings, round($totalCost, 2), $sim, $finalLeg, $matrix['source'] ?? 'estimate');
+        $out['transit_used'] = $transitUsed;
         $out['shortlist_ids'] = array_map(fn ($r) => (int) $r['place']->id, $rows);
 
         return $out;
@@ -707,7 +750,7 @@ class ItineraryGenerator
             'total_cost_eur' => $totalCost,
             'steps' => $steps,
             'geometry' => $route['geometry'] ?? [],
-            'legs' => array_map(fn ($l) => ['distance_km' => $l['distance_km'], 'duration_min' => $l['duration_min'], 'shape' => $l['shape'] ?? [], 'maneuvers' => $l['maneuvers'] ?? []], $route['legs'] ?? []),
+            'legs' => array_map(fn ($l) => ['distance_km' => $l['distance_km'], 'duration_min' => $l['duration_min'], 'shape' => $l['shape'] ?? [], 'maneuvers' => $l['maneuvers'] ?? [], 'transit' => ! empty($l['transit']), 'sections' => $l['sections'] ?? [], 'lines' => $l['lines'] ?? [], 'summary' => $l['summary'] ?? null], $route['legs'] ?? []),
             'routing_source' => $route['source'] ?? 'none',
             'matrix_source' => $matrixSource,
             'weather' => $weather,
