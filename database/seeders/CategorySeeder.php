@@ -22,6 +22,8 @@ class CategorySeeder extends Seeder
             'Restauration',
             'Itinéraire',
             'Événement culturel',
+            'Librairies & bibliothèques',
+            'Ateliers & artisans',
         ];
 
         foreach ($categories as $name) {
