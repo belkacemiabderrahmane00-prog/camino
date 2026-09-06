@@ -62,6 +62,7 @@ class TransitService
                         'max_nb_journeys' => 4,
                         'max_walking_duration_to_pt' => 900,
                         'data_freshness' => $realtime ? 'realtime' : 'base_schedule',
+                        '_access_points' => 'true', // entrées et sorties de station (« sortie 3, rue Corbineau »)
                     ]);
             } catch (\Throwable $e) {
                 Log::warning('Transit unavailable: ' . $e->getMessage());
@@ -163,12 +164,16 @@ class TransitService
                 ];
             } else {
                 $meters = (int) round($sectionKm * 1000);
-                $sections[] = ['type' => 'walk', 'minutes' => $minutes, 'from' => $fromName, 'to' => $toName, 'distance_m' => $meters, 'depart_at' => $departAt, 'arrive_at' => $arriveAt, 'transfer' => $type === 'transfer', 'begin' => $begin, 'end' => max($begin, count($shape) - 1)];
+                // Entrée ou sortie de station empruntée (données « access points » d'Île-de-France Mobilités).
+                $access = $this->accessPoint($s, ($s['to']['embedded_type'] ?? '') === 'stop_point' ? 'entrance' : 'exit');
+                $sections[] = ['type' => 'walk', 'minutes' => $minutes, 'from' => $fromName, 'to' => $toName, 'distance_m' => $meters, 'depart_at' => $departAt, 'arrive_at' => $arriveAt, 'transfer' => $type === 'transfer', 'access' => $access, 'begin' => $begin, 'end' => max($begin, count($shape) - 1)];
                 $target = $toName !== '' ? $toName : __('la prochaine étape');
+                $accessText = $access ? ' · ' . $this->accessLabel($access) : '';
+                $accessVerbal = $access ? ' ' . $this->accessLabel($access, true) : '';
                 $maneuvers[] = [
-                    'type' => 8, 'kind' => 'walk',
-                    'text' => __('Marche :n min jusqu\'à :target', ['n' => $minutes, 'target' => $target]),
-                    'verbal' => trans_choice('Marchez :n minute jusqu\'à :target.|Marchez :n minutes jusqu\'à :target.', $minutes, ['n' => $minutes, 'target' => $target]),
+                    'type' => 8, 'kind' => 'walk', 'access' => $access,
+                    'text' => __('Marche :n min jusqu\'à :target', ['n' => $minutes, 'target' => $target]) . $accessText,
+                    'verbal' => trans_choice('Marchez :n minute jusqu\'à :target.|Marchez :n minutes jusqu\'à :target.', $minutes, ['n' => $minutes, 'target' => $target]) . $accessVerbal,
                     'street' => '', 'begin' => $begin, 'end' => max($begin, count($shape) - 1), 'km' => round($sectionKm, 3), 'sec' => (int) ($s['duration'] ?? 0),
                 ];
             }
@@ -259,6 +264,45 @@ class TransitService
             'Bus' => app()->getLocale() === 'fr' ? 'le bus' : 'Bus',
             default => app()->getLocale() === 'fr' ? 'la ligne' : __('la ligne'),
         };
+    }
+
+    /**
+     * Entrée / sortie de station d'une section de marche (Navitia `vias` avec `_access_points=true`).
+     *
+     * @return array{kind:string,name:string,code:string,lat:?float,lng:?float}|null
+     */
+    private function accessPoint(array $section, string $kind): ?array
+    {
+        foreach ($section['vias'] ?? [] as $via) {
+            $ap = $via['access_point'] ?? $via;
+            $name = trim((string) ($ap['name'] ?? $via['name'] ?? ''));
+            $code = trim((string) ($ap['access_point_code'] ?? ''));
+            if ($name === '' && $code === '') {
+                continue;
+            }
+
+            return [
+                'kind' => $kind,
+                'name' => $name,
+                'code' => $code,
+                'lat' => isset($ap['coord']['lat']) ? (float) $ap['coord']['lat'] : null,
+                'lng' => isset($ap['coord']['lon']) ? (float) $ap['coord']['lon'] : null,
+            ];
+        }
+
+        return null;
+    }
+
+    /** « Entrée 3 · r. Corbineau » (texte) ou « Entrez par la sortie 3, rue Corbineau. » (voix). */
+    private function accessLabel(array $access, bool $verbal = false): string
+    {
+        if ($verbal) {
+            $where = trim(($access['code'] !== '' ? __('la sortie :code', ['code' => $access['code']]) : '') . ($access['name'] !== '' ? ($access['code'] !== '' ? ', ' : '') . $access['name'] : ''));
+
+            return $access['kind'] === 'entrance' ? __('Entrez par :where.', ['where' => $where]) : __('Sortez par :where.', ['where' => $where]);
+        }
+
+        return trim(($access['kind'] === 'entrance' ? __('Entrée') : __('Sortie')) . ($access['code'] !== '' ? ' ' . $access['code'] : '') . ($access['name'] !== '' ? ' · ' . $access['name'] : ''));
     }
 
     private function cleanStop(string $name): string

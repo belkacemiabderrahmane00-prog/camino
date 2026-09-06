@@ -301,6 +301,9 @@ class ItineraryController extends Controller
             $ids = array_slice($ids, 0, self::MAX_PLACES);
         }
         session()->put(self::SESSION_KEY, $ids);
+        if (request()->wantsJson()) {
+            return response()->json(['ok' => true, 'count' => count($ids), 'ids' => $ids, 'max' => self::MAX_PLACES]);
+        }
 
         return back()->with('status', __('Lieu ajouté à ton parcours.'));
     }
@@ -309,6 +312,9 @@ class ItineraryController extends Controller
     {
         $ids = array_values(array_diff(session(self::SESSION_KEY, []), [$place->id]));
         session()->put(self::SESSION_KEY, $ids);
+        if (request()->wantsJson()) {
+            return response()->json(['ok' => true, 'count' => count($ids), 'ids' => $ids, 'max' => self::MAX_PLACES]);
+        }
 
         return back()->with('status', __('Lieu retiré du parcours.'));
     }

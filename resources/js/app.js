@@ -2,6 +2,8 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 import L from 'leaflet';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
 
 // Leaflet est embarqué dans le bundle (pas de dépendance à un CDN externe au chargement).
 window.L = L;

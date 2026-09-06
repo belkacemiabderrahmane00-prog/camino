@@ -38,6 +38,13 @@ Route::prefix('v1')->group(function () {
         return response()->json(['source' => $route['source'], 'distance_km' => $route['distance_km'], 'duration_min' => $route['duration_min'], 'legs' => $route['legs']]);
     })->middleware('throttle:30,1');
 
+    // « Paris d'hier » : photos anciennes géolocalisées autour d'un point (Wikimedia Commons).
+    Route::get('history', function (\Illuminate\Http\Request $request, \App\Services\HistoricalPhotoService $history) {
+        $data = $request->validate(['lat' => ['required', 'numeric', 'between:-90,90'], 'lng' => ['required', 'numeric', 'between:-180,180'], 'radius' => ['nullable', 'integer', 'min:100', 'max:3000']]);
+
+        return response()->json(['data' => $history->around((float) $data['lat'], (float) $data['lng'], (int) ($data['radius'] ?? 1200))]);
+    })->middleware('throttle:30,1');
+
     // Trajet en transports à l'heure réelle (guidage : au départ de chaque étape, position actuelle → étape suivante).
     Route::post('transit', function (\Illuminate\Http\Request $request, \App\Services\TransitService $transit) {
         $data = $request->validate([

@@ -458,3 +458,13 @@
 .dark img { filter: brightness(0.94); }
 .dark .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6); }
 .dark .shadow-float { box-shadow: 0 12px 40px -12px rgba(0,0,0,0.8); }
+/* Carte v2 : regroupements, info-bulle photo, photos anciennes ---------------------------- */
+.camino-cluster { width: 36px; height: 36px; border-radius: 50%; background: rgb(var(--c-bg-ink)); color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; border: 3px solid rgb(var(--c-surface)); box-shadow: 0 6px 16px -4px rgba(18,22,28,.45); }
+.camino-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+.camino-tooltip::before { display: none !important; }
+.camino-tip { width: 150px; border-radius: 14px; overflow: hidden; background: rgb(var(--c-surface)); box-shadow: 0 12px 30px -10px rgba(18,22,28,.5); }
+.camino-tip img { display: block; width: 100%; height: 88px; object-fit: cover; }
+.camino-tip span { display: block; padding: 6px 8px; font-size: 11px; font-weight: 600; color: rgb(var(--c-ink)); line-height: 1.25; white-space: normal; }
+.camino-pin-history { width: 40px; height: 40px; background-size: cover; background-position: center; border-color: #FBBF24; filter: sepia(.35); }
+.camino-pin-history span { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: #FBBF24; color: #12161C; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; }
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; }

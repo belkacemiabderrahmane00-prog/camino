@@ -49,6 +49,10 @@ return [
         'max_chars' => 4000,
     ],
 
+    'history' => [
+        'timeout' => (int) env('CAMINO_HISTORY_TIMEOUT', 8),
+    ],
+
     'transit' => [
         'api_key' => env('CAMINO_PRIM_API_KEY', ''),
         'base_url' => env('CAMINO_PRIM_URL', 'https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia'),

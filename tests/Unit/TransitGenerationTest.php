@@ -25,7 +25,8 @@ class TransitGenerationTest extends TestCase
                     'display_informations' => ['physical_mode' => 'Bus', 'code' => '72', 'direction' => 'Parc de Saint-Cloud (Saint-Cloud)', 'color' => 'FF1400', 'text_color' => 'FFFFFF', 'links' => [['type' => 'disruption', 'id' => 'd1']]],
                     'stop_date_times' => [$stop('Louvre - Rivoli (Paris)', '20260908T100800'), $stop('Pont Neuf (Paris)', '20260908T101200'), $stop('Alma - Marceau (Paris)', '20260908T101600'), $stop('Palais de Tokyo (Paris)', '20260908T102000')],
                     'geojson' => ['coordinates' => [[2.3410, 48.8600], [2.3000, 48.8620], [2.2960, 48.8640]]]],
-                ['type' => 'street_network', 'mode' => 'walking', 'duration' => 180, 'departure_date_time' => '20260908T102000', 'arrival_date_time' => '20260908T102200', 'from' => ['name' => 'Palais de Tokyo (Paris)'], 'to' => ['name' => 'Arrivée'], 'geojson' => ['coordinates' => [[2.2960, 48.8640], [2.2945, 48.8584]]]],
+                ['type' => 'street_network', 'mode' => 'walking', 'duration' => 180, 'departure_date_time' => '20260908T102000', 'arrival_date_time' => '20260908T102200', 'from' => ['name' => 'Palais de Tokyo (Paris)', 'embedded_type' => 'stop_point'], 'to' => ['name' => 'Arrivée', 'embedded_type' => 'address'], 'geojson' => ['coordinates' => [[2.2960, 48.8640], [2.2945, 48.8584]]],
+                    'vias' => [['name' => 'av. de New York', 'is_entrance' => true, 'is_exit' => true, 'access_point' => ['name' => 'av. de New York', 'access_point_code' => '2', 'coord' => ['lat' => '48.8641', 'lon' => '2.2961']]]]],
             ],
         ];
         $other = $best;
@@ -82,6 +83,11 @@ class TransitGenerationTest extends TestCase
         $this->assertGreaterThan(0, $j['sections'][0]['distance_m']);
         $this->assertSame(3, $j['maneuvers'][1]['stops']);
         $this->assertSame('10:20', $j['maneuvers'][1]['arrive_at']);
+        // Sortie de station empruntée après la descente
+        $this->assertSame(['kind' => 'exit', 'name' => 'av. de New York', 'code' => '2', 'lat' => 48.8641, 'lng' => 2.2961], $j['sections'][3]['access']);
+        $this->assertStringContainsString('Sortie 2 · av. de New York', $j['maneuvers'][3]['text']);
+        $this->assertStringContainsString('Sortez par la sortie 2, av. de New York.', $j['maneuvers'][3]['verbal']);
+        Http::assertSent(fn ($req) => str_contains($req->url(), '_access_points=true'));
 
         $this->assertCount(1, $j['alternatives']);
         $this->assertSame('10:10', $j['alternatives'][0]['depart_at']);

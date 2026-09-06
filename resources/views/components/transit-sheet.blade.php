@@ -42,6 +42,7 @@
                             @if(!empty($sec['transfer']))<span class="text-ink-muted"> · {{ __('correspondance') }}</span>@endif
                         </p>
                         @if(!empty($sec['to']) && ($k === count($sections) - 1 || $loop->first))<p class="text-[11px] text-ink-muted">{{ $loop->first ? __('jusqu\'à :stop', ['stop' => $sec['to']]) : __('jusqu\'à l\'arrivée') }}</p>@endif
+                        @if(!empty($sec['access']))<p class="mt-1 inline-flex items-center gap-1 rounded-lg bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink"><span class="material-symbols-outlined" style="font-size:14px">{{ $sec['access']['kind'] === 'entrance' ? 'login' : 'logout' }}</span>{{ $sec['access']['kind'] === 'entrance' ? __('Entrée') : __('Sortie') }}{{ $sec['access']['code'] !== '' ? ' ' . $sec['access']['code'] : '' }}{{ $sec['access']['name'] !== '' ? ' · ' . $sec['access']['name'] : '' }}</p>@endif
                     </li>
                 @elseif($sec['type'] === 'wait')
                     <li class="relative pl-9 pb-3">

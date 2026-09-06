@@ -37,6 +37,7 @@
             <div class="card p-6 sm:p-8">
                 <div class="flex flex-wrap items-center gap-2">
                     <x-category-pill :category="$place->category" />
+                    @if(!$place->is_free && app(\App\Services\FreeSundayService::class)->appliesTo($place))<span class="badge badge-event" title="{{ __('Gratuit le premier dimanche du mois') }}"><span class="material-symbols-outlined" style="font-size:14px">loyalty</span>{{ __('Gratuit le :date', ['date' => app(\App\Services\FreeSundayService::class)->label()]) }}</span>@endif
                     @if($place->is_free)<span class="badge badge-free">{{ __('Gratuit') }}</span>@elseif($place->price_level)<span class="badge badge-paid">{{ str_repeat('€', (int) $place->price_level) }} · dès {{ [1 => 5, 2 => 15, 3 => 30][$place->price_level] }} €</span>@endif
                     <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span>≈ {{ $place->visit_duration_min ?? 60 }} min</span>
                     @if($place->accessible === true)<span class="badge badge-free" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accessible PMR') }}</span>@elseif($place->accessible === false)<span class="badge badge-alert" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accès difficile') }}</span>@endif

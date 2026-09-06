@@ -39,6 +39,7 @@ class ItineraryGenerator
         private readonly RoutingService $routing,
         private readonly WeatherService $weather,
         private readonly TransitService $transit,
+        private readonly FreeSundayService $freeSunday = new FreeSundayService(),
     ) {}
 
     /**
@@ -96,6 +97,8 @@ class ItineraryGenerator
 
         $weather = $useWeather ? $this->weather->summaryFor((float) $start['lat'], (float) $start['lng'], $startsAt, $timeBudget) : null;
         $date = $startsAt->copy()->startOfDay();
+        $firstSunday = $this->freeSunday->isFirstSunday($date);
+        $freeSundayCount = 0;
         $startMin = $startsAt->hour * 60 + $startsAt->minute;
 
         // --- 1. Candidats ---------------------------------------------------------------------------
@@ -176,12 +179,20 @@ class ItineraryGenerator
             if (in_array((int) $p->id, $required, true)) {
                 $score += 5.0;
             }
-            $row['score'] = $score;
             $row['distance_km'] = $distanceKm;
             $row['visit'] = max(15, (int) ($visitOverrides[$p->id] ?? ($p->visit_duration_min ?: 60)));
             $row['required'] = in_array((int) $p->id, $required, true);
             $row['cost'] = $this->estimateCost($p);
             $row['kind'] = 'visit';
+            // Premier dimanche du mois : musées et monuments nationaux gratuits, on en profite.
+            $row['free_sunday'] = false;
+            if ($firstSunday && ! $p->is_free && $this->freeSunday->appliesTo($p, $date)) {
+                $row['cost'] = 0.0;
+                $row['free_sunday'] = true;
+                $score += 1.5;
+                $freeSundayCount++;
+            }
+            $row['score'] = $score;
         }
         unset($row);
 
@@ -361,7 +372,8 @@ class ItineraryGenerator
                 'cover' => $place->coverThumb(480),
                 'lat' => (float) $place->lat,
                 'lng' => (float) $place->lng,
-                'is_free' => (bool) $place->is_free,
+                'is_free' => (bool) $place->is_free || ! empty($node['free_sunday']),
+                'free_sunday' => ! empty($node['free_sunday']),
                 'price_level' => $place->price_level,
                 'cost_eur' => round($node['cost'], 2),
                 'visit_minutes' => $node['visit'],
@@ -396,6 +408,9 @@ class ItineraryGenerator
         }
 
         $warnings = [];
+        if ($firstSunday && count(array_filter($steps, fn ($s) => ! empty($s['free_sunday']))) > 0) {
+            $warnings[] = __('Premier dimanche du mois : les musées et monuments nationaux sont gratuits, le parcours en profite.');
+        }
         if ($skippedBudget > 0) {
             $warnings[] = __(':n lieu(x) écarté(s) pour rester dans le budget.', ['n' => $skippedBudget]);
         }
