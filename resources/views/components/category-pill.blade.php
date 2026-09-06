@@ -11,5 +11,5 @@
 @endphp
 <span {{ $attributes->merge(['class' => 'inline-flex items-center gap-1 rounded-full font-semibold ' . ($size === 'xs' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]')]) }} style="background: {{ $color }}1A; color: {{ $color }};">
     <span class="material-symbols-outlined" style="font-size: {{ $size === 'xs' ? 12 : 14 }}px">{{ $icon }}</span>
-    {{ $category->name ?? 'Lieu' }}
+    {{ __($category->name ?? 'Lieu') }}
 </span>

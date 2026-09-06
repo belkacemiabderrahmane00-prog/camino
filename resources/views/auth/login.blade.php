@@ -1,4 +1,4 @@
-<x-guest-layout title="Connexion">
+<x-guest-layout title="{{ __('Connexion') }}">
     <p class="eyebrow mb-2">{{ __('Bon retour') }}</p>
     <h1 class="display text-4xl">{{ __('Connexion') }}</h1>
     <p class="mt-2 text-sm text-ink-muted">{{ __('Retrouve tes favoris, tes parcours et ton profil culturel.') }}</p>

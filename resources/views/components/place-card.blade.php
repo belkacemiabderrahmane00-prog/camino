@@ -4,10 +4,10 @@
         <x-cover :place="$place" :class="$compact ? 'h-full min-h-[6.5rem]' : 'h-44'" />
         <div class="absolute top-2 left-2 flex gap-1">
             @if($place->is_free)
-                <span class="badge badge-free shadow-card">Gratuit</span>
+                <span class="badge badge-free shadow-card">{{ __('Gratuit') }}</span>
             @endif
             @if($place->event_end_at)
-                <span class="badge badge-event shadow-card">Événement</span>
+                <span class="badge badge-event shadow-card">{{ __('Événement') }}</span>
             @endif
         </div>
     </div>

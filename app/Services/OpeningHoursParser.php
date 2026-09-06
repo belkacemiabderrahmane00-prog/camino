@@ -95,7 +95,7 @@ class OpeningHoursParser
         }
         $dow = (int) $date->isoWeekday();
         if (in_array($dow, $hours['closed_days'] ?? [], true)) {
-            return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => 'Fermé le ' . $this->dayName($dow)];
+            return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => $this->t('Fermé le :day', ['day' => $this->t($this->dayName($dow))])];
         }
 
         $ymd = $date->format('Y-m-d');
@@ -120,11 +120,11 @@ class OpeningHoursParser
             // seulement si elles portent des horaires (sinon ce sont de simples périodes de validité).
             $withHours = array_filter($hours['periods'], fn ($p) => $p['opens'] !== null);
             if ($hasDated && $withHours !== []) {
-                return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => 'Hors période d\'ouverture'];
+                return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => $this->t('Hors période d\'ouverture')];
             }
             $anyDays = array_filter($hours['periods'], fn ($p) => $p['days'] !== null);
             if ($anyDays !== [] && $withHours === []) {
-                return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => 'Fermé le ' . $this->dayName($dow)];
+                return ['status' => 'closed', 'opens' => null, 'closes' => null, 'note' => $this->t('Fermé le :day', ['day' => $this->t($this->dayName($dow))])];
             }
 
             return ['status' => 'unknown', 'opens' => null, 'closes' => null, 'note' => $hours['periods'][0]['note'] ?? null];
@@ -312,6 +312,19 @@ class OpeningHoursParser
         [$h, $m] = array_map('intval', explode(':', $hhmm));
 
         return $h * 60 + $m;
+    }
+
+    /** Traduction si l'application est chargée (le parseur est aussi utilisé hors conteneur, en test unitaire). */
+    private function t(string $key, array $replace = []): string
+    {
+        $text = function_exists('app') && app()->bound('translator') ? __($key, $replace) : $key;
+        if ($text === $key) {
+            foreach ($replace as $k => $v) {
+                $text = str_replace(':' . $k, (string) $v, $text);
+            }
+        }
+
+        return $text;
     }
 
     private function dayName(int $dow): string

@@ -17,37 +17,63 @@
         'auth' => auth()->check(),
         'itineraryId' => $result['itinerary_id'] ?? null,
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
+        'transit' => app(\App\Services\TransitService::class)->enabled(),
         't' => [
             'started' => __('Guidage lancé.'), 'follow' => __('Suivez le tracé.'), 'in' => __('Dans'), 'meters' => __('mètres'), 'arrived' => __('Vous êtes arrivé à'), 'visit' => __('Visite prévue :'), 'minutes' => __('minutes'),
             'direction' => __('Direction'), 'lastStep' => __('Dernière étape : retour au point de départ.'), 'rerouted' => __('Itinéraire recalculé.'), 'done' => __('Parcours terminé. Bravo !'), 'voiceOn' => __('Guidage vocal activé.'),
             'headTo' => __('Dirige-toi vers'), 'headToVerbal' => __('Dirigez-vous vers'), 'backToStart' => __('Retourne au point de départ'), 'backToStartVerbal' => __('Retournez au point de départ.'), 'now' => __('Maintenant'), 'onRoute' => __('En route'), 'inShort' => __('Dans'),
             'stepOf' => __('Étape'), 'returnArrival' => __('Retour · arrivée'), 'imminent' => __('arrivée imminente'), 'about' => __('environ'), 'min' => __('min'), 'finish' => __('Terminer'), 'towards' => __('Vers'), 'returnStart' => __('Retour au départ'), 'nextStep' => __('la prochaine étape'),
+            'walked' => __('Tu as parcouru :d. Bravo.'), 'bravo' => __('Bravo.'), 'plannedVisit' => __('Visite prévue :'), 'open' => __('ouvert'),
+            'gpsUnavailable' => __('Géolocalisation indisponible sur cet appareil.'), 'gpsDenied' => __('Autorise la localisation pour être guidé.'), 'gpsWeak' => __('Signal GPS faible, on réessaie…'),
+            'onboard' => __('À bord'), 'getOffAt' => __('Descends à'), 'stops' => __('arrêts'), 'stop' => __('arrêt'), 'plannedArrival' => __('arrivée prévue'), 'gotOff' => __('Je suis descendu'),
+            'nextStopVerbal' => __('Prochain arrêt : :stop. Préparez-vous à descendre.'), 'transitLive' => __('Horaires en temps réel'), 'transitRecalc' => __('Trajet en transports recalculé à l\'heure réelle.'),
+            'departureAt' => __('Départ'), 'arrival' => __('Arrivée'), 'walk' => __('Marche'), 'wait' => __('Attente'), 'details' => __('Détail du trajet'), 'searching' => __('Recherche du meilleur trajet…'),
         ],
     ];
 @endphp
-<x-app-layout :title="'Guidage · ' . $result['title']" :fullscreen="true" :bottom-nav="false">
+<x-app-layout :title="__('Guidage') . ' · ' . $result['title']" :fullscreen="true" :bottom-nav="false">
     <div class="absolute inset-0" x-data="caminoNav(@js($nav))" @keydown.escape.window="if (!started) quit()">
         <div id="nav-map" class="absolute inset-0 z-0"></div>
 
         {{-- Bandeau instruction (haut) --}}
         <div class="absolute top-[4.6rem] inset-x-3 z-[600] pointer-events-none">
-            <div :class="{ hidden: !started }" class="hidden nav-card rounded-3xl bg-ink text-white p-3.5 flex items-center gap-3 pointer-events-auto">
-                <span class="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:34px" x-text="icon"></span></span>
+            {{-- Consigne de rue --}}
+            <div :class="{ hidden: !started || onboard }" class="hidden nav-card rounded-3xl bg-ink text-white p-3.5 flex items-center gap-3 pointer-events-auto">
+                <span class="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 relative">
+                    <span class="material-symbols-outlined" style="font-size:34px" x-text="icon"></span>
+                </span>
                 <div class="min-w-0 flex-1">
                     <p class="text-[11px] uppercase tracking-[0.14em] text-white/60 font-bold" x-text="distanceLabel"></p>
                     <p class="font-semibold leading-snug line-clamp-2" x-text="instruction || @js(__('Suis le tracé'))"></p>
                     <p x-show="street" class="text-xs text-white/60 truncate" x-text="street"></p>
+                    <template x-if="nextLine"><p class="mt-1 flex items-center gap-1.5 text-xs text-white/80"><span class="rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none" :style="'background:' + nextLine.color + ';color:' + nextLine.text_color" x-text="lineLabel(nextLine)"></span><span x-show="nextDepart" x-text="data.t.departureAt + ' ' + nextDepart"></span></p></template>
                 </div>
-                <button type="button" @click="toggleMute()" class="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0" :aria-label="muted ? 'Activer la voix' : 'Couper la voix'"><span class="material-symbols-outlined" style="font-size:20px" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
+                <button type="button" @click="toggleMute()" class="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0" :aria-label="muted ? @js(__('Activer la voix')) : @js(__('Couper la voix'))"><span class="material-symbols-outlined" style="font-size:20px" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
             </div>
-            <div x-show="offRoute && started" x-cloak class="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-500 text-ink px-3 py-1.5 text-xs font-semibold pointer-events-auto"><span class="material-symbols-outlined" style="font-size:16px" :class="rerouting && 'animate-spin'" x-text="rerouting ? 'progress_activity' : 'alt_route'"></span><span x-text="rerouting ? 'Recalcul de l\'itinéraire…' : 'Tu t\'éloignes du tracé'"></span></div>
+
+            {{-- À bord d'un transport --}}
+            <div :class="{ hidden: !started || !onboard }" class="hidden nav-card rounded-3xl text-white p-3.5 pointer-events-auto" :style="'background:' + (section && section.color ? section.color : '#1D4ED8')">
+                <div class="flex items-center gap-3">
+                    <span class="h-14 w-14 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:32px" x-text="section && section.mode === 'Bus' ? 'directions_bus' : (section && section.mode === 'Tram' ? 'tram' : (section && (section.mode === 'RER' || section.mode === 'Train') ? 'train' : 'subway'))"></span></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[11px] uppercase tracking-[0.14em] text-white/70 font-bold"><span x-text="data.t.onboard"></span> · <span x-text="section ? lineLabel(section) : ''"></span></p>
+                        <p class="font-semibold leading-snug"><span x-text="data.t.getOffAt"></span> <span x-text="section ? section.to : ''"></span></p>
+                        <p class="text-xs text-white/80" x-text="onboardLabel"></p>
+                    </div>
+                    <button type="button" @click="toggleMute()" class="h-10 w-10 rounded-full bg-white/15 flex items-center justify-center shrink-0" :aria-label="muted ? @js(__('Activer la voix')) : @js(__('Couper la voix'))"><span class="material-symbols-outlined" style="font-size:20px" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
+                </div>
+                <button type="button" @click="alight()" class="mt-2.5 w-full rounded-2xl bg-white/20 hover:bg-white/30 px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-1.5"><span class="material-symbols-outlined" style="font-size:18px">exit_to_app</span><span x-text="data.t.gotOff"></span></button>
+            </div>
+
+            <div x-show="offRoute && started" x-cloak class="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-500 text-ink px-3 py-1.5 text-xs font-semibold pointer-events-auto"><span class="material-symbols-outlined" style="font-size:16px" :class="rerouting && 'animate-spin'" x-text="rerouting ? 'progress_activity' : 'alt_route'"></span><span x-text="rerouting ? @js(__('Recalcul de l\'itinéraire…')) : @js(__('Tu t\'éloignes du tracé'))"></span></div>
+            <div x-show="transitLoading" x-cloak class="mt-2 inline-flex items-center gap-2 rounded-full bg-white text-ink px-3 py-1.5 text-xs font-semibold pointer-events-auto shadow-card"><span class="material-symbols-outlined animate-spin" style="font-size:16px">progress_activity</span><span x-text="data.t.searching"></span></div>
             <div x-show="gpsError" x-cloak class="mt-2 inline-flex items-center gap-2 rounded-full bg-coral text-white px-3 py-1.5 text-xs font-semibold pointer-events-auto"><span class="material-symbols-outlined" style="font-size:16px">location_off</span><span x-text="gpsError"></span></div>
         </div>
 
         {{-- Boutons carte --}}
         <div class="absolute right-3 bottom-[13.5rem] sm:bottom-52 z-[600] flex flex-col gap-2">
-            <button type="button" x-show="started && !follow" x-cloak @click="recenter()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="Recentrer"><span class="material-symbols-outlined">my_location</span></button>
-            <button type="button" @click="fitAll()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="Voir tout le parcours"><span class="material-symbols-outlined">zoom_out_map</span></button>
+            <button type="button" x-show="started && !follow" x-cloak @click="recenter()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Recentrer') }}"><span class="material-symbols-outlined">my_location</span></button>
+            <button type="button" @click="fitAll()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Voir tout le parcours') }}"><span class="material-symbols-outlined">zoom_out_map</span></button>
         </div>
 
         {{-- Feuille basse --}}
@@ -59,12 +85,12 @@
                     <div class="min-w-0 flex-1">
                         <p class="eyebrow">{{ __('Guidage') }}</p>
                         <p class="font-display text-xl leading-tight truncate">{{ $result['title'] }}</p>
-                        <p class="text-xs text-ink-muted mt-1">{{ count($steps) }} étape{{ count($steps) > 1 ? 's' : '' }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · {{ __('instructions vocales') }}</p>
+                        <p class="text-xs text-ink-muted mt-1">{{ trans_choice(':n étape|:n étapes', count($steps), ['n' => count($steps)]) }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ match($result['mode'] ?? 'walk') { 'bike' => __('à vélo'), 'transit' => __('à pied et en transports'), default => __('à pied') } }} · {{ __('instructions vocales') }}</p>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-2">
                     <button type="button" @click="start()" class="btn btn-lg btn-primary flex-1"><span class="material-symbols-outlined">play_arrow</span>{{ __('Démarrer le guidage') }}</button>
-                    <button type="button" @click="toggleMute()" class="btn btn-lg btn-soft !px-4" :aria-label="muted ? 'Activer la voix' : 'Couper la voix'"><span class="material-symbols-outlined" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
+                    <button type="button" @click="toggleMute()" class="btn btn-lg btn-soft !px-4" :aria-label="muted ? @js(__('Activer la voix')) : @js(__('Couper la voix'))"><span class="material-symbols-outlined" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
                 </div>
                 <p class="mt-2 text-[11px] text-ink-muted">{{ __('CAMINO utilise ta position uniquement pendant le guidage, rien n\'est enregistré. Garde l\'écran allumé, on s\'en occupe.') }}</p>
                 <a :href="backUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:14px">arrow_back</span>{{ __('Retour') }}</a>
@@ -82,12 +108,50 @@
                         <p class="font-semibold leading-snug line-clamp-1" x-text="target ? target.title : ''"></p>
                         <p class="text-xs text-ink-muted"><span x-text="formatDistance(remaining)"></span> · <span x-text="etaLabel"></span></p>
                     </div>
-                    <button type="button" @click="confirmArrival()" class="btn btn-sm btn-ink shrink-0" title="Je suis arrivé"><span class="material-symbols-outlined" style="font-size:16px">check</span></button>
+                    <button type="button" @click="confirmArrival()" class="btn btn-sm btn-ink shrink-0" title="{{ __('Je suis arrivé') }}"><span class="material-symbols-outlined" style="font-size:16px">check</span></button>
                 </div>
                 <div class="mt-2.5 h-1.5 rounded-full bg-paper overflow-hidden"><div class="h-full rounded-full bg-coral transition-all duration-500" :style="'width:' + progressPct + '%'"></div></div>
+
+                {{-- Trajet en transports : sections, section courante en relief --}}
+                <template x-if="leg && leg.transit && leg.sections && leg.sections.length">
+                    <div class="mt-2.5">
+                        <button type="button" @click="sheet = !sheet" class="w-full flex items-center gap-2 text-left">
+                            <span class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+                                <template x-for="(s, i) in leg.sections" :key="i">
+                                    <span class="inline-flex items-center gap-0.5 shrink-0" :class="i === sectionIdx ? 'opacity-100' : 'opacity-50'">
+                                        <template x-if="s.type === 'walk'"><span class="inline-flex items-center text-ink-muted"><span class="material-symbols-outlined" style="font-size:14px">directions_walk</span><span class="text-[10px]" x-text="s.minutes"></span></span></template>
+                                        <template x-if="s.type === 'wait'"><span class="material-symbols-outlined text-ink-muted" style="font-size:14px">hourglass_top</span></template>
+                                        <template x-if="s.type === 'pt'"><span class="rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none" :class="i === sectionIdx && 'ring-2 ring-offset-1 ring-ink'" :style="'background:' + s.color + ';color:' + s.text_color" x-text="lineLabel(s)"></span></template>
+                                        <span x-show="i < leg.sections.length - 1" class="material-symbols-outlined text-ink/30" style="font-size:12px">chevron_right</span>
+                                    </span>
+                                </template>
+                            </span>
+                            <span class="text-[10px] text-ink-muted inline-flex items-center gap-0.5 shrink-0" x-show="leg.live"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span><span x-text="data.t.transitLive"></span></span>
+                            <span class="material-symbols-outlined text-ink-muted shrink-0 transition-transform" :class="sheet && 'rotate-180'" style="font-size:18px">expand_more</span>
+                        </button>
+                        <div x-show="sheet" x-cloak class="mt-2 max-h-[38vh] overflow-y-auto rounded-2xl bg-paper/70 px-3 py-2">
+                            <ol class="space-y-1.5">
+                                <template x-for="(s, i) in leg.sections" :key="'d' + i">
+                                    <li class="flex items-start gap-2 text-xs rounded-xl px-2 py-1.5" :class="i === sectionIdx ? 'bg-white shadow-card' : ''">
+                                        <template x-if="s.type === 'walk'"><span class="material-symbols-outlined text-ink-muted shrink-0" style="font-size:16px">directions_walk</span></template>
+                                        <template x-if="s.type === 'wait'"><span class="material-symbols-outlined text-ink-muted shrink-0" style="font-size:16px">hourglass_top</span></template>
+                                        <template x-if="s.type === 'pt'"><span class="rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none shrink-0 mt-0.5" :style="'background:' + s.color + ';color:' + s.text_color" x-text="lineLabel(s)"></span></template>
+                                        <span class="min-w-0 flex-1">
+                                            <template x-if="s.type === 'walk'"><span><span x-text="data.t.walk + ' ' + s.minutes + ' ' + data.t.min"></span><span class="text-ink-muted" x-show="s.to" x-text="' → ' + s.to"></span></span></template>
+                                            <template x-if="s.type === 'wait'"><span class="text-ink-muted" x-text="data.t.wait + ' ' + s.minutes + ' ' + data.t.min"></span></template>
+                                            <template x-if="s.type === 'pt'"><span><span class="font-semibold" x-text="s.from"></span><span class="text-ink-muted" x-text="' → ' + s.to + ' · ' + s.stops + ' ' + (s.stops > 1 ? data.t.stops : data.t.stop)"></span><template x-if="s.alerts && s.alerts.length"><span class="block text-amber-700 mt-0.5" x-text="s.alerts.map(a => a.title + (a.text ? ' · ' + a.text : '')).join(' — ')"></span></template></span></template>
+                                        </span>
+                                        <span class="tabular-nums text-ink-muted shrink-0" x-text="s.depart_at || ''"></span>
+                                    </li>
+                                </template>
+                            </ol>
+                        </div>
+                    </div>
+                </template>
+
                 <div class="mt-2.5 flex items-center justify-between text-[11px] text-ink-muted">
                     <span x-show="accuracy" x-text="'GPS ± ' + Math.round(accuracy) + ' m'"></span>
-                    <span x-show="simulate" class="text-coral font-semibold">Simulation</span>
+                    <span x-show="simulate" class="text-coral font-semibold">{{ __('Simulation') }}</span>
                     <button type="button" @click="quit()" class="font-semibold text-ink-muted hover:text-coral inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">close</span>{{ __('Quitter') }}</button>
                 </div>
             </div>
@@ -99,7 +163,7 @@
                     <div class="min-w-0 flex-1">
                         <p class="eyebrow">{{ __('Tu es arrivé') }}</p>
                         <p class="font-display text-xl leading-tight line-clamp-2" x-text="target ? target.title : ''"></p>
-                        <p class="text-xs text-ink-muted mt-0.5" x-text="target && target.visit ? 'Visite prévue : ' + target.visit + ' min' + (target.hours && target.hours.status === 'open' ? ' · ouvert ' + target.hours.opens + '–' + target.hours.closes : '') : ''"></p>
+                        <p class="text-xs text-ink-muted mt-0.5" x-text="target && target.visit ? data.t.plannedVisit + ' ' + target.visit + ' ' + data.t.min + (target.hours && target.hours.status === 'open' ? ' · ' + data.t.open + ' ' + target.hours.opens + '–' + target.hours.closes : '') : ''"></p>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-2">
@@ -112,7 +176,7 @@
             <div :class="{ hidden: !done }" class="hidden nav-card card p-4 sm:p-5 text-center">
                 <span class="material-symbols-outlined text-coral" style="font-size:40px">celebration</span>
                 <p class="font-display text-2xl mt-1">{{ __('Parcours terminé !') }}</p>
-                <p class="text-sm text-ink-muted mt-1" x-text="walked > 0 ? 'Tu as parcouru ' + formatDistance(walked) + '. Bravo.' : 'Bravo.'"></p>
+                <p class="text-sm text-ink-muted mt-1" x-text="walked > 0 ? data.t.walked.replace(':d', formatDistance(walked)) : data.t.bravo"></p>
                 <div class="mt-3 flex gap-2 justify-center">
                     <a :href="backUrl" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>{{ __('Retour au parcours') }}</a>
                     <a href="{{ route('map.index') }}" class="btn btn-md btn-soft">{{ __('Carte') }}</a>
@@ -132,24 +196,46 @@
             // Projection d'un point sur un segment [a,b] : retourne {t, d, p}
             const project = (p, a, b) => { const ax = a[1], ay = a[0], bx = b[1], by = b[0], px = p[1], py = p[0]; const kx = Math.cos(toRad(ay)); const dx = (bx - ax) * kx, dy = by - ay; const len2 = dx * dx + dy * dy; let t = len2 === 0 ? 0 : (((px - ax) * kx * dx + (py - ay) * dy) / len2); t = Math.max(0, Math.min(1, t)); const q = [ay + (by - ay) * t, ax + (bx - ax) * t]; return { t, d: dist(p, q), p: q }; };
             const ICONS = { 1: 'straight', 2: 'straight', 3: 'straight', 4: 'sports_score', 5: 'sports_score', 6: 'sports_score', 7: 'straight', 8: 'straight', 9: 'turn_slight_right', 10: 'turn_right', 11: 'turn_sharp_right', 12: 'u_turn_right', 13: 'u_turn_left', 14: 'turn_sharp_left', 15: 'turn_left', 16: 'turn_slight_left', 17: 'straight', 18: 'turn_slight_right', 19: 'turn_slight_left', 20: 'turn_slight_right', 21: 'turn_slight_left', 22: 'straight', 23: 'turn_slight_right', 24: 'turn_slight_left', 25: 'merge', 26: 'roundabout_right', 27: 'roundabout_right', 37: 'merge', 38: 'merge', 40: 'directions_subway', 41: 'exit_to_app' };
-            let map = null, userMarker = null, accuracyCircle = null, routeLine = null, legLine = null, doneLine = null, watchId = null, wakeLock = null, simTimer = null, stepMarkers = [];
+            // Heure "HH:MM" du jour → timestamp (ms)
+            const todayAt = hhmm => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
+            let map = null, userMarker = null, accuracyCircle = null, routeLine = null, legLine = null, doneLine = null, watchId = null, wakeLock = null, simTimer = null, boardTimer = null, stepMarkers = [];
             let cum = [];
             const targets = data.steps.map(s => ({ ...s, kind: s.kind || 'visit' }));
-            if (data.end) targets.push({ lat: data.end.lat, lng: data.end.lng, title: data.end.label || 'Arrivée', cover: null, kind: 'end', visit: 0, url: null, hours: null });
+            if (data.end) targets.push({ lat: data.end.lat, lng: data.end.lng, title: data.end.label || data.t.arrival, cover: null, kind: 'end', visit: 0, url: null, hours: null });
 
             return {
+                data,
                 started: false, done: false, arrived: false, muted: false, follow: true, simulate: data.simulate > 0, simSpeed: Math.max(1, data.simulate || 1),
                 legIndex: 0, pos: null, heading: 0, accuracy: null, gpsError: null,
                 leg: null, segIdx: 0, along: 0, instruction: '', street: '', icon: 'straight', distToManeuver: null, maneuverIdx: -1, spokenIdx: -1, spokenApproach: -1,
                 remaining: 0, offRoute: false, offRouteCount: 0, rerouting: false, walked: 0, lastPos: null,
+                sectionIdx: -1, sheet: false, transitLoading: false, spokenAlight: -1,
                 backUrl: data.backUrl,
 
                 get target() { return targets[this.legIndex] || null; },
                 get progressLabel() { const n = targets.length; const t = this.target; return t && t.kind === 'end' ? data.t.returnArrival : data.t.stepOf + ' ' + (this.legIndex + 1) + ' / ' + (data.end ? n - 1 : n); },
                 get progressPct() { const total = this.legTotal(); return total > 0 ? Math.max(0, Math.min(100, Math.round((total - this.remaining) / total * 100))) : 0; },
-                get etaLabel() { const speed = data.mode === 'bike' ? 3.6 : 1.3; const min = Math.round(this.remaining / speed / 60); const eta = new Date(Date.now() + min * 60000); return (min <= 1 ? data.t.imminent : data.t.about + ' ' + min + ' ' + data.t.min) + ' · ' + eta.getHours() + 'h' + String(eta.getMinutes()).padStart(2, '0'); },
+                get etaLabel() {
+                    let min;
+                    if (this.leg && this.leg.transit && this.leg.arrive_at) { min = Math.max(0, Math.round((todayAt(this.leg.arrive_at) - Date.now()) / 60000)); }
+                    else { const speed = data.mode === 'bike' ? 3.6 : 1.3; min = Math.round(this.remaining / speed / 60); }
+                    const eta = new Date(Date.now() + min * 60000);
+                    return (min <= 1 ? data.t.imminent : data.t.about + ' ' + min + ' ' + data.t.min) + ' · ' + eta.getHours() + 'h' + String(eta.getMinutes()).padStart(2, '0');
+                },
                 get distanceLabel() { if (this.distToManeuver === null) return data.t.onRoute; if (this.distToManeuver < 15) return data.t.now; return data.t.inShort + ' ' + this.formatDistance(this.distToManeuver); },
                 get nextLabel() { const next = targets[this.legIndex + 1]; if (!next) return data.t.finish; return next.kind === 'end' ? data.t.returnStart : data.t.towards + ' ' + next.title; },
+                get section() { return this.leg && this.leg.sections ? (this.leg.sections[this.sectionIdx] || null) : null; },
+                get onboard() { const s = this.section; return !!(this.started && !this.arrived && s && s.type === 'pt'); },
+                get onboardLabel() {
+                    const s = this.section; if (!s) return '';
+                    const parts = [s.stops + ' ' + (s.stops > 1 ? data.t.stops : data.t.stop)];
+                    if (s.arrive_at) { const min = Math.max(0, Math.round((todayAt(s.arrive_at) - Date.now()) / 60000)); parts.push(data.t.plannedArrival + ' ' + s.arrive_at + (min > 0 ? ' (' + min + ' ' + data.t.min + ')' : '')); }
+                    return parts.join(' · ');
+                },
+                // Prochaine ligne à prendre (affichée sous la consigne de marche)
+                get nextLine() { if (!this.leg || !this.leg.transit || !this.leg.sections) return null; for (let i = Math.max(0, this.sectionIdx); i < this.leg.sections.length; i++) { const s = this.leg.sections[i]; if (s.type === 'pt') return i === this.sectionIdx ? null : s; } return null; },
+                get nextDepart() { const s = this.nextLine; return s && s.depart_at ? s.depart_at : ''; },
+                lineLabel(l) { return ((l.mode === 'Métro' ? 'M' : l.mode) + ' ' + (l.code || '')).trim(); },
 
                 init() {
                     map = L.map(document.getElementById('nav-map'), { zoomControl: false, attributionControl: true });
@@ -181,36 +267,72 @@
                         shape = [from, [t.lat, t.lng]];
                         maneuvers = [t.kind === 'end' ? { type: 8, text: data.t.backToStart, verbal: data.t.backToStartVerbal, street: '', begin: 0, end: 1 } : { type: 8, text: data.t.headTo + ' ' + t.title, verbal: data.t.headToVerbal + ' ' + t.title + '.', street: '', begin: 0, end: 1 }];
                     }
-                    this.setLeg(shape, maneuvers, !!(stored && stored.transit));
+                    this.setLeg(shape, maneuvers, !!(stored && stored.transit), stored && stored.transit ? stored : null);
                 },
-                setLeg(shape, maneuvers, transit = false) {
-                    this.leg = { transit, shape, maneuvers: maneuvers.filter(m => m.type !== 4 && m.type !== 5 && m.type !== 6).concat(maneuvers.filter(m => m.type === 4 || m.type === 5 || m.type === 6).slice(0, 1)) };
+                setLeg(shape, maneuvers, transit = false, info = null) {
+                    this.leg = { transit, shape, maneuvers: maneuvers.filter(m => m.type !== 4 && m.type !== 5 && m.type !== 6).concat(maneuvers.filter(m => m.type === 4 || m.type === 5 || m.type === 6).slice(0, 1)), sections: info && info.sections ? info.sections : [], arrive_at: info ? info.arrive_at || null : null, live: !!(info && info.live) };
                     cum = [0];
                     for (let i = 1; i < shape.length; i++) cum[i] = cum[i - 1] + dist(shape[i - 1], shape[i]);
                     if (legLine) legLine.remove();
                     if (doneLine) doneLine.remove();
                     legLine = L.polyline(shape, { color: transit ? '#1D4ED8' : (data.mode === 'bike' ? '#0F8B8D' : '#FF5A3C'), weight: 6, opacity: 0.95, lineJoin: 'round', dashArray: transit ? '10 8' : null }).addTo(map);
                     doneLine = L.polyline([], { color: '#9CA3AF', weight: 6, opacity: 0.9 }).addTo(map);
-                    this.segIdx = 0; this.along = 0; this.remaining = this.legTotal(); this.maneuverIdx = -1; this.spokenIdx = -1; this.spokenApproach = -1; this.offRoute = false; this.offRouteCount = 0;
+                    this.segIdx = 0; this.along = 0; this.remaining = this.legTotal(); this.maneuverIdx = -1; this.spokenIdx = -1; this.spokenApproach = -1; this.spokenAlight = -1; this.offRoute = false; this.offRouteCount = 0; this.sheet = false;
+                    this.updateSection(0);
                     this.updateInstruction(0);
+                },
+                // Section de transport courante (marche / attente / à bord) selon l'avancement sur le tracé.
+                updateSection(along) {
+                    if (!this.leg || !this.leg.transit || !this.leg.sections.length) { this.sectionIdx = -1; return; }
+                    let idx = -1;
+                    this.leg.sections.forEach((s, i) => { if (s.begin === undefined) return; const a = cum[s.begin] ?? 0, b = cum[s.end] ?? a; if (along >= a - 1 && (along <= b + 1 || i === this.leg.sections.length - 1)) idx = idx === -1 ? i : idx; });
+                    if (idx === -1) idx = along <= 0 ? 0 : this.leg.sections.length - 1;
+                    this.sectionIdx = idx;
+                },
+                // Le voyageur est descendu : on saute à la fin de la section à bord, la marche reprend.
+                alight() {
+                    const s = this.section; if (!s || s.type !== 'pt') return;
+                    const endIdx = s.end;
+                    this.segIdx = Math.max(0, endIdx - 1);
+                    this.along = cum[endIdx] ?? this.along;
+                    this.remaining = Math.max(0, this.legTotal() - this.along);
+                    doneLine.setLatLngs(this.leg.shape.slice(0, endIdx + 1));
+                    this.sectionIdx = Math.min(this.leg.sections.length - 1, this.sectionIdx + 1);
+                    while (this.section && this.section.type === 'wait' && this.sectionIdx < this.leg.sections.length - 1) this.sectionIdx++;
+                    this.spokenIdx = -1;
+                    this.updateInstruction(this.along + 0.1);
+                    const m = this.leg.maneuvers[this.maneuverIdx];
+                    if (m) this.speak(m.verbal);
+                },
+                // Rappel vocal une minute avant l'arrivée prévue à la station de descente.
+                watchOnboard() {
+                    if (boardTimer) clearInterval(boardTimer);
+                    boardTimer = setInterval(() => {
+                        if (!this.onboard) return;
+                        const s = this.section; const at = todayAt(s.arrive_at);
+                        if (at && Date.now() >= at - 70000 && this.spokenAlight !== this.sectionIdx) { this.spokenAlight = this.sectionIdx; this.speak(data.t.nextStopVerbal.replace(':stop', s.to)); if (navigator.vibrate) navigator.vibrate([80, 40, 80]); }
+                    }, 15000);
                 },
 
                 // ---------------------------------------------------------------- démarrage
                 async start() {
                     this.started = true; this.follow = true;
-                    this.speak(data.t.started + ' ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : data.t.follow));
                     try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
                     document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && 'wakeLock' in navigator && this.started) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} } });
+                    // Premier tronçon en transports : horaires réels au moment du départ.
+                    if (data.mode === 'transit' && data.transit && data.legs[0] && data.legs[0].transit && !this.simulate) await this.refreshTransit(0, [data.start.lat, data.start.lng]);
+                    this.speak(data.t.started + ' ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : data.t.follow));
+                    this.watchOnboard();
                     if (this.simulate) { this.runSimulation(); return; }
-                    if (!navigator.geolocation) { this.gpsError = 'Géolocalisation indisponible sur cet appareil.'; return; }
+                    if (!navigator.geolocation) { this.gpsError = data.t.gpsUnavailable; return; }
                     watchId = navigator.geolocation.watchPosition(
                         p => { this.gpsError = null; this.onPosition([p.coords.latitude, p.coords.longitude], p.coords.heading, p.coords.accuracy); },
-                        e => { this.gpsError = e.code === 1 ? 'Autorise la localisation pour être guidé.' : 'Signal GPS faible, on réessaie…'; },
+                        e => { this.gpsError = e.code === 1 ? data.t.gpsDenied : data.t.gpsWeak; },
                         { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
                     );
                 },
                 quit() { this.stopTracking(); window.location.href = this.backUrl; },
-                stopTracking() { if (watchId !== null) navigator.geolocation.clearWatch(watchId); if (simTimer) clearInterval(simTimer); if (wakeLock) { try { wakeLock.release(); } catch (e) {} } if ('speechSynthesis' in window) window.speechSynthesis.cancel(); },
+                stopTracking() { if (watchId !== null) navigator.geolocation.clearWatch(watchId); if (simTimer) clearInterval(simTimer); if (boardTimer) clearInterval(boardTimer); if (wakeLock) { try { wakeLock.release(); } catch (e) {} } if ('speechSynthesis' in window) window.speechSynthesis.cancel(); },
 
                 // ---------------------------------------------------------------- position
                 onPosition(latlng, heading, accuracy) {
@@ -235,10 +357,14 @@
                         return;
                     }
                     this.offRouteCount = 0; this.offRoute = false;
+                    // À bord : le GPS ne fait pas reculer l'avancement (tunnels, imprécision), il ne fait qu'avancer.
+                    const newAlong = cum[best.i] + (cum[best.i + 1] - cum[best.i]) * best.t;
+                    if (this.onboard && newAlong < this.along) return;
                     this.segIdx = best.i;
-                    this.along = cum[best.i] + (cum[best.i + 1] - cum[best.i]) * best.t;
+                    this.along = newAlong;
                     this.remaining = Math.max(0, this.legTotal() - this.along);
                     doneLine.setLatLngs([...shape.slice(0, best.i + 1), best.p]);
+                    this.updateSection(this.along);
                     this.updateInstruction(this.along);
                 },
                 drawUser() {
@@ -262,7 +388,8 @@
                     this.distToManeuver = idx === 0 && along < 5 ? null : d;
                     this.instruction = m.text; this.street = m.street || ''; this.icon = ICONS[m.type] || 'straight';
                     if (idx !== this.maneuverIdx) { this.maneuverIdx = idx; this.spokenApproach = -1; }
-                    // Voix : annonce à ~80 m (150 m à vélo), puis au moment de tourner.
+                    // Voix : annonce à ~80 m (150 m à vélo), puis au moment de tourner. À bord, pas d'annonce de distance.
+                    if (this.onboard) return;
                     const approach = data.mode === 'bike' ? 150 : 80;
                     if (d <= approach && d > 25 && this.spokenApproach !== idx) { this.spokenApproach = idx; this.speak(data.t.in + ' ' + Math.round(d / 10) * 10 + ' ' + data.t.meters + ', ' + this.lower(m.verbal)); }
                     else if (d <= 25 && this.spokenIdx !== idx) { this.spokenIdx = idx; this.speak(m.verbal); }
@@ -293,10 +420,27 @@
                     this.arrived = false;
                     if (!targets[next]) { this.finish(); return; }
                     this.legIndex = next;
-                    // Depuis la position réelle si on l'a, sinon le tronçon calculé à l'avance.
-                    if (this.pos && !this.simulate) { await this.reroute(true); } else { this.loadLeg(next, this.pos); }
+                    const stored = data.legs[next];
+                    const from = this.pos && !this.simulate ? this.pos : [targets[next - 1].lat, targets[next - 1].lng];
+                    // Transports : le meilleur trajet est recalculé à l'heure réelle du départ (comme une appli de mobilité).
+                    if (data.mode === 'transit' && data.transit && !this.simulate && (stored && stored.transit)) { await this.refreshTransit(next, from); }
+                    else if (this.pos && !this.simulate) { await this.reroute(true); }
+                    else { this.loadLeg(next, this.pos); }
                     this.speak((targets[next].kind === 'end' ? data.t.lastStep + ' ' : data.t.direction + ' ' + targets[next].title + '. ') + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : ''));
                     if (this.simulate) this.runSimulation();
+                },
+                // Trajet en transports depuis la position réelle, à l'heure réelle ; sinon le tronçon prévu.
+                async refreshTransit(index, from) {
+                    const t = targets[index];
+                    this.transitLoading = true;
+                    try {
+                        const r = await fetch('/api/v1/transit', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ from: { lat: from[0], lng: from[1] }, to: { lat: t.lat, lng: t.lng } }) });
+                        const j = await r.json();
+                        const journey = j.journeys && j.journeys[0];
+                        if (journey && journey.shape && journey.shape.length > 1) { this.setLeg(journey.shape, journey.maneuvers || [], true, { ...journey, live: true }); data.legs[index] = { ...journey, transit: true, live: true }; }
+                        else this.loadLeg(index, from);
+                    } catch (e) { this.loadLeg(index, from); }
+                    this.transitLoading = false;
                 },
                 finish() { this.done = true; this.arrived = false; this.stopTracking(); this.speak(data.t.done); },
                 async reroute(silent = false) {
@@ -326,10 +470,11 @@
                 // ---------------------------------------------------------------- simulation (test sans GPS)
                 runSimulation() {
                     if (simTimer) clearInterval(simTimer);
-                    const shape = this.leg.shape; let i = 0, t = 0; const speed = (data.mode === 'bike' ? 4.5 : 1.6) * this.simSpeed;
+                    const shape = this.leg.shape; let i = 0, t = 0; const base = (data.mode === 'bike' ? 4.5 : 1.6) * this.simSpeed;
                     simTimer = setInterval(() => {
                         if (this.arrived || this.done) { clearInterval(simTimer); return; }
                         if (i >= shape.length - 1) { this.onPosition(shape[shape.length - 1], null, 8); clearInterval(simTimer); return; }
+                        const speed = this.onboard ? base * 8 : base;
                         const segLen = dist(shape[i], shape[i + 1]) || 1;
                         t += speed / segLen;
                         while (t >= 1 && i < shape.length - 1) { t -= 1; i++; if (i >= shape.length - 1) break; }

@@ -124,7 +124,7 @@ class PlaceController extends Controller
             'message' => $validated['message'] ?? null,
         ]);
 
-        return back()->with('status', 'Merci, ton signalement a bien été envoyé. L’équipe CAMINO en prend connaissance.');
+        return back()->with('status', __('Merci, ton signalement a bien été envoyé. L’équipe CAMINO en prend connaissance.'));
     }
 }
 

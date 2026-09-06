@@ -123,7 +123,7 @@ class PoiController extends Controller
             'description' => $place->description,
             'category' => $place->category ? [
                 'id' => $place->category->id,
-                'name' => $place->category->name,
+                'name' => __($place->category->name),
                 'slug' => $place->category->slug,
             ] : null,
             'lat' => $place->lat,

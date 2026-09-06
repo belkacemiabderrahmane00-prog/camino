@@ -1,4 +1,5 @@
-@props(['eyebrow' => null, 'title', 'subtitle' => null, 'href' => null, 'linkLabel' => 'Voir tout'])
+@props(['eyebrow' => null, 'title', 'subtitle' => null, 'href' => null, 'linkLabel' => null])
+@php $linkLabel = $linkLabel ?? __('Voir tout'); @endphp
 <div {{ $attributes->merge(['class' => 'flex items-end justify-between gap-4 mb-5']) }}>
     <div>
         @if($eyebrow)<p class="eyebrow mb-1.5">{{ $eyebrow }}</p>@endif

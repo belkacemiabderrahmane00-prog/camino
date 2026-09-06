@@ -1,5 +1,5 @@
 {{--
-    Modale "Signaler" façon Waze. Utilisation : <x-alert-modal :place="$place" /> (lieu) ou <x-alert-modal /> (carte, position libre).
+    Modale "Signaler" façon Waze. Utilisation : <x-alert-modal :place="$place" /> {{ __('(lieu) ou') }} <x-alert-modal /> (carte, position libre).
     Ouvre avec $dispatch('open-alert', { lat, lng }) ou via un bouton @click="$dispatch('open-alert')".
 --}}
 @props(['place' => null, 'types'])
@@ -13,9 +13,9 @@
         <div x-show="open" x-transition class="relative w-full sm:max-w-lg card rounded-b-none sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <p class="eyebrow">Communauté</p>
+                    <p class="eyebrow">{{ __('Communauté') }}</p>
                     <h3 class="display text-2xl mt-1">Signaler {{ $place ? 'sur ce lieu' : 'ici' }}</h3>
-                    <p class="text-sm text-ink-muted mt-1">Comme sur Waze : ton alerte apparaît sur la carte pour tout le monde, pendant quelques heures.</p>
+                    <p class="text-sm text-ink-muted mt-1">{{ __('Comme sur Waze : ton alerte apparaît sur la carte pour tout le monde, pendant quelques heures.') }}</p>
                 </div>
                 <button @click="open = false" class="btn btn-icon btn-ghost"><span class="material-symbols-outlined">close</span></button>
             </div>
@@ -39,24 +39,24 @@
                         @endforeach
                     </div>
                     <div>
-                        <label class="label" for="alert-title">Titre</label>
-                        <input id="alert-title" name="title" required maxlength="120" class="field" placeholder="Ex. Concert gratuit ce soir à 19h">
+                        <label class="label" for="alert-title">{{ __('Titre') }}</label>
+                        <input id="alert-title" name="title" required maxlength="120" class="field" placeholder="{{ __('Ex. Concert gratuit ce soir à 19h') }}">
                     </div>
                     <div>
-                        <label class="label" for="alert-message">Détails (optionnel)</label>
-                        <textarea id="alert-message" name="message" rows="2" maxlength="500" class="field" placeholder="Horaires, accès, conseils…"></textarea>
+                        <label class="label" for="alert-message">{{ __('Détails (optionnel)') }}</label>
+                        <textarea id="alert-message" name="message" rows="2" maxlength="500" class="field" placeholder="{{ __('Horaires, accès, conseils…') }}"></textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-1">
-                        <button type="button" @click="open = false" class="btn btn-md btn-ghost">Annuler</button>
-                        <button type="submit" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">campaign</span>Publier l'alerte</button>
+                        <button type="button" @click="open = false" class="btn btn-md btn-ghost">{{ __('Annuler') }}</button>
+                        <button type="submit" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">campaign</span>{{ __('Publier l\'alerte') }}</button>
                     </div>
                 </form>
             @else
                 <div class="rounded-2xl bg-paper p-5 text-center">
-                    <p class="text-sm">Connecte-toi pour signaler un événement gratuit, une affluence ou une fermeture.</p>
+                    <p class="text-sm">{{ __('Connecte-toi pour signaler un événement gratuit, une affluence ou une fermeture.') }}</p>
                     <div class="mt-3 flex justify-center gap-2">
-                        <a href="{{ route('login') }}" class="btn btn-sm btn-ink">Connexion</a>
-                        <a href="{{ route('register') }}" class="btn btn-sm btn-soft">Créer un compte</a>
+                        <a href="{{ route('login') }}" class="btn btn-sm btn-ink">{{ __('Connexion') }}</a>
+                        <a href="{{ route('register') }}" class="btn btn-sm btn-soft">{{ __('Créer un compte') }}</a>
                     </div>
                 </div>
             @endauth

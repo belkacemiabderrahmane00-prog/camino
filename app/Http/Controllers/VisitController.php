@@ -52,6 +52,6 @@ class VisitController extends Controller
         abort_unless($visit->user_id === Auth::id(), 403);
         $visit->delete();
 
-        return back()->with('status', 'Visite retirée du journal.');
+        return back()->with('status', __('Visite retirée du journal.'));
     }
 }

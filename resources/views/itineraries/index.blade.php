@@ -1,12 +1,12 @@
-<x-app-layout title="Mes parcours">
+<x-app-layout title="{{ __('Mes parcours') }}">
     <section class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
         <div class="flex items-end justify-between gap-4 mb-6">
             <div>
-                <p class="eyebrow mb-1.5">Historique</p>
-                <h1 class="display text-4xl">Mes parcours</h1>
-                <p class="mt-2 text-sm text-ink-muted">Tes parcours générés, prêts à être relancés.</p>
+                <p class="eyebrow mb-1.5">{{ __('Historique') }}</p>
+                <h1 class="display text-4xl">{{ __('Mes parcours') }}</h1>
+                <p class="mt-2 text-sm text-ink-muted">{{ __('Tes parcours générés, prêts à être relancés.') }}</p>
             </div>
-            <a href="{{ route('itineraries.create') }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">add</span>Nouveau</a>
+            <a href="{{ route('itineraries.create') }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">add</span>{{ __('Nouveau') }}</a>
         </div>
 
         <div class="space-y-3">
@@ -31,16 +31,16 @@
                         <p class="text-sm text-ink-soft mt-1.5 line-clamp-2">{{ collect($steps)->pluck('title')->implode(' → ') }}</p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-sm btn-soft"><span class="material-symbols-outlined" style="font-size:16px">replay</span>Revoir</button></form>
-                        <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-icon btn-ghost text-ink-muted hover:text-coral" title="Supprimer"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button></form>
+                        <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-sm btn-soft"><span class="material-symbols-outlined" style="font-size:16px">replay</span>{{ __('Revoir') }}</button></form>
+                        <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-icon btn-ghost text-ink-muted hover:text-coral" title="{{ __('Supprimer') }}"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button></form>
                     </div>
                 </div>
             @empty
                 <div class="card p-10 text-center">
                     <span class="material-symbols-outlined text-4xl text-ink-muted">route</span>
-                    <p class="mt-3 font-semibold">Aucun parcours enregistré.</p>
-                    <p class="text-sm text-ink-muted mt-1">Les parcours générés quand tu es connecté sont conservés ici.</p>
-                    <a href="{{ route('itineraries.create') }}" class="btn btn-md btn-primary mt-4">Générer un parcours</a>
+                    <p class="mt-3 font-semibold">{{ __('Aucun parcours enregistré.') }}</p>
+                    <p class="text-sm text-ink-muted mt-1">{{ __('Les parcours générés quand tu es connecté sont conservés ici.') }}</p>
+                    <a href="{{ route('itineraries.create') }}" class="btn btn-md btn-primary mt-4">{{ __('Générer un parcours') }}</a>
                 </div>
             @endforelse
         </div>

@@ -2,7 +2,7 @@
     'title' => null,
     'fullscreen' => false,
     'bottomNav' => true,
-    'description' => 'CAMINO, le GPS culturel intelligent : carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.',
+    'description' => null,
 ])
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() === 'zh' ? 'zh-CN' : app()->getLocale() }}" class="h-full">
@@ -15,8 +15,8 @@
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="CAMINO">
-    <meta name="description" content="{{ $description }}">
-    <title>{{ $title ? $title . ' · CAMINO' : 'CAMINO — GPS culturel intelligent' }}</title>
+    <meta name="description" content="{{ $description ?? __('CAMINO, le GPS culturel intelligent : carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.') }}">
+    <title>{{ $title ? $title . ' · CAMINO' : __('CAMINO — GPS culturel intelligent') }}</title>
     @stack('meta')
 
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23FF5A3C'/%3E%3Cpath d='M32 12c-8.3 0-15 6.6-15 14.8C17 38.4 32 52 32 52s15-13.6 15-25.2C47 18.6 40.3 12 32 12zm0 20a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z' fill='%23fff'/%3E%3C/svg%3E">
@@ -37,7 +37,7 @@
         <div class="{{ $fullscreen ? 'pointer-events-none' : '' }}">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-3">
                 <div class="glass rounded-full pl-3 sm:pl-4 pr-2 py-2 flex items-center gap-2 sm:gap-3 pointer-events-auto">
-                    <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="CAMINO — accueil">
+                    <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="{{ __('CAMINO — accueil') }}">
                         <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card group-hover:rotate-6 transition-transform">
                             <span class="material-symbols-outlined filled" style="font-size:18px">location_on</span>
                         </span>
@@ -62,18 +62,18 @@
 
                     <div class="ml-auto flex items-center gap-2">
                         <div class="relative" x-data="{ lang: false }" @click.outside="lang = false">
-                            <button type="button" @click="lang = !lang" class="hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold hover:bg-ink/5 transition" aria-label="{{ __('Langue') }}"><span class="material-symbols-outlined" style="font-size:16px">language</span>{{ strtoupper(app()->getLocale()) === 'ZH' ? '中文' : strtoupper(app()->getLocale()) }}</button>
+                            <button type="button" @click="lang = !lang" class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold hover:bg-ink/5 transition" aria-label="{{ __('Langue') }}"><x-flag :code="app()->getLocale()" :size="18" />{{ app()->getLocale() === 'zh' ? '中文' : strtoupper(app()->getLocale()) }}<span class="material-symbols-outlined text-ink-muted" style="font-size:16px">expand_more</span></button>
                             <div x-cloak x-show="lang" x-transition.origin.top.right class="absolute right-0 mt-2 w-40 card p-1.5 text-sm z-50">
                                 @foreach(['fr' => 'Français', 'en' => 'English', 'zh' => '中文'] as $code => $label)
-                                    <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-paper {{ app()->getLocale() === $code ? 'font-semibold text-coral' : '' }}">{{ $label }}@if(app()->getLocale() === $code)<span class="material-symbols-outlined" style="font-size:16px">check</span>@endif</a>
+                                    <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-paper {{ app()->getLocale() === $code ? 'font-semibold text-coral' : '' }}"><x-flag :code="$code" :size="20" /><span class="flex-1">{{ $label }}</span>@if(app()->getLocale() === $code)<span class="material-symbols-outlined" style="font-size:16px">check</span>@endif</a>
                                 @endforeach
                             </div>
                         </div>
                         @if(!empty($globalForecast['current']))
-                            <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-sun-soft/80 text-ink pl-1.5 pr-3 py-1 text-xs font-semibold hover:bg-sun-soft transition" title="{{ $globalAdvice['title'] ?? 'Météo' }}" aria-label="Météo">
+                            <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-sun-soft/80 text-ink pl-1.5 pr-3 py-1 text-xs font-semibold hover:bg-sun-soft transition" title="{{ $globalAdvice['title'] ?? 'Météo' }}" aria-label="{{ __('Météo') }}">
                                 <span class="h-6 w-6 rounded-full bg-white text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:15px">{{ $globalForecast['current']['icon'] }}</span></span>
                                 {{ round($globalForecast['current']['temp']) }}°
-                                <span class="hidden md:inline text-ink-muted font-normal">· {{ $globalAdvice['title'] ?? $globalForecast['current']['label'] }}</span>
+                                <span class="hidden md:inline text-ink-muted font-normal">· {{ $globalAdvice['title'] ?? __($globalForecast['current']['label']) }}</span>
                             </button>
                         @endif
                         {{ $actions ?? '' }}
@@ -81,10 +81,10 @@
                         @auth
                             <a href="{{ route('community.propose') }}" class="hidden lg:inline-flex btn btn-sm btn-soft">
                                 <span class="material-symbols-outlined" style="font-size:16px">add_location_alt</span>
-                                Proposer un lieu
+                                {{ __('Proposer un lieu') }}
                             </a>
                             <div class="relative" @click.outside="user = false">
-                                <button @click="user = !user" class="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-ink/5 transition" aria-label="Menu utilisateur">
+                                <button @click="user = !user" class="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-ink/5 transition" aria-label="{{ __('Menu utilisateur') }}">
                                     @if(auth()->user()->avatar_url)
                                         <img src="{{ auth()->user()->avatar_url }}" alt="" class="h-8 w-8 rounded-full object-cover">
                                     @else
@@ -96,11 +96,11 @@
                                 <div x-cloak x-show="user" x-transition.origin.top.right
                                      class="absolute right-0 mt-2 w-56 card p-1.5 text-sm">
                                     @foreach([
-                                        ['dashboard', 'space_dashboard', 'Mon espace'],
-                                        ['itineraries.index', 'history', 'Mes parcours'],
-                                        ['places.favorites', 'favorite', 'Mes favoris'],
-                                        ['community.propose', 'add_location_alt', 'Proposer un lieu'],
-                                        ['profile.edit', 'person', 'Profil'],
+                                        ['dashboard', 'space_dashboard', __('Mon espace')],
+                                        ['itineraries.index', 'history', __('Mes parcours')],
+                                        ['places.favorites', 'favorite', __('Mes favoris')],
+                                        ['community.propose', 'add_location_alt', __('Proposer un lieu')],
+                                        ['profile.edit', 'person', __('Profil')],
                                     ] as [$r, $i, $l])
                                         <a href="{{ route($r) }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-paper transition">
                                             <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">{{ $i }}</span>{{ $l }}
@@ -108,23 +108,23 @@
                                     @endforeach
                                     @can('admin')
                                         <a href="{{ route('moderation.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-paper transition text-coral-dark">
-                                            <span class="material-symbols-outlined" style="font-size:18px">shield</span>Modération
+                                            <span class="material-symbols-outlined" style="font-size:18px">shield</span>{{ __('Modération') }}
                                         </a>
                                     @endcan
                                     <form method="POST" action="{{ route('logout') }}" class="border-t border-ink/5 mt-1 pt-1">
                                         @csrf
                                         <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-paper transition text-left text-ink-muted">
-                                            <span class="material-symbols-outlined" style="font-size:18px">logout</span>Déconnexion
+                                            <span class="material-symbols-outlined" style="font-size:18px">logout</span>{{ __('Déconnexion') }}
                                         </button>
                                     </form>
                                 </div>
                             </div>
                         @else
                             <a href="{{ route('login') }}" class="hidden sm:inline-flex btn btn-sm btn-ghost">{{ __('Connexion') }}</a>
-                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink !px-2.5 sm:!px-4" aria-label="Créer un compte"><span class="material-symbols-outlined sm:hidden" style="font-size:18px">person_add</span><span class="hidden sm:inline">{{ __('Créer un compte') }}</span></a>
+                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink !px-2.5 sm:!px-4" aria-label="{{ __('Créer un compte') }}"><span class="material-symbols-outlined sm:hidden" style="font-size:18px">person_add</span><span class="hidden sm:inline">{{ __('Créer un compte') }}</span></a>
                         @endauth
 
-                        <button @click="open = !open" class="md:hidden btn btn-icon btn-ghost" aria-label="Menu">
+                        <button @click="open = !open" class="md:hidden btn btn-icon btn-ghost" aria-label="{{ __('Menu') }}">
                             <span class="material-symbols-outlined" x-text="open ? 'close' : 'menu'">menu</span>
                         </button>
                     </div>
@@ -144,8 +144,8 @@
                     @endguest
                     <div class="border-t border-ink/5 mt-1 pt-2 px-3 pb-1 flex items-center gap-2 text-xs">
                         <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">language</span>
-                        @foreach(['fr' => 'FR', 'en' => 'EN', 'zh' => '中文'] as $code => $label)
-                            <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="rounded-full px-2.5 py-1 font-semibold {{ app()->getLocale() === $code ? 'bg-ink text-white' : 'bg-paper text-ink-soft' }}">{{ $label }}</a>
+                        @foreach(['fr' => 'Français', 'en' => 'English', 'zh' => '中文'] as $code => $label)
+                            <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold {{ app()->getLocale() === $code ? 'bg-ink text-white' : 'bg-paper text-ink-soft' }}"><x-flag :code="$code" :size="16" />{{ $label }}</a>
                         @endforeach
                     </div>
                 </div>
@@ -161,16 +161,16 @@
                 <span class="material-symbols-outlined {{ $errors->any() ? 'text-coral' : 'text-teal' }}">{{ $errors->any() ? 'error' : 'check_circle' }}</span>
                 <div class="text-sm flex-1">
                     @if($errors->any())
-                        <p class="font-semibold">Vérifie le formulaire</p>
+                        <p class="font-semibold">{{ __('Vérifie le formulaire') }}</p>
                         <ul class="mt-1 text-ink-muted space-y-0.5">
                             @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
                         </ul>
                     @elseif(session('status'))
                         <p>{{ session('status') }}</p>
                     @elseif(session('favorite_status') === 'added')
-                        <p>Ajouté à tes favoris.</p>
+                        <p>{{ __('Ajouté à tes favoris.') }}</p>
                     @else
-                        <p>Retiré de tes favoris.</p>
+                        <p>{{ __('Retiré de tes favoris.') }}</p>
                     @endif
                 </div>
                 <button @click="show = false" class="text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
@@ -189,10 +189,10 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid gap-8 md:grid-cols-4 text-sm">
                 <div class="md:col-span-2">
                     <p class="font-display text-2xl font-semibold">CAMINO</p>
-                    <p class="mt-2 text-ink-muted max-w-md">Le GPS culturel intelligent. Une carte vivante, des parcours générés selon ton temps, ton budget et la météo, et une communauté qui enrichit la carte.</p>
+                    <p class="mt-2 text-ink-muted max-w-md">{{ __('Le GPS culturel intelligent. Une carte vivante, des parcours générés selon ton temps, ton budget et la météo, et une communauté qui enrichit la carte.') }}</p>
                 </div>
                 <div>
-                    <p class="font-semibold mb-3">Explorer</p>
+                    <p class="font-semibold mb-3">{{ __('Explorer') }}</p>
                     <ul class="space-y-2 text-ink-muted">
                         <li><a href="{{ route('map.index') }}" class="hover:text-ink">{{ __('Carte culturelle') }}</a></li>
                         <li><a href="{{ route('itineraries.create') }}" class="hover:text-ink">{{ __('Générer un parcours') }}</a></li>
@@ -205,7 +205,7 @@
                     <ul class="space-y-2 text-ink-muted">
                         <li><a href="{{ route('community.propose') }}" class="hover:text-ink">{{ __('Proposer un lieu') }}</a></li>
                         <li><a href="{{ route('register') }}" class="hover:text-ink">{{ __('Créer un compte') }}</a></li>
-                        <li class="pt-2 text-xs">Données : DATAtourisme, OpenStreetMap, Wikimedia Commons, Open-Meteo.</li>
+                        <li class="pt-2 text-xs">{{ __('Données : DATAtourisme, OpenStreetMap, Wikimedia Commons, Open-Meteo.') }}</li>
                     </ul>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 @php $steps = $result['steps'] ?? []; $startsAt = !empty($result['starts_at']) ? \Illuminate\Support\Carbon::parse($result['starts_at']) : null; @endphp
-<x-app-layout :title="$itinerary->name" :description="'Parcours partagé sur CAMINO : ' . $itinerary->name">
+<x-app-layout :title="$itinerary->name" :description="__('Parcours partagé sur CAMINO :') . ' ' . $itinerary->name">
     <section class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12">
         <div class="card overflow-hidden">
             <div id="itinerary-map" class="h-[300px] sm:h-[420px]"></div>
@@ -28,11 +28,11 @@
                     @endforeach
                 </ol>
                 <div class="mt-6 flex flex-wrap gap-2">
-                    <form method="POST" action="{{ route('itineraries.shared-open', $token) }}">@csrf<button class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Ouvrir dans CAMINO</button></form>
+                    <form method="POST" action="{{ route('itineraries.shared-open', $token) }}">@csrf<button class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>{{ __('Ouvrir dans CAMINO') }}</button></form>
                     <a href="{{ route('itineraries.shared-gpx', $token) }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">download</span>GPX</a>
-                    @guest<a href="{{ route('register') }}" class="btn btn-md btn-ghost">Créer mon compte</a>@endguest
+                    @guest<a href="{{ route('register') }}" class="btn btn-md btn-ghost">{{ __('Créer mon compte') }}</a>@endguest
                 </div>
-                <p class="mt-3 text-[11px] text-ink-muted">« Ouvrir dans CAMINO » copie ce parcours chez toi : tu peux le suivre avec le guidage vocal ou le modifier.</p>
+                <p class="mt-3 text-[11px] text-ink-muted">{{ __('« Ouvrir dans CAMINO » copie ce parcours chez toi : tu peux le suivre avec le guidage vocal ou le modifier.') }}</p>
             </div>
         </div>
     </section>

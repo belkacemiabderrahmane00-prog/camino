@@ -1,6 +1,6 @@
 @php
     $current = $forecast['current'] ?? null;
-    $demoPlaces = $heroPlaces->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'category' => $p->category->name ?? '', 'slug' => $p->category->slug ?? null, 'cover' => $p->coverThumb(500), 'address' => $p->address, 'lat' => (float) $p->lat, 'lng' => (float) $p->lng, 'free' => (bool) $p->is_free, 'minutes' => $p->visit_duration_min ?? 60, 'url' => route('places.show', $p)])->values();
+    $demoPlaces = $heroPlaces->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'category' => __($p->category->name ?? ''), 'slug' => $p->category->slug ?? null, 'cover' => $p->coverThumb(500), 'address' => $p->address, 'lat' => (float) $p->lat, 'lng' => (float) $p->lng, 'free' => (bool) $p->is_free, 'minutes' => $p->visit_duration_min ?? 60, 'url' => route('places.show', $p)])->values();
     $demoFocus = $demoPlaces->first();
     $demoRoute = $demoPlaces->take(3)->values();
 @endphp
@@ -15,13 +15,13 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-14 lg:pt-32 lg:pb-24 w-full grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-10 items-center"
-             x-data="{ words: ['autrement.', 'à pied.', 'gratuitement.', 'sous le soleil.', 'entre amis.', 'sans plan.'], i: 0, flip: false }"
+             x-data="{ words: @js([__('autrement.'), __('à pied.'), __('gratuitement.'), __('sous le soleil.'), __('entre amis.'), __('sans plan.')]), i: 0, flip: false }"
              x-init="setInterval(() => { i = (i + 1) % words.length; flip = !flip; }, 2400)">
             <div class="text-white animate-fade-up min-w-0">
                 <div class="flex flex-wrap items-center gap-2 mb-5">
                     <span class="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] border border-white/15">
                         <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full rounded-full bg-coral opacity-75 animate-ping"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-coral"></span></span>
-                        En direct · Île-de-France
+                        {{ __('En direct · Île-de-France') }}
                     </span>
                     @if($current)
                         <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur px-3 py-1.5 text-xs border border-white/15 hover:bg-white/20 transition">
@@ -31,26 +31,26 @@
                 </div>
 
                 <h1 class="display text-[44px] sm:text-6xl lg:text-[76px] leading-[1.02]">
-                    Explore la ville<br>
-                    <span class="text-coral italic" :class="flip ? 'word-a' : 'word-b'" x-text="words[i]">autrement.</span>
+                    {{ __('Explore la ville') }}<br>
+                    <span class="text-coral italic" :class="flip ? 'word-a' : 'word-b'" x-text="words[i]">{{ __('autrement.') }}</span>
                 </h1>
                 <p class="mt-5 text-base sm:text-xl text-white/80 max-w-xl">
-                    {{ number_format($stats['places'], 0, ',', ' ') }} lieux qui valent le détour, une carte qui bouge en temps réel, un parcours calculé en 10 secondes selon ton temps, ton budget et la météo.
+                    {{ __(':n lieux qui valent le détour, une carte qui bouge en temps réel, un parcours calculé en 10 secondes selon ton temps, ton budget et la météo.', ['n' => number_format($stats['places'], 0, ',', ' ')]) }}
                 </p>
 
                 <div class="mt-7 flex flex-wrap gap-3">
-                    <a href="{{ route('map.index') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">map</span>Ouvrir la carte</a>
-                    <a href="#generateur" class="btn btn-lg bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20"><span class="material-symbols-outlined">auto_awesome</span>Générer un parcours</a>
+                    <a href="{{ route('map.index') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">map</span>{{ __('Ouvrir la carte') }}</a>
+                    <a href="#generateur" class="btn btn-lg bg-white/10 text-white border border-white/20 backdrop-blur hover:bg-white/20"><span class="material-symbols-outlined">auto_awesome</span>{{ __('Générer un parcours') }}</a>
                 </div>
 
                 <form action="{{ route('map.index') }}" method="GET" class="mt-5 flex items-center gap-2 rounded-full bg-white/95 p-1.5 pl-4 max-w-lg shadow-float">
                     <span class="material-symbols-outlined text-ink-muted">search</span>
-                    <input type="search" name="q" placeholder="Un lieu, un quartier, une envie…" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm text-ink placeholder:text-ink-muted/70" autocomplete="off">
-                    <button type="submit" class="btn btn-md btn-ink">Explorer</button>
+                    <input type="search" name="q" placeholder="{{ __('Un lieu, un quartier, une envie…') }}" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm text-ink placeholder:text-ink-muted/70" autocomplete="off">
+                    <button type="submit" class="btn btn-md btn-ink">{{ __('Explorer') }}</button>
                 </form>
 
                 <div class="mt-4 flex gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-                    @foreach([['musees', 'palette', 'Musées'], ['monuments', 'account_balance', 'Monuments'], ['parcs', 'park', 'Parcs'], ['free', 'loyalty', 'Gratuit'], ['evenements', 'celebration', 'Événements']] as [$f, $icon, $label])
+                    @foreach([['musees', 'palette', __('Musées')], ['monuments', 'account_balance', __('Monuments')], ['parcs', 'park', __('Parcs')], ['free', 'loyalty', __('Gratuit')], ['evenements', 'celebration', __('Événements')]] as [$f, $icon, $label])
                         <a href="{{ route('map.index', ['filtre' => $f]) }}" class="chip shrink-0 bg-white/10 text-white border-white/15 hover:bg-white/20 hover:text-white backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">{{ $icon }}</span>{{ $label }}</a>
                     @endforeach
                 </div>
@@ -68,7 +68,7 @@
                             <div class="demo-screen" :class="cls(0)">
                                 <div x-ref="map" class="absolute inset-0 hero-map"></div>
                                 <div class="absolute top-11 lg:top-12 inset-x-2.5 z-[400] flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 lg:py-2 shadow-card text-[10px] lg:text-[11px] text-ink-muted">
-                                    <span class="material-symbols-outlined shrink-0" style="font-size:15px">search</span><span class="truncate">Autour de moi</span>
+                                    <span class="material-symbols-outlined shrink-0" style="font-size:15px">search</span><span class="truncate">{{ __('Autour de moi') }}</span>
                                     <span class="ml-auto h-5 w-5 lg:h-6 lg:w-6 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:13px">my_location</span></span>
                                 </div>
                                 <template x-if="place">
@@ -96,25 +96,25 @@
                                     </div>
                                     <div class="p-3 space-y-2 text-ink">
                                         <div class="flex gap-1.5 demo-item" style="animation-delay:.15s">
-                                            <span class="badge {{ $demoFocus['free'] ? 'badge-free' : 'badge-paid' }} !text-[9px]">{{ $demoFocus['free'] ? 'Gratuit' : 'Payant' }}</span>
+                                            <span class="badge {{ $demoFocus['free'] ? 'badge-free' : 'badge-paid' }} !text-[9px]">{{ $demoFocus['free'] ? __('Gratuit') : 'Payant' }}</span>
                                             <span class="badge badge-paid !text-[9px]">≈ {{ $demoFocus['minutes'] }} min</span>
                                             <span class="badge bg-amber-50 text-amber-700 !text-[9px]"><span class="material-symbols-outlined filled" style="font-size:11px">star</span>4,6</span>
                                         </div>
                                         <p class="text-[10px] text-ink-muted line-clamp-2 demo-item" style="animation-delay:.25s">{{ $demoFocus['address'] ?? 'Paris' }}</p>
                                         <div class="grid grid-cols-2 gap-1.5 demo-item" style="animation-delay:.35s">
-                                            <span class="btn btn-sm btn-primary !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">favorite</span>Favori</span>
-                                            <span class="btn btn-sm btn-ink !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">add_location_alt</span>Parcours</span>
+                                            <span class="btn btn-sm btn-primary !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">favorite</span>{{ __('Favori') }}</span>
+                                            <span class="btn btn-sm btn-ink !text-[10px] !px-2"><span class="material-symbols-outlined" style="font-size:13px">add_location_alt</span>{{ __('Parcours') }}</span>
                                         </div>
-                                        <div class="rounded-xl bg-sun-soft p-2 text-[10px] demo-item" style="animation-delay:.5s"><span class="font-semibold text-amber-800">Léa</span> · « Concert gratuit dans la cour ce soir » · il y a 12 min</div>
+                                        <div class="rounded-xl bg-sun-soft p-2 text-[10px] demo-item" style="animation-delay:.5s"><span class="font-semibold text-amber-800">{{ __('Léa') }}</span> {{ __('· « Concert gratuit dans la cour ce soir » · il y a 12 min') }}</div>
                                     </div>
                                 @endif
                             </div>
 
                             {{-- Écran 2 : parcours généré --}}
                             <div class="demo-screen bg-paper p-3 pt-11 lg:pt-12 text-ink" :class="cls(2)">
-                                <p class="eyebrow !text-[9px] demo-item">Parcours généré</p>
-                                <p class="font-display text-base lg:text-lg leading-tight demo-item" style="animation-delay:.1s">Balade musées & monuments</p>
-                                <p class="text-[10px] text-ink-muted demo-item" style="animation-delay:.15s">3 h 10 · 4,2 km · à pied · {{ $current ? mb_strtolower($current['label']) : 'météo ok' }}</p>
+                                <p class="eyebrow !text-[9px] demo-item">{{ __('Parcours généré') }}</p>
+                                <p class="font-display text-base lg:text-lg leading-tight demo-item" style="animation-delay:.1s">{{ __('Balade musées & monuments') }}</p>
+                                <p class="text-[10px] text-ink-muted demo-item" style="animation-delay:.15s">{{ __('3 h 10 · 4,2 km · à pied') }} · {{ $current ? mb_strtolower(__($current['label'])) : __('météo ok') }}</p>
                                 <div class="mt-2 h-16 lg:h-20 rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg,#E9F5EA,#FCE8E1)">
                                     <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 80" fill="none"><path class="route-draw" d="M20 60 C 60 10, 110 70, 150 30 S 210 20, 225 40" stroke="#FF5A3C" stroke-width="3.5" stroke-linecap="round"/><circle cx="20" cy="60" r="5" fill="#FF5A3C"/><circle cx="150" cy="30" r="5" fill="#12161C"/><circle cx="225" cy="40" r="5" fill="#12161C"/></svg>
                                 </div>
@@ -127,17 +127,17 @@
                                         </div>
                                     @endforeach
                                 </div>
-                                <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px] demo-item" style="animation-delay:.9s"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>Lancer dans Google Maps</span>
+                                <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px] demo-item" style="animation-delay:.9s"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>{{ __('Lancer dans Google Maps') }}</span>
                             </div>
 
                             {{-- Écran 3 : espace perso --}}
                             <div class="demo-screen bg-ink text-white p-3 pt-11 lg:pt-12" :class="cls(3)">
                                 <div class="flex items-center gap-2 demo-item">
                                     <span class="h-9 w-9 rounded-2xl bg-teal flex items-center justify-center font-display text-lg">L</span>
-                                    <div><p class="text-[9px] uppercase tracking-widest text-coral font-bold">Niveau 3 · Explorateur</p><p class="font-display text-base leading-tight">Bonsoir Léa</p></div>
+                                    <div><p class="text-[9px] uppercase tracking-widest text-coral font-bold">{{ __('Niveau 3 · Explorateur') }}</p><p class="font-display text-base leading-tight">{{ __('Bonsoir Léa') }}</p></div>
                                 </div>
                                 <div class="mt-2 rounded-2xl bg-white/10 p-2 demo-item" style="animation-delay:.15s">
-                                    <div class="flex justify-between text-[9px] text-white/70"><span>92 pts</span><span>Guide local à 180</span></div>
+                                    <div class="flex justify-between text-[9px] text-white/70"><span>{{ __('92 pts') }}</span><span>{{ __('Guide local à 180') }}</span></div>
                                     <div class="mt-1 h-1.5 rounded-full bg-white/15 overflow-hidden"><div class="h-full w-1/2 rounded-full bg-gradient-to-r from-coral to-sun"></div></div>
                                 </div>
                                 <div class="mt-2 grid grid-cols-3 gap-1.5 text-center demo-item" style="animation-delay:.3s">
@@ -145,7 +145,7 @@
                                         <div class="rounded-xl bg-white/10 p-1.5"><span class="material-symbols-outlined text-sun" style="font-size:14px">{{ $ic }}</span><p class="text-sm font-semibold leading-tight">{{ $v }}</p><p class="text-[8px] text-white/60 uppercase">{{ $l }}</p></div>
                                     @endforeach
                                 </div>
-                                <p class="mt-2 text-[9px] uppercase tracking-widest text-white/60 demo-item" style="animation-delay:.4s">Pour toi ce week-end</p>
+                                <p class="mt-2 text-[9px] uppercase tracking-widest text-white/60 demo-item" style="animation-delay:.4s">{{ __('Pour toi ce week-end') }}</p>
                                 <div class="mt-1 space-y-1.5">
                                     @foreach($demoPlaces->slice(1, 2)->values() as $i => $p)
                                         <div class="flex items-center gap-2 rounded-xl bg-white/10 p-1.5 demo-item" style="animation-delay:{{ 0.5 + $i * 0.15 }}s">
@@ -168,7 +168,7 @@
 
                 {{-- Légende mobile, à côté du petit téléphone --}}
                 <div class="lg:hidden flex-1 min-w-0 text-white">
-                    <p class="text-[10px] uppercase tracking-[0.16em] text-white/60 font-bold">L'app en action</p>
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-white/60 font-bold">{{ __('L\'app en action') }}</p>
                     <p class="font-display text-xl leading-tight mt-1" x-text="captions[screen]"></p>
                     <div class="mt-3 flex gap-1.5">
                         <template x-for="(s, idx) in steps" :key="'m' + s">
@@ -183,7 +183,7 @@
     {{-- ================================================================ Collections --}}
     <section id="detour" class="mt-4 sm:mt-12 overflow-hidden">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 reveal">
-            <x-section-heading eyebrow="Explorer par envie" title="Des collections qui changent avec la météo" :subtitle="$advice['indoor'] ? 'Il pleut, on te propose du couvert en premier.' : 'Beau temps : on commence dehors.'" :href="route('map.index')" link-label="Toute la carte" />
+            <x-section-heading eyebrow="Explorer par envie" title="{{ __('Des collections qui changent avec la météo') }}" :subtitle="$advice['indoor'] ? 'Il pleut, on te propose du couvert en premier.' : 'Beau temps : on commence dehors.'" :href="route('map.index')" link-label="Toute la carte" />
         </div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 pb-4 reveal">
@@ -210,7 +210,7 @@
 
     {{-- ================================================================ Coups de cœur --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-10 sm:mt-16">
-        <div class="reveal"><x-section-heading eyebrow="Coups de cœur" title="Six adresses pour commencer" subtitle="Bien notées, avec photo et description. Ouvre la fiche, ajoute-les à ton parcours." /></div>
+        <div class="reveal"><x-section-heading eyebrow="Coups de cœur" title="{{ __('Six adresses pour commencer') }}" subtitle="Bien notées, avec photo et description. Ouvre la fiche, ajoute-les à ton parcours." /></div>
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             @foreach($favorites as $i => $place)
                 <div class="reveal reveal-delay-{{ $i % 3 }}"><x-place-card :place="$place" /></div>
@@ -222,10 +222,10 @@
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-20 reveal">
         <div class="card p-2 grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-ink/5">
             @foreach([
-                ['museums', 'Musées', 'palette', '#7C3AED'],
-                ['monuments', 'Monuments', 'account_balance', '#B45309'],
-                ['parks', 'Parcs & jardins', 'park', '#15803D'],
-                ['free', 'Lieux gratuits', 'loyalty', '#0F8B8D'],
+                ['museums', __('Musées'), 'palette', '#7C3AED'],
+                ['monuments', __('Monuments'), 'account_balance', '#B45309'],
+                ['parks', __('Parcs & jardins'), 'park', '#15803D'],
+                ['free', __('Lieux gratuits'), 'loyalty', '#0F8B8D'],
                 ['events', 'Événements à venir', 'celebration', '#F59E0B'],
             ] as [$key, $label, $icon, $color])
                 <div class="flex items-center gap-3 px-4 py-3">
@@ -245,38 +245,38 @@
             <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral/30 blur-3xl"></div>
             <div class="absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-teal/30 blur-3xl"></div>
             <div class="relative">
-                <p class="eyebrow">Le truc en plus</p>
-                <h2 class="display text-3xl sm:text-4xl mt-2">Un parcours sur mesure en 10 secondes.</h2>
-                <p class="mt-4 text-white/75">Temps dispo, budget, à pied ou à vélo, tes envies : l'algorithme choisit les lieux, optimise l'ordre et calcule les vrais temps de trajet dans les rues. S'il pleut, il te met à l'abri.</p>
+                <p class="eyebrow">{{ __('Le truc en plus') }}</p>
+                <h2 class="display text-3xl sm:text-4xl mt-2">{{ __('Un parcours sur mesure en 10 secondes.') }}</h2>
+                <p class="mt-4 text-white/75">{{ __('Temps dispo, budget, à pied ou à vélo, tes envies : l\'algorithme choisit les lieux, optimise l\'ordre et calcule les vrais temps de trajet dans les rues. S\'il pleut, il te met à l\'abri.') }}</p>
                 <ul class="mt-5 space-y-2 text-sm text-white/80">
-                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">schedule</span>Heure d'arrivée à chaque étape</li>
-                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">route</span>Tracé réel, export vers Google Maps</li>
-                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">auto_awesome</span>Ça apprend de tes favoris</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">schedule</span>{{ __('Heure d\'arrivée à chaque étape') }}</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">route</span>{{ __('Tracé réel, export vers Google Maps') }}</li>
+                    <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sun" style="font-size:18px">auto_awesome</span>{{ __('Ça apprend de tes favoris') }}</li>
                 </ul>
             </div>
             <form method="POST" action="{{ route('itineraries.store') }}" class="relative card p-5 sm:p-6 text-ink space-y-4" x-data="{ mode: 'walk' }">
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="label" for="hero-duration">Temps disponible</label>
+                        <label class="label" for="hero-duration">{{ __('Temps disponible') }}</label>
                         <select id="hero-duration" name="duration_minutes" class="field">
-                            @foreach([90 => '1 h 30', 120 => '2 h', 180 => '3 h', 240 => 'Une demi-journée', 360 => 'La journée'] as $v => $l)
+                            @foreach([90 => __('1 h 30'), 120 => __('2 h'), 180 => __('3 h'), 240 => __('Une demi-journée'), 360 => __('La journée')] as $v => $l)
                                 <option value="{{ $v }}" @selected($v === 180)>{{ $l }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="label" for="hero-budget">Budget</label>
+                        <label class="label" for="hero-budget">{{ __('Budget') }}</label>
                         <select id="hero-budget" name="budget_eur" class="field">
-                            <option value="0">Gratuit uniquement</option>
-                            <option value="15">Jusqu'à 15 €</option>
-                            <option value="40" selected>Jusqu'à 40 €</option>
-                            <option value="">Sans limite</option>
+                            <option value="0">{{ __('Gratuit uniquement') }}</option>
+                            <option value="15">{{ __('Jusqu\'à 15 €') }}</option>
+                            <option value="40" selected>{{ __('Jusqu\'à 40 €') }}</option>
+                            <option value="">{{ __('Sans limite') }}</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <p class="label">Mobilité</p>
+                    <p class="label">{{ __('Mobilité') }}</p>
                     <div class="grid grid-cols-2 gap-2">
                         @foreach(['walk' => ['directions_walk', 'À pied'], 'bike' => ['directions_bike', 'À vélo']] as $m => [$icon, $label])
                             <label class="cursor-pointer">
@@ -287,9 +287,9 @@
                     </div>
                 </div>
                 <div>
-                    <p class="label">Envies</p>
+                    <p class="label">{{ __('Envies') }}</p>
                     <div class="flex flex-wrap gap-1.5">
-                        @foreach(['musee' => 'Musées', 'monument' => 'Monuments', 'parc-jardin' => 'Parcs', 'lieu-culturel' => 'Scènes & galeries', 'street-art' => 'Street art', 'evenement-culturel' => 'Événements'] as $slug => $label)
+                        @foreach(['musee' => __('Musées'), 'monument' => __('Monuments'), 'parc-jardin' => __('Parcs'), 'lieu-culturel' => __('Scènes & galeries'), 'street-art' => __('Street art'), 'evenement-culturel' => __('Événements')] as $slug => $label)
                             <label class="cursor-pointer">
                                 <input type="checkbox" name="interests[]" value="{{ $slug }}" class="peer sr-only" @checked(in_array($slug, ['musee', 'monument']))>
                                 <span class="chip peer-checked:bg-ink peer-checked:text-white peer-checked:border-ink">{{ $label }}</span>
@@ -297,8 +297,8 @@
                         @endforeach
                     </div>
                 </div>
-                <button type="submit" class="btn btn-lg btn-primary w-full"><span class="material-symbols-outlined">auto_awesome</span>Générer mon parcours</button>
-                <p class="text-center text-[11px] text-ink-muted">Départ : centre de Paris. Tu pourras utiliser ta position sur la page suivante.</p>
+                <button type="submit" class="btn btn-lg btn-primary w-full"><span class="material-symbols-outlined">auto_awesome</span>{{ __('Générer mon parcours') }}</button>
+                <p class="text-center text-[11px] text-ink-muted">{{ __('Départ : centre de Paris. Tu pourras utiliser ta position sur la page suivante.') }}</p>
             </form>
         </div>
     </section>
@@ -311,23 +311,23 @@
             <div class="absolute inset-0 opacity-[0.12]" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 26px 26px;"></div>
 
             <div class="relative p-6 sm:p-10 order-2 lg:order-1">
-                <p class="eyebrow">Bientôt dans ta poche</p>
-                <h2 class="display text-3xl sm:text-5xl mt-2">Sur iPhone et Android.</h2>
-                <p class="mt-4 text-white/75">Les apps natives arrivent. En attendant, CAMINO s'installe déjà depuis ton navigateur : icône sur l'écran d'accueil, plein écran, carte, alertes et parcours au même endroit.</p>
+                <p class="eyebrow">{{ __('Bientôt dans ta poche') }}</p>
+                <h2 class="display text-3xl sm:text-5xl mt-2">{{ __('Sur iPhone et Android.') }}</h2>
+                <p class="mt-4 text-white/75">{{ __('Les apps natives arrivent. En attendant, CAMINO s\'installe déjà depuis ton navigateur : icône sur l\'écran d\'accueil, plein écran, carte, alertes et parcours au même endroit.') }}</p>
                 <div class="mt-6 flex flex-wrap items-center gap-2.5">
-                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>App Store <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>Google Play <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">bientôt</span></span>
-                    <button type="button" data-install class="hidden btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>Installer CAMINO</button>
+                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">ios</span>{{ __('App Store') }} <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">{{ __('bientôt') }}</span></span>
+                    <span class="btn btn-md bg-white text-ink cursor-default"><span class="material-symbols-outlined" style="font-size:20px">android</span>{{ __('Google Play') }} <span class="ml-1 rounded-full bg-sun text-ink text-[10px] px-2 py-0.5">{{ __('bientôt') }}</span></span>
+                    <button type="button" data-install class="hidden btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">add_to_home_screen</span>{{ __('Installer CAMINO') }}</button>
                 </div>
-                <p data-ios-tip class="hidden mt-3 text-sm text-white/70"><span class="material-symbols-outlined align-middle text-sun" style="font-size:18px">ios_share</span> Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p>
+                <p data-ios-tip class="hidden mt-3 text-sm text-white/70"><span class="material-symbols-outlined align-middle text-sun" style="font-size:18px">ios_share</span> {{ __('Sur iPhone : bouton Partager, puis « Sur l\'écran d\'accueil ».') }}</p>
                 <ul class="mt-6 grid grid-cols-3 gap-2 text-xs sm:text-sm">
-                    @foreach([['my_location', 'Autour de toi'], ['campaign', 'Alertes live'], ['auto_awesome', 'Parcours réels']] as [$i, $t])
+                    @foreach([['my_location', __('Autour de toi')], ['campaign', __('Alertes live')], ['auto_awesome', __('Parcours réels')]] as [$i, $t])
                         <li class="rounded-2xl bg-white/10 p-3 text-center"><span class="material-symbols-outlined text-sun">{{ $i }}</span><p class="font-semibold mt-1 leading-tight">{{ $t }}</p></li>
                     @endforeach
                 </ul>
                 <div class="hidden sm:flex mt-6 items-center gap-4 rounded-3xl bg-white/10 p-3 pr-5">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=3&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="QR code vers la carte CAMINO" width="72" height="72" class="rounded-xl h-[72px] w-[72px] bg-white p-1 shrink-0" loading="lazy">
-                    <p class="text-sm text-white/80"><span class="font-semibold text-white">Scanne pour l'ouvrir sur ton téléphone,</span> puis « Ajouter à l'écran d'accueil ». Ça marche déjà, sans passer par un store.</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=3&color=12161C&bgcolor=FFFFFF&data={{ urlencode(route('map.index', ['source' => 'qr'])) }}" alt="{{ __('QR code vers la carte CAMINO') }}" width="72" height="72" class="rounded-xl h-[72px] w-[72px] bg-white p-1 shrink-0" loading="lazy">
+                    <p class="text-sm text-white/80"><span class="font-semibold text-white">{{ __('Scanne pour l\'ouvrir sur ton téléphone,') }}</span> {{ __('puis « Ajouter à l\'écran d\'accueil ». Ça marche déjà, sans passer par un store.') }}</p>
                 </div>
             </div>
 
@@ -346,7 +346,7 @@
                             @endforeach
                             <span class="absolute left-[44%] top-[46%] h-4 w-4 rounded-full bg-coral border-2 border-white shadow-card"><span class="absolute inset-0 rounded-full bg-coral animate-ping opacity-60"></span></span>
                         </div>
-                        <div class="absolute top-10 inset-x-2.5 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-card text-[10px] text-ink-muted"><span class="material-symbols-outlined shrink-0" style="font-size:14px">search</span><span class="truncate">Autour de moi</span><span class="ml-auto h-5 w-5 rounded-full bg-coral text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:12px">my_location</span></span></div>
+                        <div class="absolute top-10 inset-x-2.5 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-card text-[10px] text-ink-muted"><span class="material-symbols-outlined shrink-0" style="font-size:14px">search</span><span class="truncate">{{ __('Autour de moi') }}</span><span class="ml-auto h-5 w-5 rounded-full bg-coral text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:12px">my_location</span></span></div>
                         @if($demoFocus)
                             <div class="absolute bottom-2.5 inset-x-2.5 card p-2 flex gap-2 items-center text-ink">
                                 <div class="h-11 w-11 rounded-xl overflow-hidden shrink-0 placeholder-cover"><img src="{{ $demoFocus['cover'] }}" alt="" class="h-full w-full object-cover" loading="lazy"></div>
@@ -357,9 +357,9 @@
                 </div>
                 <div class="phone phone-android phone-duo-android">
                     <div class="phone-screen bg-paper p-3 pt-9 text-ink">
-                        <p class="eyebrow !text-[9px]">Parcours généré</p>
-                        <p class="font-display text-base leading-tight">Balade du week-end</p>
-                        <p class="text-[10px] text-ink-muted">3 h 10 · 4,2 km · à pied</p>
+                        <p class="eyebrow !text-[9px]">{{ __('Parcours généré') }}</p>
+                        <p class="font-display text-base leading-tight">{{ __('Balade du week-end') }}</p>
+                        <p class="text-[10px] text-ink-muted">{{ __('3 h 10 · 4,2 km · à pied') }}</p>
                         <div class="mt-2 h-14 rounded-2xl overflow-hidden relative" style="background: linear-gradient(135deg,#E9F5EA,#FCE8E1)">
                             <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 80" fill="none"><path d="M20 60 C 60 10, 110 70, 150 30 S 210 20, 225 40" stroke="#FF5A3C" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="6 5"/><circle cx="20" cy="60" r="5" fill="#FF5A3C"/><circle cx="150" cy="30" r="5" fill="#12161C"/><circle cx="225" cy="40" r="5" fill="#12161C"/></svg>
                         </div>
@@ -372,7 +372,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px]"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>Lancer</span>
+                        <span class="mt-2 btn btn-sm btn-primary w-full !text-[10px]"><span class="material-symbols-outlined" style="font-size:13px">navigation</span>{{ __('Lancer') }}</span>
                     </div>
                 </div>
             </div>
@@ -382,7 +382,7 @@
     {{-- ================================================================ Événements + alertes --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
         <div class="reveal">
-            <x-section-heading eyebrow="En ce moment" title="Événements à venir" :href="route('map.index', ['filtre' => 'evenements'])" />
+            <x-section-heading eyebrow="En ce moment" title="{{ __('Événements à venir') }}" :href="route('map.index', ['filtre' => 'evenements'])" />
             <div class="space-y-3">
                 @forelse($events as $event)
                     <a href="{{ route('places.show', $event) }}" class="card card-hover p-3 flex gap-4 items-center">
@@ -401,12 +401,12 @@
                         <span class="material-symbols-outlined text-ink-muted hidden sm:block">arrow_forward</span>
                     </a>
                 @empty
-                    <div class="card p-6 text-sm text-ink-muted">Aucun événement daté pour l'instant.</div>
+                    <div class="card p-6 text-sm text-ink-muted">{{ __('Aucun événement daté pour l\'instant.') }}</div>
                 @endforelse
             </div>
         </div>
         <div class="reveal reveal-delay-1">
-            <x-section-heading eyebrow="Communauté" title="Alertes en direct" />
+            <x-section-heading eyebrow="Communauté" title="{{ __('Alertes en direct') }}" />
             <div class="card p-2 space-y-1">
                 @forelse($alerts as $alert)
                     <div class="flex gap-3 p-3 rounded-2xl hover:bg-paper">
@@ -418,23 +418,23 @@
                     </div>
                 @empty
                     <div class="p-5 text-sm text-ink-muted">
-                        <p>Calme plat pour l'instant.</p>
-                        <p class="mt-1">Sur la carte, signale un concert gratuit, une file d'attente ou une fermeture : tout le monde le voit, comme sur Waze.</p>
+                        <p>{{ __('Calme plat pour l\'instant.') }}</p>
+                        <p class="mt-1">{{ __('Sur la carte, signale un concert gratuit, une file d\'attente ou une fermeture : tout le monde le voit, comme sur Waze.') }}</p>
                     </div>
                 @endforelse
-                <a href="{{ route('map.index') }}" class="btn btn-sm btn-soft w-full mt-1"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>Signaler quelque chose</a>
+                <a href="{{ route('map.index') }}" class="btn btn-sm btn-soft w-full mt-1"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>{{ __('Signaler quelque chose') }}</a>
             </div>
         </div>
     </section>
 
     {{-- ================================================================ Comment ça marche --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 mt-12 sm:mt-24">
-        <div class="reveal"><x-section-heading eyebrow="Simple comme bonjour" title="Comment ça marche" /></div>
+        <div class="reveal"><x-section-heading eyebrow="Simple comme bonjour" title="{{ __('Comment ça marche') }}" /></div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             @foreach([
-                ['explore', 'Explore', 'Filtre par envie, budget ou distance. Les événements et alertes de la communauté apparaissent en temps réel.'],
-                ['auto_awesome', 'Génère', 'Ton temps, ton budget, tes envies : CAMINO optimise l\'ordre et calcule les trajets réels, météo comprise.'],
-                ['groups', 'Partage', 'Une photo, un avis, un concert gratuit à signaler, un lieu que personne ne connaît : enrichis la carte.'],
+                ['explore', __('Explore'), __('Filtre par envie, budget ou distance. Les événements et alertes de la communauté apparaissent en temps réel.')],
+                ['auto_awesome', __('Génère'), __('Ton temps, ton budget, tes envies : CAMINO optimise l\'ordre et calcule les trajets réels, météo comprise.')],
+                ['groups', __('Partage'), __('Une photo, un avis, un concert gratuit à signaler, un lieu que personne ne connaît : enrichis la carte.')],
             ] as $i => [$icon, $title, $text])
                 <div class="card p-6 reveal reveal-delay-{{ $i }}">
                     <div class="flex items-center gap-3 mb-4">
@@ -453,11 +453,11 @@
         <div class="rounded-4xl bg-coral text-white p-8 sm:p-12 text-center relative overflow-hidden">
             <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 22px 22px;"></div>
             <div class="relative max-w-2xl mx-auto">
-                <h2 class="display text-3xl sm:text-5xl">Ton profil culturel, qui apprend de toi.</h2>
-                <p class="mt-4 text-white/85">Favoris, avis, parcours : plus tu joues avec CAMINO, plus les recommandations te ressemblent. Gratuit, sans pub, sans prise de tête.</p>
+                <h2 class="display text-3xl sm:text-5xl">{{ __('Ton profil culturel, qui apprend de toi.') }}</h2>
+                <p class="mt-4 text-white/85">{{ __('Favoris, avis, parcours : plus tu joues avec CAMINO, plus les recommandations te ressemblent. Gratuit, sans pub, sans prise de tête.') }}</p>
                 <div class="mt-6 flex flex-wrap justify-center gap-3">
-                    <a href="{{ route('register') }}" class="btn btn-lg bg-white text-ink hover:-translate-y-0.5">Créer mon compte</a>
-                    <a href="{{ route('map.index') }}" class="btn btn-lg bg-ink/20 text-white hover:bg-ink/30">Continuer sans compte</a>
+                    <a href="{{ route('register') }}" class="btn btn-lg bg-white text-ink hover:-translate-y-0.5">{{ __('Créer mon compte') }}</a>
+                    <a href="{{ route('map.index') }}" class="btn btn-lg bg-ink/20 text-white hover:bg-ink/30">{{ __('Continuer sans compte') }}</a>
                 </div>
             </div>
         </div>
@@ -470,8 +470,8 @@
             let map = null;
             return {
                 places: @js($demoPlaces), place: null, screen: 0, prev: -1, idx: 0,
-                steps: ['Explore', 'Découvre', 'Génère', 'Ton espace'],
-                captions: ['La carte vivante, autour de toi', 'Une fiche, des avis, des alertes', 'Un parcours calculé pour de vrai', 'Ton espace qui apprend de toi'],
+                steps: @js([__('Explore'), __('Découvre'), __('Génère'), __('Ton espace')]),
+                captions: @js([__('La carte vivante, autour de toi'), __('Une fiche, des avis, des alertes'), __('Un parcours calculé pour de vrai'), __('Ton espace qui apprend de toi')]),
                 init() {
                     const pts = this.places.filter(p => p.lat && p.lng);
                     if (pts.length) this.place = pts[0];

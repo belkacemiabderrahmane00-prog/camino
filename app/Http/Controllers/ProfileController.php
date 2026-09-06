@@ -86,7 +86,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return Redirect::route('profile.edit')->with('status', 'Profil mis à jour.');
+        return Redirect::route('profile.edit')->with('status', __('Profil mis à jour.'));
     }
 
     /** Applique l'orientation EXIF (photos de téléphone prises en portrait). */

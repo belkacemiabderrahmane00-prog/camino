@@ -1,7 +1,7 @@
 @php $steps = $result['steps'] ?? []; $v2 = ($result['version'] ?? 1) >= 2; @endphp
 <x-app-layout :title="$itinerary->name">
     <section class="max-w-4xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
-        <a href="{{ route('itineraries.index') }}" class="btn btn-sm btn-ghost mb-4"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>Mes parcours</a>
+        <a href="{{ route('itineraries.index') }}" class="btn btn-sm btn-ghost mb-4"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>{{ __('Mes parcours') }}</a>
         <div class="card overflow-hidden">
             @if($v2)<div id="itinerary-map" class="h-[300px] sm:h-[400px]"></div>@endif
             <div class="p-5 sm:p-8">
@@ -12,9 +12,9 @@
                 @endif
                 @if(session('share_url'))
                     <div class="mt-4 rounded-2xl bg-teal-soft p-3 text-sm" x-data="{ copied: false }">
-                        <p class="font-semibold text-teal-dark mb-1.5">Lien de partage</p>
+                        <p class="font-semibold text-teal-dark mb-1.5">{{ __('Lien de partage') }}</p>
                         <div class="flex gap-2"><input type="text" readonly value="{{ session('share_url') }}" class="field !py-2 text-xs flex-1 min-w-0" @click="$el.select()"><button type="button" @click="navigator.clipboard.writeText('{{ session('share_url') }}'); copied = true" class="btn btn-sm btn-ink shrink-0" x-text="copied ? 'Copié' : 'Copier'"></button></div>
-                        <p class="text-[11px] text-ink-muted mt-1.5">Toute personne avec ce lien voit le parcours et peut le suivre dans CAMINO.</p>
+                        <p class="text-[11px] text-ink-muted mt-1.5">{{ __('Toute personne avec ce lien voit le parcours et peut le suivre dans CAMINO.') }}</p>
                     </div>
                 @endif
                 <ol class="mt-6 space-y-3">
@@ -32,11 +32,11 @@
                     @endforeach
                 </ol>
                 <div class="mt-6 flex flex-wrap gap-2">
-                    @if($v2)<a href="{{ route('itineraries.navigate-saved', $itinerary) }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Suivre le parcours</a>@endif
-                    <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">replay</span>Rouvrir dans le générateur</button></form>
-                    <form method="POST" action="{{ route('itineraries.share', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button></form>
+                    @if($v2)<a href="{{ route('itineraries.navigate-saved', $itinerary) }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>{{ __('Suivre le parcours') }}</a>@endif
+                    <form method="POST" action="{{ route('itineraries.replay', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">replay</span>{{ __('Rouvrir dans le générateur') }}</button></form>
+                    <form method="POST" action="{{ route('itineraries.share', $itinerary) }}">@csrf<button class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">share</span>{{ __('Partager') }}</button></form>
                     <a href="{{ route('itineraries.gpx', $itinerary) }}" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">download</span>GPX</a>
-                    <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-md btn-ghost text-ink-muted">Supprimer</button></form>
+                    <form method="POST" action="{{ route('itineraries.destroy', $itinerary) }}" onsubmit="return confirm('Supprimer ce parcours ?');">@csrf @method('DELETE')<button class="btn btn-md btn-ghost text-ink-muted">{{ __('Supprimer') }}</button></form>
                 </div>
             </div>
         </div>

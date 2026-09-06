@@ -81,12 +81,12 @@ class UserStatsService
             $value = (float) ($stats[$stat] ?? 0);
             $out[] = [
                 'key' => $key,
-                'name' => $name,
+                'name' => __($name),
                 'icon' => $icon,
                 'earned' => $value >= $target,
-                'hint' => $target . ' ' . $label,
+                'hint' => $target . ' ' . __($label),
                 'missing' => max(0, (int) ceil($target - $value)),
-                'label' => $label,
+                'label' => __($label),
                 'target' => $target,
                 'value' => $value,
                 'progress' => (int) min(100, round($value / max(1, $target) * 100)),

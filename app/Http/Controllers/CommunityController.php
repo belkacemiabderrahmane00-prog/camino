@@ -55,7 +55,7 @@ class CommunityController extends Controller
             return response()->json(['data' => $this->alertPayload($alert)], 201);
         }
 
-        return back()->with('status', 'Merci ! Ton alerte est visible sur la carte pendant ' . $hours . ' h.');
+        return back()->with('status', __('Merci ! Ton alerte est visible sur la carte pendant :h h.', ['h' => $hours]));
     }
 
     public function destroyAlert(PlaceAlert $alert)
@@ -63,7 +63,7 @@ class CommunityController extends Controller
         abort_unless($alert->user_id === Auth::id() || Auth::user()?->is_admin, 403);
         $alert->update(['status' => 'hidden']);
 
-        return back()->with('status', 'Alerte retirée.');
+        return back()->with('status', __('Alerte retirée.'));
     }
 
     // ---------------------------------------------------------------- Photos

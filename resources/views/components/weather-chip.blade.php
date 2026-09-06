@@ -6,7 +6,7 @@
             <span class="material-symbols-outlined filled" style="font-size:18px">{{ $current['icon'] }}</span>
         </span>
         <div class="leading-tight">
-            <p class="text-sm font-semibold">{{ round($current['temp']) }}° <span class="font-normal text-ink-muted">· {{ $current['label'] }}</span></p>
+            <p class="text-sm font-semibold">{{ round($current['temp']) }}° <span class="font-normal text-ink-muted">· {{ __($current['label']) }}</span></p>
             @if($detailed && !empty($forecast['days'][0]))
                 <p class="text-[11px] text-ink-muted">{{ $label }} · {{ $forecast['days'][0]['tmin'] }}° / {{ $forecast['days'][0]['tmax'] }}° · pluie {{ $forecast['days'][0]['rain_probability'] }} %</p>
             @else

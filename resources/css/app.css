@@ -341,3 +341,7 @@
 /* Résumé de parcours : apparition douce */
 @keyframes result-pop { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 .result-pop { animation: result-pop 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+
+/* Bandeau de sections défilant sans barre visible */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

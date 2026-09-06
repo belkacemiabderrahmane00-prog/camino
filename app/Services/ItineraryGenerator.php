@@ -319,7 +319,7 @@ class ItineraryGenerator
                 $departMin = $i === 0 ? $startMin : ($sim['steps'][$i - 1]['leave'] ?? $startMin);
                 $journey = $this->transit->journey($routePoints[$i], $routePoints[$i + 1], $date->copy()->addMinutes($departMin));
                 if ($journey && $journey['duration_min'] + 3 < (int) $leg['duration_min']) {
-                    $legs[$i] = ['distance_km' => $journey['distance_km'], 'duration_min' => $journey['duration_min'], 'shape' => $journey['shape'], 'maneuvers' => $journey['maneuvers'], 'transit' => true, 'sections' => $journey['sections'], 'lines' => $journey['lines'], 'summary' => $journey['summary'], 'walking_min' => $journey['walking_min']];
+                    $legs[$i] = ['distance_km' => $journey['distance_km'], 'duration_min' => $journey['duration_min'], 'shape' => $journey['shape'], 'maneuvers' => $journey['maneuvers'], 'transit' => true] + self::transitInfo($journey);
                     $transitUsed = true;
                 }
             }
@@ -369,7 +369,7 @@ class ItineraryGenerator
                 'travel_minutes' => (int) $leg['duration_min'],
                 'travel_km' => round((float) $leg['distance_km'], 2),
                 'travel_mode' => ! empty($leg['transit']) ? 'transit' : $mode,
-                'transit' => ! empty($leg['transit']) ? ['summary' => $leg['summary'], 'lines' => $leg['lines'], 'sections' => $leg['sections'], 'walking_min' => $leg['walking_min']] : null,
+                'transit' => ! empty($leg['transit']) ? self::transitInfo($leg) : null,
                 'wait_minutes' => $s['wait'],
                 'conflict' => $s['conflict'] ?? false,
                 'accessible' => $place->accessible,
@@ -392,7 +392,7 @@ class ItineraryGenerator
         $finalLeg = null;
         if ($endIdx !== null) {
             $lastLeg = $legs[count($sequence)] ?? ['distance_km' => $K[end($sequence)][$endIdx] ?? 0, 'duration_min' => $T[end($sequence)][$endIdx] ?? 0];
-            $finalLeg = ['travel_minutes' => (int) $lastLeg['duration_min'], 'travel_km' => round((float) $lastLeg['distance_km'], 2), 'arrive_at' => $date->copy()->addMinutes($sim['end'])->format('H:i'), 'travel_mode' => ! empty($lastLeg['transit']) ? 'transit' : $mode, 'transit' => ! empty($lastLeg['transit']) ? ['summary' => $lastLeg['summary'], 'lines' => $lastLeg['lines'], 'sections' => $lastLeg['sections'], 'walking_min' => $lastLeg['walking_min']] : null];
+            $finalLeg = ['travel_minutes' => (int) $lastLeg['duration_min'], 'travel_km' => round((float) $lastLeg['distance_km'], 2), 'arrive_at' => $date->copy()->addMinutes($sim['end'])->format('H:i'), 'travel_mode' => ! empty($lastLeg['transit']) ? 'transit' : $mode, 'transit' => ! empty($lastLeg['transit']) ? self::transitInfo($lastLeg) : null];
         }
 
         $warnings = [];
@@ -412,7 +412,7 @@ class ItineraryGenerator
             $warnings[] = __('Service de routage indisponible : durées estimées à vol d\'oiseau.');
         }
         if ($weather && $weather['indoor_recommended']) {
-            $warnings[] = __('Météo : :label (:rain % de pluie). Les lieux couverts sont privilégiés et chaque étape en extérieur a un plan B.', ['label' => $weather['label'], 'rain' => $weather['rain_probability']]);
+            $warnings[] = __('Météo : :label (:rain % de pluie). Les lieux couverts sont privilégiés et chaque étape en extérieur a un plan B.', ['label' => __($weather['label']), 'rain' => $weather['rain_probability']]);
         }
         if ($lenient && $sim['total'] > $timeBudget) {
             $warnings[] = __('Ce parcours dépasse ton temps disponible de :n min.', ['n' => $sim['total'] - $timeBudget]);
@@ -750,11 +750,31 @@ class ItineraryGenerator
             'total_cost_eur' => $totalCost,
             'steps' => $steps,
             'geometry' => $route['geometry'] ?? [],
-            'legs' => array_map(fn ($l) => ['distance_km' => $l['distance_km'], 'duration_min' => $l['duration_min'], 'shape' => $l['shape'] ?? [], 'maneuvers' => $l['maneuvers'] ?? [], 'transit' => ! empty($l['transit']), 'sections' => $l['sections'] ?? [], 'lines' => $l['lines'] ?? [], 'summary' => $l['summary'] ?? null], $route['legs'] ?? []),
+            'legs' => array_map(fn ($l) => ['distance_km' => $l['distance_km'], 'duration_min' => $l['duration_min'], 'shape' => $l['shape'] ?? [], 'maneuvers' => $l['maneuvers'] ?? [], 'transit' => ! empty($l['transit'])] + (! empty($l['transit']) ? self::transitInfo($l) : ['sections' => [], 'lines' => [], 'summary' => null]), $route['legs'] ?? []),
             'routing_source' => $route['source'] ?? 'none',
             'matrix_source' => $matrixSource,
             'weather' => $weather,
             'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * Détail d'un trajet en transports tel qu'exposé dans le résultat (résumé, lignes, sections horaires, alertes, autres départs).
+     *
+     * @return array<string,mixed>
+     */
+    public static function transitInfo(array $leg): array
+    {
+        return [
+            'summary' => $leg['summary'] ?? null,
+            'lines' => $leg['lines'] ?? [],
+            'sections' => $leg['sections'] ?? [],
+            'walking_min' => (int) ($leg['walking_min'] ?? 0),
+            'depart_at' => $leg['depart_at'] ?? null,
+            'arrive_at' => $leg['arrive_at'] ?? null,
+            'transfers' => (int) ($leg['transfers'] ?? max(0, count($leg['lines'] ?? []) - 1)),
+            'alerts' => $leg['alerts'] ?? [],
+            'alternatives' => $leg['alternatives'] ?? [],
         ];
     }
 

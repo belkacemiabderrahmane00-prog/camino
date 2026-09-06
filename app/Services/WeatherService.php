@@ -126,7 +126,7 @@ class WeatherService
             return [
                 'indoor_recommended' => (bool) ($current['indoor'] ?? false),
                 'rain_probability' => 0,
-                'label' => $current['label'] ?? 'Météo indisponible',
+                'label' => $current['label'] ?? __('Météo indisponible'),
                 'icon' => $current['icon'] ?? 'cloud',
                 'temp' => $current['temp'] ?? null,
             ];
@@ -203,7 +203,7 @@ class WeatherService
     {
         $current = $forecast['current'] ?? null;
         if (! $current) {
-            return ['title' => 'Météo indisponible', 'text' => 'On te conseille quand même une balade : la ville n\'attend pas.', 'icon' => 'cloud', 'tone' => 'neutral', 'indoor' => false, 'temp' => null, 'label' => null];
+            return ['title' => __('Météo indisponible'), 'text' => __('On te conseille quand même une balade : la ville n\'attend pas.'), 'icon' => 'cloud', 'tone' => 'neutral', 'indoor' => false, 'temp' => null, 'label' => null];
         }
 
         $now = Carbon::now(config('app.timezone'));
@@ -212,19 +212,19 @@ class WeatherService
         $temp = (float) $current['temp'];
 
         if ($current['indoor'] || $rainSoon >= 60) {
-            return ['title' => 'Plutôt à l\'abri', 'text' => $current['indoor'] ? 'Il pleut : direction musées, galeries et cafés. Le générateur privilégie les lieux couverts.' : sprintf('%d %% de pluie dans les prochaines heures : garde un musée sous le coude.', $rainSoon), 'icon' => $current['icon'], 'tone' => 'rain', 'indoor' => true, 'temp' => $temp, 'label' => $current['label']];
+            return ['title' => __('Plutôt à l\'abri'), 'text' => $current['indoor'] ? __('Il pleut : direction musées, galeries et cafés. Le générateur privilégie les lieux couverts.') : __(':rain % de pluie dans les prochaines heures : garde un musée sous le coude.', ['rain' => $rainSoon]), 'icon' => $current['icon'], 'tone' => 'rain', 'indoor' => true, 'temp' => $temp, 'label' => $current['label']];
         }
         if ($temp >= 27) {
-            return ['title' => 'Il fait chaud', 'text' => 'Parcs ombragés le matin, musées frais l\'après-midi. Pense à une gourde.', 'icon' => $current['icon'], 'tone' => 'hot', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
+            return ['title' => __('Il fait chaud'), 'text' => __('Parcs ombragés le matin, musées frais l\'après-midi. Pense à une gourde.'), 'icon' => $current['icon'], 'tone' => 'hot', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
         }
         if ($temp <= 5) {
-            return ['title' => 'Ça pique', 'text' => 'Balade courte entre deux lieux couverts, et un chocolat chaud au milieu.', 'icon' => $current['icon'], 'tone' => 'cold', 'indoor' => true, 'temp' => $temp, 'label' => $current['label']];
+            return ['title' => __('Ça pique'), 'text' => __('Balade courte entre deux lieux couverts, et un chocolat chaud au milieu.'), 'icon' => $current['icon'], 'tone' => 'cold', 'indoor' => true, 'temp' => $temp, 'label' => $current['label']];
         }
         if (in_array((int) $current['code'], [0, 1], true)) {
-            return ['title' => 'Journée parfaite dehors', 'text' => 'Parcs, jardins, street art : c\'est le moment de marcher. Le générateur le sait.', 'icon' => $current['icon'], 'tone' => 'sun', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
+            return ['title' => __('Journée parfaite dehors'), 'text' => __('Parcs, jardins, street art : c\'est le moment de marcher. Le générateur le sait.'), 'icon' => $current['icon'], 'tone' => 'sun', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
         }
 
-        return ['title' => 'Bonne journée pour explorer', 'text' => 'Ciel voilé, températures douces : idéal pour enchaîner monuments et jardins.', 'icon' => $current['icon'], 'tone' => 'mild', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
+        return ['title' => __('Bonne journée pour explorer'), 'text' => __('Ciel voilé, températures douces : idéal pour enchaîner monuments et jardins.'), 'icon' => $current['icon'], 'tone' => 'mild', 'indoor' => false, 'temp' => $temp, 'label' => $current['label']];
     }
 
     /**

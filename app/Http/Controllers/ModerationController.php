@@ -38,7 +38,7 @@ class ModerationController extends Controller
             default => 'hidden',
         }]);
 
-        return back()->with('status', 'Lieu « ' . $place->title . ' » : ' . $data['action'] . '.');
+        return back()->with('status', __('Lieu « :title » : :action.', ['title' => $place->title, 'action' => $data['action']]));
     }
 
     public function updatePhoto(Request $request, PlacePhoto $photo)
@@ -50,20 +50,20 @@ class ModerationController extends Controller
             $photo->place->update(['cover_image_url' => $photo->url, 'cover_image_source' => 'community', 'cover_image_author' => $photo->user?->name]);
         }
 
-        return back()->with('status', 'Photo ' . ($photo->status === 'approved' ? 'publiée' : 'refusée') . '.');
+        return back()->with('status', $photo->status === 'approved' ? __('Photo publiée.') : __('Photo refusée.'));
     }
 
     public function hideAlert(PlaceAlert $alert)
     {
         $alert->update(['status' => 'hidden']);
 
-        return back()->with('status', 'Alerte masquée.');
+        return back()->with('status', __('Alerte masquée.'));
     }
 
     public function resolveReport(PlaceReport $report)
     {
         $report->delete();
 
-        return back()->with('status', 'Signalement traité.');
+        return back()->with('status', __('Signalement traité.'));
     }
 }

@@ -34,7 +34,7 @@ class ReviewController extends Controller
         return redirect()
             ->route('places.show', $place)
             ->withFragment('avis')
-            ->with('status', 'Merci pour ton avis !');
+            ->with('status', __('Merci pour ton avis !'));
     }
 }
 

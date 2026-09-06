@@ -2,7 +2,7 @@
     $tones = ['sun' => 'from-amber-300 to-orange-400', 'rain' => 'from-sky-400 to-indigo-500', 'hot' => 'from-orange-400 to-rose-500', 'cold' => 'from-sky-200 to-blue-400', 'mild' => 'from-teal to-teal-dark', 'neutral' => 'from-slate-400 to-slate-600'];
     $earned = collect($badges)->where('earned', true)->count();
 @endphp
-<x-app-layout title="Mon espace">
+<x-app-layout title="{{ __('Mon espace') }}">
     <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6 sm:space-y-8">
 
         {{-- ============================================================ Bonjour + météo --}}
@@ -49,7 +49,7 @@
                             <span class="inline-flex items-center gap-1 rounded-full bg-coral px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"><span class="material-symbols-outlined" style="font-size:14px">lightbulb</span>{{ __('Idée du jour') }}</span>
                             <button type="button" @click="$dispatch('open-weather')" class="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] hover:bg-white/25 transition"><span class="material-symbols-outlined filled text-sun" style="font-size:14px">{{ $advice['icon'] }}</span>{{ $advice['title'] }}</button>
                         </div>
-                        <p class="text-[11px] uppercase tracking-widest text-white/70 mt-3">{{ $idea->category->name ?? 'Lieu' }}{{ $idea->is_free ? ' · Gratuit' : '' }}</p>
+                        <p class="text-[11px] uppercase tracking-widest text-white/70 mt-3">{{ __($idea->category->name ?? 'Lieu') }}{{ $idea->is_free ? ' · Gratuit' : '' }}</p>
                         <p class="font-display text-2xl sm:text-3xl leading-tight mt-0.5 line-clamp-2">{{ $idea->title }}</p>
                         <p class="text-sm text-white/75 mt-1 line-clamp-1">{{ $reason }}</p>
                         <div class="mt-3 flex gap-2 pointer-events-auto">
@@ -61,8 +61,8 @@
             @else
                 <a href="{{ route('map.index') }}" class="rounded-4xl bg-teal text-white p-6 flex flex-col justify-end min-h-[200px] hover:-translate-y-0.5 transition">
                     <span class="material-symbols-outlined" style="font-size:40px">explore</span>
-                    <p class="font-display text-2xl mt-2">Explore la carte</p>
-                    <p class="text-sm text-white/80 mt-1">Ajoute des favoris et l'idée du jour apparaîtra ici, adaptée à la météo.</p>
+                    <p class="font-display text-2xl mt-2">{{ __('Explore la carte') }}</p>
+                    <p class="text-sm text-white/80 mt-1">{{ __('Ajoute des favoris et l\'idée du jour apparaîtra ici, adaptée à la météo.') }}</p>
                 </a>
             @endif
         </div>
@@ -72,12 +72,12 @@
             <p class="eyebrow mb-3">{{ __('Raccourcis') }}</p>
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
                 @foreach([
-                    [route('map.index', ['locate' => 1]), 'my_location', 'Près de moi', 'bg-teal-soft text-teal'],
-                    [route('itineraries.create'), 'auto_awesome', 'Parcours', 'bg-coral-soft text-coral'],
-                    [route('map.index'), 'campaign', 'Signaler', 'bg-sun-soft text-amber-700'],
-                    [route('places.favorites'), 'favorite', 'Favoris', 'bg-rose-50 text-rose-600'],
-                    [route('itineraries.index'), 'history', 'Mes parcours', 'bg-violet-50 text-violet-700'],
-                    [route('community.propose'), 'add_location_alt', 'Proposer', 'bg-emerald-50 text-emerald-700'],
+                    [route('map.index', ['locate' => 1]), 'my_location', __('Près de moi'), 'bg-teal-soft text-teal'],
+                    [route('itineraries.create'), 'auto_awesome', __('Parcours'), 'bg-coral-soft text-coral'],
+                    [route('map.index'), 'campaign', __('Signaler'), 'bg-sun-soft text-amber-700'],
+                    [route('places.favorites'), 'favorite', __('Favoris'), 'bg-rose-50 text-rose-600'],
+                    [route('itineraries.index'), 'history', __('Mes parcours'), 'bg-violet-50 text-violet-700'],
+                    [route('community.propose'), 'add_location_alt', __('Proposer'), 'bg-emerald-50 text-emerald-700'],
                 ] as [$href, $icon, $label, $cls])
                     <a href="{{ $href }}" class="card card-hover p-3 sm:p-4 flex flex-col items-center gap-2 text-center">
                         <span class="h-11 w-11 rounded-2xl flex items-center justify-center {{ $cls }}"><span class="material-symbols-outlined">{{ $icon }}</span></span>
@@ -124,7 +124,7 @@
 
         {{-- ============================================================ Pour toi --}}
         <div>
-            <x-section-heading eyebrow="Pour toi" title="Sélection du moment" :subtitle="$reason" :href="route('map.index')" link-label="Explorer" />
+            <x-section-heading eyebrow="Pour toi" title="{{ __('Sélection du moment') }}" :subtitle="$reason" :href="route('map.index')" link-label="Explorer" />
             <div class="flex gap-3 overflow-x-auto snap-x hide-scrollbar -mx-4 px-4 pb-2 sm:mx-0 sm:px-0 sm:grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4 sm:overflow-visible">
                 @foreach($recommended as $place)
                     <div class="snap-start shrink-0 w-64 sm:w-auto"><x-place-card :place="$place" /></div>
@@ -143,7 +143,7 @@
                             <div class="min-w-0 text-sm"><p class="font-semibold leading-snug line-clamp-1">{{ $alert->title }}</p><p class="text-xs text-ink-muted">{{ $alert->type_label }}{{ $alert->place ? ' · ' . $alert->place->title : '' }} · {{ $alert->created_at->diffForHumans() }}</p></div>
                         </a>
                     @empty
-                        <p class="text-sm text-ink-muted p-2">Rien à signaler pour l'instant. Tu vois un concert gratuit ou une file d'attente ? <a href="{{ route('map.index') }}" class="underline font-semibold text-ink">Dis-le sur la carte</a>.</p>
+                        <p class="text-sm text-ink-muted p-2">{{ __('Rien à signaler pour l\'instant. Tu vois un concert gratuit ou une file d\'attente ?') }} <a href="{{ route('map.index') }}" class="underline font-semibold text-ink">{{ __('Dis-le sur la carte') }}</a>.</p>
                     @endforelse
                 </div>
             </div>
@@ -156,7 +156,7 @@
                             <div class="min-w-0 text-sm"><p class="text-[11px] font-semibold text-amber-700">{{ ($event->event_start_at ?? $event->event_end_at)->translatedFormat('D j M') }}</p><p class="font-semibold leading-snug line-clamp-1">{{ $event->title }}</p></div>
                         </a>
                     @empty
-                        <p class="text-sm text-ink-muted p-2">Aucun événement daté pour l'instant.</p>
+                        <p class="text-sm text-ink-muted p-2">{{ __('Aucun événement daté pour l\'instant.') }}</p>
                     @endforelse
                 </div>
             </div>
@@ -165,17 +165,17 @@
         {{-- ============================================================ Favoris + parcours --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-                <x-section-heading eyebrow="Ma collection" title="Favoris récents" :href="route('places.favorites')" class="mb-3" />
+                <x-section-heading eyebrow="Ma collection" title="{{ __('Favoris récents') }}" :href="route('places.favorites')" class="mb-3" />
                 @if($favorites->isNotEmpty())
                     <div class="grid grid-cols-2 gap-3">
                         @foreach($favorites->take(4) as $place)<x-place-card :place="$place" />@endforeach
                     </div>
                 @else
-                    <div class="card p-6 text-sm text-ink-muted">Aucun favori. Le cœur sur une fiche, et il apparaît ici.</div>
+                    <div class="card p-6 text-sm text-ink-muted">{{ __('Aucun favori. Le cœur sur une fiche, et il apparaît ici.') }}</div>
                 @endif
             </div>
             <div>
-                <x-section-heading eyebrow="Historique" title="Mes parcours" :href="route('itineraries.index')" class="mb-3" />
+                <x-section-heading eyebrow="Historique" title="{{ __('Mes parcours') }}" :href="route('itineraries.index')" class="mb-3" />
                 @if($itineraries->isNotEmpty())
                     <div class="space-y-2">
                         @foreach($itineraries as $itinerary)
@@ -188,7 +188,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="card p-6 text-sm text-ink-muted">Aucun parcours pour l'instant. <a href="{{ route('itineraries.create') }}" class="font-semibold text-ink underline">Génère le premier</a>, il sera gardé ici.</div>
+                    <div class="card p-6 text-sm text-ink-muted">{{ __('Aucun parcours pour l\'instant.') }} <a href="{{ route('itineraries.create') }}" class="font-semibold text-ink underline">{{ __('Génère le premier') }}</a>{{ __(', il sera gardé ici.') }}</div>
                 @endif
                 <div class="mt-3 grid grid-cols-3 gap-2 text-center">
                     @foreach([['itineraries', 'parcours', 'route'], ['km', 'km', 'directions_walk'], ['reviews', 'avis', 'rate_review']] as [$k, $l, $i])

@@ -23,8 +23,8 @@
                 <span class="font-display text-2xl font-semibold">CAMINO</span>
             </a>
             <div class="relative max-w-md">
-                <p class="display text-4xl">La ville a plus à raconter que ses monuments.</p>
-                <p class="mt-4 text-white/80">Une carte vivante, des parcours générés selon ton temps et la météo, et une communauté qui partage ses bons plans.</p>
+                <p class="display text-4xl">{{ __('La ville a plus à raconter que ses monuments.') }}</p>
+                <p class="mt-4 text-white/80">{{ __('Une carte vivante, des parcours générés selon ton temps et la météo, et une communauté qui partage ses bons plans.') }}</p>
             </div>
         </aside>
 
@@ -38,7 +38,7 @@
                         <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card"><span class="material-symbols-outlined filled" style="font-size:18px">location_on</span></span>
                         <span class="font-display text-xl font-semibold drop-shadow">CAMINO</span>
                     </a>
-                    <p class="display text-2xl text-white drop-shadow pb-4">La ville a plus à raconter que ses monuments.</p>
+                    <p class="display text-2xl text-white drop-shadow pb-4">{{ __('La ville a plus à raconter que ses monuments.') }}</p>
                 </div>
             </div>
             <div class="flex-1 flex items-start lg:items-center justify-center p-5 pt-2 sm:p-10">

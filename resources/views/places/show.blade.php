@@ -1,6 +1,6 @@
 @php
     $shareTitle = $place->title . ' · CAMINO';
-    $shareDescription = \Illuminate\Support\Str::limit($place->description ?? $place->address ?? 'Lieu culturel sur CAMINO', 150);
+    $shareDescription = \Illuminate\Support\Str::limit($place->description ?? $place->address ?? __('Lieu culturel sur CAMINO'), 150);
     $gmUrl = $place->getGoogleMapsUrl();
 @endphp
 @push('meta')
@@ -31,8 +31,8 @@
         </div>
         <div class="max-w-5xl mx-auto px-4 sm:px-6 -mt-24 sm:-mt-28 relative">
             <div class="flex flex-wrap items-center gap-2 mb-3">
-                <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('map.index') }}" class="btn btn-sm bg-white/90 text-ink backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>Retour</a>
-                <a href="{{ route('map.index', ['lat' => $place->lat, 'lng' => $place->lng, 'z' => 16]) }}" class="btn btn-sm bg-white/90 text-ink backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">map</span>Voir sur la carte</a>
+                <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('map.index') }}" class="btn btn-sm bg-white/90 text-ink backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>{{ __('Retour') }}</a>
+                <a href="{{ route('map.index', ['lat' => $place->lat, 'lng' => $place->lng, 'z' => 16]) }}" class="btn btn-sm bg-white/90 text-ink backdrop-blur"><span class="material-symbols-outlined" style="font-size:16px">map</span>{{ __('Voir sur la carte') }}</a>
             </div>
             <div class="card p-6 sm:p-8">
                 <div class="flex flex-wrap items-center gap-2">
@@ -48,7 +48,7 @@
                     @if($reviewCount > 0)
                         <a href="#avis" class="badge bg-amber-50 text-amber-700"><span class="material-symbols-outlined filled" style="font-size:14px">star</span>{{ $averageRating }}/5 · {{ $reviewCount }} avis</a>
                     @endif
-                    @if($place->status === 'pending')<span class="badge badge-alert">En attente de validation</span>@endif
+                    @if($place->status === 'pending')<span class="badge badge-alert">{{ __('En attente de validation') }}</span>@endif
                 </div>
                 <h1 class="display text-3xl sm:text-5xl mt-3">{{ $place->title }}</h1>
                 <p class="mt-2 text-ink-muted flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:18px">location_on</span>{{ $place->address ?? 'Adresse non renseignée' }}</p>
@@ -65,7 +65,7 @@
                                     <p class="text-[11px] text-ink-muted mt-0.5">Signalé {{ $alert->created_at->diffForHumans() }}{{ $alert->user ? ' par ' . $alert->user->name : '' }} · expire {{ $alert->expires_at->diffForHumans() }}</p>
                                 </div>
                                 @if(auth()->check() && (auth()->id() === $alert->user_id || auth()->user()->is_admin))
-                                    <form method="POST" action="{{ route('alerts.destroy', $alert) }}">@csrf @method('DELETE')<button class="text-ink-muted hover:text-ink" title="Retirer"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></form>
+                                    <form method="POST" action="{{ route('alerts.destroy', $alert) }}">@csrf @method('DELETE')<button class="text-ink-muted hover:text-ink" title="{{ __('Retirer') }}"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></form>
                                 @endif
                             </div>
                         @endforeach
@@ -79,11 +79,11 @@
                             <button class="btn btn-md {{ $isFavorite ? 'btn-primary' : 'btn-soft' }}"><span class="material-symbols-outlined {{ $isFavorite ? 'filled' : '' }}" style="font-size:18px">favorite</span>{{ $isFavorite ? 'Dans tes favoris' : 'Favori' }}</button>
                         </form>
                     @else
-                        <a href="{{ route('login') }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">favorite</span>Favori</a>
+                        <a href="{{ route('login') }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">favorite</span>{{ __('Favori') }}</a>
                     @endauth
                     @if($isInItinerary)
                         <form method="POST" action="{{ route('itineraries.remove-place', $place) }}">@csrf @method('DELETE')
-                            <button class="btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">check</span>Dans ton parcours · retirer</button>
+                            <button class="btn btn-md btn-teal"><span class="material-symbols-outlined" style="font-size:18px">check</span>{{ __('Dans ton parcours · retirer') }}</button>
                         </form>
                     @else
                         <form method="POST" action="{{ route('itineraries.add-place', $place) }}">@csrf
@@ -92,14 +92,14 @@
                     @endif
                     @auth
                         <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
-                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
+                            <button class="btn btn-md btn-soft" title="{{ __('Ajouter à mon journal de visites') }}"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
                         </form>
                     @endauth
                     @if($gmUrl)
-                        <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Y aller</a>
+                        <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>{{ __('Y aller') }}</a>
                     @endif
                     <button @click="$dispatch('open-alert')" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">campaign</span>{{ __('Signaler') }}</button>
-                    <button x-data @click="navigator.share ? navigator.share({ title: @js($place->title), url: window.location.href }) : (navigator.clipboard.writeText(window.location.href), alert('Lien copié !'))" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
+                    <button x-data @click="navigator.share ? navigator.share({ title: @js($place->title), url: window.location.href }) : (navigator.clipboard.writeText(window.location.href), alert('Lien copié !'))" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>{{ __('Partager') }}</button>
                 </div>
             </div>
         </div>
@@ -110,11 +110,11 @@
         <div class="space-y-6 min-w-0">
             {{-- Description --}}
             <div class="card p-6 sm:p-8">
-                <p class="eyebrow mb-2">À propos</p>
+                <p class="eyebrow mb-2">{{ __('À propos') }}</p>
                 @if($place->description)
                     <p class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $place->description }}</p>
                 @else
-                    <p class="text-sm text-ink-muted">Pas encore de description. Tu connais ce lieu ? Laisse un avis ou une photo ci-dessous.</p>
+                    <p class="text-sm text-ink-muted">{{ __('Pas encore de description. Tu connais ce lieu ? Laisse un avis ou une photo ci-dessous.') }}</p>
                 @endif
                 @if(!empty($place->tags))
                     <div class="mt-4 flex flex-wrap gap-1.5">
@@ -126,7 +126,7 @@
             {{-- Photos communauté --}}
             <div class="card p-6 sm:p-8" id="photos">
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <div><p class="eyebrow mb-1">Communauté</p><h2 class="display text-2xl">{{ __('Photos') }}</h2></div>
+                    <div><p class="eyebrow mb-1">{{ __('Communauté') }}</p><h2 class="display text-2xl">{{ __('Photos') }}</h2></div>
                     <span class="text-xs text-ink-muted">{{ $place->photos->count() }} photo{{ $place->photos->count() > 1 ? 's' : '' }}</span>
                 </div>
                 @if($place->photos->isNotEmpty())
@@ -149,15 +149,15 @@
                         <div x-show="preview" x-cloak class="flex items-center gap-3">
                             <img :src="preview" alt="" class="h-16 w-16 rounded-xl object-cover shrink-0">
                             <div class="flex-1 min-w-0 flex flex-col sm:flex-row gap-2">
-                                <input type="text" name="caption" maxlength="160" placeholder="Légende (optionnel)" class="field flex-1 min-w-0">
+                                <input type="text" name="caption" maxlength="160" placeholder="{{ __('Légende (optionnel)') }}" class="field flex-1 min-w-0">
                                 <button class="btn btn-md btn-ink shrink-0"><span class="material-symbols-outlined" style="font-size:18px">upload</span>{{ __('Envoyer') }}</button>
                             </div>
                         </div>
-                        <p class="text-[11px] text-ink-muted">JPEG, PNG ou WebP · 8 Mo max · publiée après validation.</p>
+                        <p class="text-[11px] text-ink-muted">{{ __('JPEG, PNG ou WebP · 8 Mo max · publiée après validation.') }}</p>
                     </form>
-                    <p class="mt-2 text-[11px] text-ink-muted">Ta photo sera visible après validation. Merci de ne partager que tes propres photos.</p>
+                    <p class="mt-2 text-[11px] text-ink-muted">{{ __('Ta photo sera visible après validation. Merci de ne partager que tes propres photos.') }}</p>
                 @else
-                    <p class="text-sm text-ink-muted"><a href="{{ route('login') }}" class="font-semibold text-ink underline">Connecte-toi</a> pour partager une photo de ce lieu.</p>
+                    <p class="text-sm text-ink-muted"><a href="{{ route('login') }}" class="font-semibold text-ink underline">{{ __('Connecte-toi') }}</a> {{ __('pour partager une photo de ce lieu.') }}</p>
                 @endauth
             </div>
 
@@ -176,14 +176,14 @@
                             <input type="hidden" name="rating" :value="rating">
                             <span class="ml-2 text-sm text-ink-muted" x-text="['', 'Décevant', 'Moyen', 'Bien', 'Très bien', 'Exceptionnel'][rating]"></span>
                         </div>
-                        <textarea name="comment" rows="3" required maxlength="1000" class="field" placeholder="Ton expérience, un conseil, le meilleur moment pour y aller…"></textarea>
+                        <textarea name="comment" rows="3" required maxlength="1000" class="field" placeholder="{{ __('Ton expérience, un conseil, le meilleur moment pour y aller…') }}"></textarea>
                         <div class="flex flex-wrap items-center gap-3">
-                            <label class="text-xs text-ink-muted flex items-center gap-2">Visité le <input type="date" name="visited_at" class="field !py-1.5 !w-auto text-xs"></label>
-                            <button class="btn btn-md btn-ink ml-auto">Publier mon avis</button>
+                            <label class="text-xs text-ink-muted flex items-center gap-2">{{ __('Visité le') }} <input type="date" name="visited_at" class="field !py-1.5 !w-auto text-xs"></label>
+                            <button class="btn btn-md btn-ink ml-auto">{{ __('Publier mon avis') }}</button>
                         </div>
                     </form>
                 @else
-                    <p class="text-sm text-ink-muted mb-5"><a href="{{ route('login') }}" class="font-semibold text-ink underline">Connecte-toi</a> pour laisser un avis.</p>
+                    <p class="text-sm text-ink-muted mb-5"><a href="{{ route('login') }}" class="font-semibold text-ink underline">{{ __('Connecte-toi') }}</a> {{ __('pour laisser un avis.') }}</p>
                 @endauth
                 <div class="space-y-4">
                     @forelse($reviews as $review)
@@ -213,34 +213,34 @@
                     <p class="flex items-start gap-2 text-ink-soft"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">location_on</span>{{ $place->address ?? 'Adresse non renseignée' }}</p>
                     @auth
                         <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
-                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
+                            <button class="btn btn-md btn-soft" title="{{ __('Ajouter à mon journal de visites') }}"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
                         </form>
                     @endauth
                     @if($gmUrl)
                         <div class="flex gap-2 pt-1">
                             <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-soft flex-1">Google Maps</a>
-                            <a href="{{ $place->getWazeUrl() }}" target="_blank" rel="noopener" class="btn btn-sm btn-soft flex-1">Waze</a>
+                            <a href="{{ $place->getWazeUrl() }}" target="_blank" rel="noopener" class="btn btn-sm btn-soft flex-1">{{ __('Waze') }}</a>
                         </div>
                     @endif
                 </div>
             </div>
 
             <div class="card p-5">
-                <p class="eyebrow mb-3">Infos pratiques</p>
+                <p class="eyebrow mb-3">{{ __('Infos pratiques') }}</p>
                 <dl class="space-y-2.5 text-sm">
-                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">Tarif</dt><dd class="font-semibold">{{ $place->is_free ? 'Gratuit' : ($place->price_level ? str_repeat('€', (int) $place->price_level) . ' · dès ' . [1 => 5, 2 => 15, 3 => 30][$place->price_level] . ' €' : 'Non renseigné') }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">Durée conseillée</dt><dd class="font-semibold">{{ $place->visit_duration_min ?? 60 }} min</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">Catégorie</dt><dd class="font-semibold">{{ $place->category->name ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">Source</dt><dd class="font-semibold">{{ in_array('community', (array) $place->sources) ? 'Communauté CAMINO' : 'DATAtourisme' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">{{ __('Tarif') }}</dt><dd class="font-semibold">{{ $place->is_free ? 'Gratuit' : ($place->price_level ? str_repeat('€', (int) $place->price_level) . ' · dès ' . [1 => 5, 2 => 15, 3 => 30][$place->price_level] . ' €' : 'Non renseigné') }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">{{ __('Durée conseillée') }}</dt><dd class="font-semibold">{{ $place->visit_duration_min ?? 60 }} min</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">{{ __('Catégorie') }}</dt><dd class="font-semibold">{{ $place->category->name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-ink-muted">{{ __('Source') }}</dt><dd class="font-semibold">{{ in_array('community', (array) $place->sources) ? 'Communauté CAMINO' : 'DATAtourisme' }}</dd></div>
                 </dl>
                 <details class="mt-4 text-sm">
-                    <summary class="cursor-pointer text-ink-muted hover:text-ink">Une erreur sur cette fiche ? Signaler</summary>
+                    <summary class="cursor-pointer text-ink-muted hover:text-ink">{{ __('Une erreur sur cette fiche ? Signaler') }}</summary>
                     <form method="POST" action="{{ route('places.report', $place) }}" class="mt-3 space-y-2">
                         @csrf
                         <select name="reason" class="field !py-2 text-xs">
-                            @foreach(['Lieu fermé définitivement', 'Adresse ou position incorrecte', 'Informations erronées', 'Contenu inapproprié', 'Doublon'] as $r)<option>{{ $r }}</option>@endforeach
+                            @foreach(['Lieu fermé définitivement', 'Adresse ou position incorrecte', 'Informations erronées', 'Contenu inapproprié', 'Doublon'] as $r)<option value="{{ $r }}">{{ __($r) }}</option>@endforeach
                         </select>
-                        <textarea name="message" rows="2" class="field !py-2 text-xs" placeholder="Précisions (optionnel)"></textarea>
+                        <textarea name="message" rows="2" class="field !py-2 text-xs" placeholder="{{ __('Précisions (optionnel)') }}"></textarea>
                         <button class="btn btn-sm btn-soft w-full">{{ __('Envoyer') }}</button>
                     </form>
                 </details>
@@ -248,7 +248,7 @@
 
             @if($nearby->isNotEmpty())
                 <div>
-                    <p class="eyebrow mb-3">À proximité</p>
+                    <p class="eyebrow mb-3">{{ __('À proximité') }}</p>
                     <div class="space-y-2">
                         @foreach($nearby as $n)
                             <x-place-card :place="$n" :compact="true" />

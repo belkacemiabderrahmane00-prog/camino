@@ -38,6 +38,24 @@ Route::prefix('v1')->group(function () {
         return response()->json(['source' => $route['source'], 'distance_km' => $route['distance_km'], 'duration_min' => $route['duration_min'], 'legs' => $route['legs']]);
     })->middleware('throttle:30,1');
 
+    // Trajet en transports à l'heure réelle (guidage : au départ de chaque étape, position actuelle → étape suivante).
+    Route::post('transit', function (\Illuminate\Http\Request $request, \App\Services\TransitService $transit) {
+        $data = $request->validate([
+            'from.lat' => ['required', 'numeric', 'between:-90,90'],
+            'from.lng' => ['required', 'numeric', 'between:-180,180'],
+            'to.lat' => ['required', 'numeric', 'between:-90,90'],
+            'to.lng' => ['required', 'numeric', 'between:-180,180'],
+            'at' => ['nullable', 'date'],
+        ]);
+        if (! $transit->enabled()) {
+            return response()->json(['enabled' => false, 'journeys' => []]);
+        }
+        $at = ! empty($data['at']) ? \Illuminate\Support\Carbon::parse($data['at']) : now();
+        $journeys = $transit->journeys(['lat' => (float) $data['from']['lat'], 'lng' => (float) $data['from']['lng']], ['lat' => (float) $data['to']['lat'], 'lng' => (float) $data['to']['lng']], $at, realtime: true);
+
+        return response()->json(['enabled' => true, 'journeys' => $journeys]);
+    })->middleware('throttle:30,1');
+
     // Diagnostic : dernières lignes du journal applicatif (clé dérivée de APP_KEY).
     Route::get('diag/php', function (\Illuminate\Http\Request $request) {
         abort_unless(hash_equals(substr(sha1((string) config('app.key')), 0, 16), (string) $request->query('key')), 404);

@@ -1,4 +1,4 @@
-<x-app-layout title="Carte culturelle" :fullscreen="true">
+<x-app-layout title="{{ __('Carte culturelle') }}" :fullscreen="true">
 
     <div id="map-page" class="absolute inset-0" x-data="caminoMap()" @keydown.escape.window="closeSheet()">
         {{-- Carte --}}
@@ -10,9 +10,9 @@
                 <div class="md:max-w-2xl space-y-2 pointer-events-auto">
                     <div class="card flex items-center gap-2 pl-4 pr-2 py-1.5">
                         <span class="material-symbols-outlined text-ink-muted">search</span>
-                        <input x-model.debounce.400ms="query" @input="load()" type="search" placeholder="Rechercher un lieu, une adresse…" class="flex-1 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70" autocomplete="off">
+                        <input x-model.debounce.400ms="query" @input="load()" type="search" placeholder="{{ __('Rechercher un lieu, une adresse…') }}" class="flex-1 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70" autocomplete="off">
                         <span x-show="loading" class="material-symbols-outlined text-ink-muted animate-spin" style="font-size:18px">progress_activity</span>
-                        <button @click="locate()" class="btn btn-icon btn-ghost" title="Autour de moi"><span class="material-symbols-outlined">my_location</span></button>
+                        <button @click="locate()" class="btn btn-icon btn-ghost" title="{{ __('Autour de moi') }}"><span class="material-symbols-outlined">my_location</span></button>
                     </div>
                     <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
                         <template x-for="f in filters" :key="f.key">
@@ -22,10 +22,10 @@
                             </button>
                         </template>
                         <select x-model="budget" @change="load()" class="chip shrink-0 !pr-8 appearance-none bg-white" style="background-image:none">
-                            <option value="">Tout budget</option>
-                            <option value="free">Gratuit</option>
-                            <option value="1">Jusqu'à €</option>
-                            <option value="2">Jusqu'à €€</option>
+                            <option value="">{{ __('Tout budget') }}</option>
+                            <option value="free">{{ __('Gratuit') }}</option>
+                            <option value="1">{{ __('Jusqu\'à €') }}</option>
+                            <option value="2">{{ __('Jusqu\'à €€') }}</option>
                         </select>
                     </div>
                 </div>
@@ -36,12 +36,12 @@
         <aside class="hidden md:flex flex-col absolute top-[10.5rem] bottom-6 right-6 z-[500] w-[380px] card overflow-hidden">
             <div class="px-5 pt-4 pb-3 border-b border-ink/5 flex items-center justify-between gap-3">
                 <div>
-                    <p class="eyebrow">Dans cette zone</p>
+                    <p class="eyebrow">{{ __('Dans cette zone') }}</p>
                     <p class="text-sm font-semibold" x-text="countLabel()"></p>
                 </div>
                 <div class="flex gap-1">
-                    <button @click="listMode = 'places'" class="btn btn-sm" :class="listMode === 'places' ? 'btn-ink' : 'btn-ghost'">Lieux</button>
-                    <button @click="listMode = 'alerts'" class="btn btn-sm" :class="listMode === 'alerts' ? 'btn-ink' : 'btn-ghost'">Alertes <span x-show="alerts.length" class="ml-1 rounded-full bg-coral text-white text-[10px] px-1.5" x-text="alerts.length"></span></button>
+                    <button @click="listMode = 'places'" class="btn btn-sm" :class="listMode === 'places' ? 'btn-ink' : 'btn-ghost'">{{ __('Lieux') }}</button>
+                    <button @click="listMode = 'alerts'" class="btn btn-sm" :class="listMode === 'alerts' ? 'btn-ink' : 'btn-ghost'">{{ __('Alertes') }} <span x-show="alerts.length" class="ml-1 rounded-full bg-coral text-white text-[10px] px-1.5" x-text="alerts.length"></span></button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto p-3 space-y-2" x-ref="list">
@@ -58,8 +58,8 @@
                                     <p class="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-coral transition" x-text="p.title"></p>
                                     <p class="text-[11px] text-ink-muted line-clamp-1" x-text="p.address || ''"></p>
                                     <div class="flex items-center gap-2 mt-0.5 text-[10px]">
-                                        <span x-show="p.is_free" class="badge badge-free !py-0.5">Gratuit</span>
-                                        <span x-show="p.accessible === true" class="badge badge-free !py-0.5" title="Accessible PMR"><span class="material-symbols-outlined" style="font-size:12px">accessible</span></span>
+                                        <span x-show="p.is_free" class="badge badge-free !py-0.5">{{ __('Gratuit') }}</span>
+                                        <span x-show="p.accessible === true" class="badge badge-free !py-0.5" title="{{ __('Accessible PMR') }}"><span class="material-symbols-outlined" style="font-size:12px">accessible</span></span>
                                         <span x-show="!p.is_free && p.price_level" class="text-ink-muted font-semibold" x-text="'€'.repeat(p.price_level || 0)"></span>
                                         <span x-show="p.rating" class="text-amber-600 inline-flex items-center gap-0.5"><span class="material-symbols-outlined filled" style="font-size:12px">star</span><span x-text="p.rating"></span></span>
                                         <span x-show="p.alerts" class="badge badge-alert !py-0.5"><span class="material-symbols-outlined" style="font-size:12px">campaign</span><span x-text="p.alerts"></span></span>
@@ -67,7 +67,7 @@
                                 </div>
                             </a>
                         </template>
-                        <p x-show="!loading && !places.length" class="p-6 text-center text-sm text-ink-muted">Aucun lieu ici avec ces filtres. Déplace la carte ou change de filtre.</p>
+                        <p x-show="!loading && !places.length" class="p-6 text-center text-sm text-ink-muted">{{ __('Aucun lieu ici avec ces filtres. Déplace la carte ou change de filtre.') }}</p>
                     </div>
                 </template>
                 <template x-if="listMode === 'alerts'">
@@ -77,13 +77,13 @@
                                 <span class="h-9 w-9 rounded-full flex items-center justify-center shrink-0" :style="`background:${a.color}22;color:${a.color}`"><span class="material-symbols-outlined" style="font-size:18px" x-text="a.icon"></span></span>
                                 <div class="min-w-0 text-sm">
                                     <p class="font-semibold leading-snug" x-text="a.title"></p>
-                                    <p class="text-xs text-ink-muted"><span x-text="a.label"></span><template x-if="a.place"><span> · <span x-text="a.place.title"></span></span></template> · expire dans <span x-text="a.expires_in"></span></p>
+                                    <p class="text-xs text-ink-muted"><span x-text="a.label"></span><template x-if="a.place"><span> · <span x-text="a.place.title"></span></span></template> {{ __('· expire dans') }} <span x-text="a.expires_in"></span></p>
                                 </div>
                             </button>
                         </template>
                         <div x-show="!alerts.length" class="p-6 text-center text-sm text-ink-muted">
-                            <p>Aucune alerte dans cette zone.</p>
-                            <button @click="$dispatch('open-alert', center())" class="btn btn-sm btn-primary mt-3"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>Signaler ici</button>
+                            <p>{{ __('Aucune alerte dans cette zone.') }}</p>
+                            <button @click="$dispatch('open-alert', center())" class="btn btn-sm btn-primary mt-3"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>{{ __('Signaler ici') }}</button>
                         </div>
                     </div>
                 </template>
@@ -92,8 +92,8 @@
 
         {{-- Boutons flottants --}}
         <div class="absolute right-4 md:right-[404px] bottom-24 md:bottom-6 z-[500] flex flex-col gap-2">
-            <button @click="$dispatch('open-alert', center())" class="btn btn-md btn-primary shadow-float" title="Signaler un événement, une affluence, une fermeture">
-                <span class="material-symbols-outlined">campaign</span><span class="hidden sm:inline">Signaler</span>
+            <button @click="$dispatch('open-alert', center())" class="btn btn-md btn-primary shadow-float" title="{{ __('Signaler un événement, une affluence, une fermeture') }}">
+                <span class="material-symbols-outlined">campaign</span><span class="hidden sm:inline">{{ __('Signaler') }}</span>
             </button>
             <button @click="zoomIn()" class="btn btn-icon btn-soft hidden md:inline-flex"><span class="material-symbols-outlined">add</span></button>
             <button @click="zoomOut()" class="btn btn-icon btn-soft hidden md:inline-flex"><span class="material-symbols-outlined">remove</span></button>
@@ -136,7 +136,7 @@
                         <template x-if="selected.media && selected.media.cover"><img :src="selected.media.cover" :alt="selected.title" class="absolute inset-0 w-full h-full object-cover"></template>
                         <template x-if="!(selected.media && selected.media.cover)"><span class="material-symbols-outlined text-white/80" style="font-size:44px" x-text="style(selected).icon"></span></template>
                         <div class="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent"></div>
-                        <button @click="closeSheet()" class="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 text-ink flex items-center justify-center hover:bg-white" aria-label="Fermer"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+                        <button @click="closeSheet()" class="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 text-ink flex items-center justify-center hover:bg-white" aria-label="{{ __('Fermer') }}"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
                         <div class="absolute bottom-3 left-4 right-4 text-white">
                             <p class="text-[10px] uppercase tracking-widest opacity-90" x-text="selected.category ? selected.category.name : 'Lieu'"></p>
                             <p class="font-display text-xl leading-tight" x-text="selected.title"></p>
@@ -146,18 +146,18 @@
                         <p class="text-sm text-ink-muted flex items-start gap-1.5"><span class="material-symbols-outlined" style="font-size:18px">location_on</span><span x-text="selected.address || 'Adresse non renseignée'"></span></p>
                         <div class="flex flex-wrap gap-1.5">
                             <span class="badge" :class="selected.is_free ? 'badge-free' : 'badge-paid'" x-text="priceLabel(selected)"></span>
-                            <span x-show="selected.accessible === true" class="badge badge-free"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accessible PMR</span>
-                            <span x-show="selected.accessible === false" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accès difficile</span>
+                            <span x-show="selected.accessible === true" class="badge badge-free"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accessible PMR') }}</span>
+                            <span x-show="selected.accessible === false" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accès difficile') }}</span>
                             <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span><span x-text="'≈ ' + (selected.visit_duration_min || 60) + ' min'"></span></span>
                             <span x-show="selected.rating" class="badge bg-amber-50 text-amber-700"><span class="material-symbols-outlined filled" style="font-size:14px">star</span><span x-text="selected.rating"></span></span>
                             <span x-show="selected.alerts" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">campaign</span><span x-text="selected.alerts + ' alerte' + (selected.alerts > 1 ? 's' : '')"></span></span>
-                            <span x-show="selected.event" class="badge badge-event">Événement</span>
+                            <span x-show="selected.event" class="badge badge-event">{{ __('Événement') }}</span>
                         </div>
                         <p x-show="selected.description" class="text-sm text-ink-soft line-clamp-3" x-text="selected.description"></p>
                         <div class="grid grid-cols-2 gap-2 pt-1">
-                            <a :href="`{{ url('/lieux') }}/${selected.id}`" class="btn btn-md btn-ink col-span-2"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>Voir la fiche</a>
-                            <form method="POST" :action="`{{ url('/parcours/ajouter-lieu') }}/${selected.id}`">@csrf<button class="btn btn-md btn-soft w-full"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>Au parcours</button></form>
-                            <a :href="gmaps(selected)" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Y aller</a>
+                            <a :href="`{{ url('/lieux') }}/${selected.id}`" class="btn btn-md btn-ink col-span-2"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>{{ __('Voir la fiche') }}</a>
+                            <form method="POST" :action="`{{ url('/parcours/ajouter-lieu') }}/${selected.id}`">@csrf<button class="btn btn-md btn-soft w-full"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>{{ __('Au parcours') }}</button></form>
+                            <a :href="gmaps(selected)" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>{{ __('Y aller') }}</a>
                         </div>
                     </div>
                 </div>
@@ -170,11 +170,11 @@
                             <p class="text-[10px] font-bold uppercase tracking-widest" :style="`color:${selectedAlert.color}`" x-text="selectedAlert.label"></p>
                             <p class="font-display text-xl leading-tight" x-text="selectedAlert.title"></p>
                             <p x-show="selectedAlert.message" class="text-sm text-ink-soft mt-2" x-text="selectedAlert.message"></p>
-                            <p class="text-xs text-ink-muted mt-2"><span x-show="selectedAlert.place" x-text="selectedAlert.place ? selectedAlert.place.title + ' · ' : ''"></span>expire dans <span x-text="selectedAlert.expires_in"></span></p>
+                            <p class="text-xs text-ink-muted mt-2"><span x-show="selectedAlert.place" x-text="selectedAlert.place ? selectedAlert.place.title + ' · ' : ''"></span>{{ __('expire dans') }} <span x-text="selectedAlert.expires_in"></span></p>
                         </div>
-                        <button @click="closeSheet()" class="h-9 w-9 rounded-full bg-paper text-ink flex items-center justify-center" aria-label="Fermer"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+                        <button @click="closeSheet()" class="h-9 w-9 rounded-full bg-paper text-ink flex items-center justify-center" aria-label="{{ __('Fermer') }}"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
                     </div>
-                    <template x-if="selectedAlert.place"><a :href="`{{ url('/lieux') }}/${selectedAlert.place.id}`" class="btn btn-md btn-ink w-full mt-4">Voir le lieu</a></template>
+                    <template x-if="selectedAlert.place"><a :href="`{{ url('/lieux') }}/${selectedAlert.place.id}`" class="btn btn-md btn-ink w-full mt-4">{{ __('Voir le lieu') }}</a></template>
                 </div>
             </template>
         </div>
@@ -192,17 +192,17 @@
                 query: @js(request('q', '')), filter: @js(request('filtre', 'all')), budget: '', listMode: 'places', sheet: false,
                 apiPois: @js(url('/api/v1/pois')), apiAlerts: @js(url('/api/v1/alerts')),
                 filters: [
-                    { key: 'all', label: 'Tous', icon: 'apps' },
-                    { key: 'musees', label: 'Musées', icon: 'palette', slug: 'musee' },
-                    { key: 'monuments', label: 'Monuments', icon: 'account_balance', slug: 'monument' },
-                    { key: 'parcs', label: 'Parcs', icon: 'park', slug: 'parc-jardin' },
-                    { key: 'culturels', label: 'Scènes & galeries', icon: 'theater_comedy', slug: 'lieu-culturel' },
-                    { key: 'evenements', label: 'Événements', icon: 'celebration', slug: 'evenement-culturel' },
-                    { key: 'restauration', label: 'Restauration', icon: 'restaurant', slug: 'restauration' },
-                    { key: 'itineraires', label: 'Balades', icon: 'route', slug: 'itineraire' },
-                    { key: 'librairies', label: 'Librairies', icon: 'menu_book', slug: 'librairies-bibliotheques' },
-                    { key: 'ateliers', label: 'Ateliers', icon: 'handyman', slug: 'ateliers-artisans' },
-                    { key: 'free', label: 'Gratuit', icon: 'loyalty' },
+                    { key: 'all', label: @js(__('Tous')), icon: 'apps' },
+                    { key: 'musees', label: @js(__('Musées')), icon: 'palette', slug: 'musee' },
+                    { key: 'monuments', label: @js(__('Monuments')), icon: 'account_balance', slug: 'monument' },
+                    { key: 'parcs', label: @js(__('Parcs')), icon: 'park', slug: 'parc-jardin' },
+                    { key: 'culturels', label: @js(__('Scènes & galeries')), icon: 'theater_comedy', slug: 'lieu-culturel' },
+                    { key: 'evenements', label: @js(__('Événements')), icon: 'celebration', slug: 'evenement-culturel' },
+                    { key: 'restauration', label: @js(__('Restauration')), icon: 'restaurant', slug: 'restauration' },
+                    { key: 'itineraires', label: @js(__('Balades')), icon: 'route', slug: 'itineraire' },
+                    { key: 'librairies', label: @js(__('Librairies')), icon: 'menu_book', slug: 'librairies-bibliotheques' },
+                    { key: 'ateliers', label: @js(__('Ateliers')), icon: 'handyman', slug: 'ateliers-artisans' },
+                    { key: 'free', label: @js(__('Gratuit')), icon: 'loyalty' },
                 ],
                 init() {
                     if (!window.L) return;
@@ -240,18 +240,18 @@
                     map.flyTo([a.lat, a.lng], Math.max(map.getZoom(), 15), { duration: 0.8 });
                 },
                 closeSheet() { this.selected = null; this.selectedAlert = null; document.getElementById('camino-map').classList.remove('map-3d'); },
-                priceLabel(p) { return p.is_free ? 'Gratuit' : (p.price_level ? '€'.repeat(p.price_level) : 'Tarif non renseigné'); },
+                priceLabel(p) { return p.is_free ? @js(__('Gratuit')) : (p.price_level ? '€'.repeat(p.price_level) : @js(__('Tarif non renseigné'))); },
                 gmaps(p) { return `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`; },
                 setFilter(key) { this.filter = key; this.load(); },
                 countLabel() {
                     const n = this.places.length;
-                    if (this.loading && !n) return 'Chargement…';
-                    if (!n) return 'Aucun lieu ici';
+                    if (this.loading && !n) return @js(__('Chargement…'));
+                    if (!n) return @js(__('Aucun lieu ici'));
                     return n >= 120 ? '120+ lieux (zoome pour affiner)' : `${n} lieu${n > 1 ? 'x' : ''}`;
                 },
                 async locate() {
                     try { const p = await C.locate(); map.setView([p.lat, p.lng], 15); L.circleMarker([p.lat, p.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#0F8B8D', fillOpacity: 1 }).addTo(map); }
-                    catch (e) { alert('Impossible de récupérer ta position.'); }
+                    catch (e) { alert(@js(__('Impossible de récupérer ta position.'))); }
                 },
                 async load() {
                     if (!map || map.getSize().x === 0) return;
