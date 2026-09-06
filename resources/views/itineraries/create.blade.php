@@ -206,186 +206,247 @@
             {{-- ============================================================ Résultat --}}
             <div class="min-w-0">
                 @if($result && $hasResult)
-                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>Modifier les critères</button>
                     @php
                         $v3 = ($result['version'] ?? 2) >= 3;
                         $startsAt = \Illuminate\Support\Carbon::parse($result['starts_at']);
                         $endsAt = \Illuminate\Support\Carbon::parse($result['ends_at']);
+                        $visitCount = count(array_filter($steps, fn ($s) => ($s['kind'] ?? 'visit') === 'visit'));
+                        $km = (float) ($result['total_distance_km'] ?? 0);
+                        $vibe = match (true) {
+                            ($result['mode'] ?? 'walk') === 'bike' => ['pedal_bike', __('Sortie à vélo')],
+                            ($result['mode'] ?? 'walk') === 'transit' => ['directions_subway', __('Journée métro-musées')],
+                            $km <= 2.2 => ['self_improvement', __('Flânerie tranquille')],
+                            $km <= 4.5 => ['directions_walk', __('Balade équilibrée')],
+                            default => ['hiking', __('Journée sportive')],
+                        };
+                        $coords = collect($steps)->map(fn ($s) => $s['lat'] . ',' . $s['lng'])->all();
+                        $origin = $result['start']['lat'] . ',' . $result['start']['lng'];
+                        $destination = !empty($result['end']) ? $result['end']['lat'] . ',' . $result['end']['lng'] : end($coords);
+                        $waypoints = !empty($result['end']) ? $coords : array_slice($coords, 0, -1);
+                        $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . $destination . ($waypoints ? '&waypoints=' . implode('|', $waypoints) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : ($result['mode'] === 'transit' ? 'transit' : 'walking'));
+                        $modeLabel = match ($result['mode']) { 'bike' => __('à vélo'), 'transit' => __('à pied et en transports'), default => __('à pied') };
                     @endphp
-                    @if(!empty($result['variants']) && count($result['variants']) > 1)
-                        <div class="mb-3">
-                            <p class="eyebrow mb-2">Trois propositions, même départ</p>
-                            <div class="grid grid-cols-3 gap-2">
-                                @foreach($result['variants'] as $v)
-                                    <form method="POST" action="{{ route('itineraries.variant', $v['key']) }}">@csrf
-                                        <button type="submit" class="w-full text-left rounded-2xl border-2 p-3 transition {{ $v['active'] ? 'border-ink bg-white shadow-card' : 'border-transparent bg-white/70 hover:bg-white' }}" @disabled($v['active'])>
-                                            <span class="material-symbols-outlined {{ $v['active'] ? 'text-coral' : 'text-ink-muted' }}">{{ $v['icon'] }}</span>
-                                            <p class="font-semibold text-sm leading-tight mt-1">{{ $v['label'] }}</p>
-                                            <p class="text-[11px] text-ink-muted mt-0.5">{{ $v['steps'] }} lieux · {{ floor($v['minutes'] / 60) }} h{{ $v['minutes'] % 60 ? str_pad($v['minutes'] % 60, 2, '0', STR_PAD_LEFT) : '' }} · {{ number_format($v['km'], 1, ',', ' ') }} km</p>
-                                            <p class="text-[10px] text-ink-muted mt-1 line-clamp-2 hidden sm:block">{{ implode(' · ', $v['titles']) }}</p>
-                                        </button>
-                                    </form>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-                    <div class="card overflow-hidden">
-                        <div id="itinerary-map" class="h-[320px] sm:h-[440px]"></div>
-                        <div class="p-5 sm:p-6">
+
+                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>{{ __('Modifier les critères') }}</button>
+
+                    {{-- Ta journée : résumé --}}
+                    <div class="rounded-4xl bg-ink text-white relative overflow-hidden result-pop">
+                        <div class="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-coral/40 blur-3xl"></div>
+                        <div class="absolute -left-16 -bottom-24 h-64 w-64 rounded-full bg-teal/30 blur-3xl"></div>
+                        <div class="absolute inset-0 opacity-[0.12]" style="background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0); background-size: 24px 24px;"></div>
+                        <div class="relative p-5 sm:p-7">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="eyebrow">{{ ucfirst($startsAt->translatedFormat('l j F')) }} · départ {{ $startsAt->format('H\hi') }}</p>
-                                    <h2 class="display text-2xl sm:text-3xl mt-1">{{ $result['title'] }}</h2>
-                                    <p class="text-sm text-ink-muted mt-1 flex flex-wrap items-center gap-x-1.5">
+                                    <p class="eyebrow">{{ ucfirst($startsAt->translatedFormat('l j F')) }} · {{ __('départ') }} {{ $startsAt->format('H\hi') }}</p>
+                                    <h2 class="display text-3xl sm:text-4xl mt-1">{{ $result['title'] }}</h2>
+                                    <p class="mt-2 text-sm text-white/75 flex flex-wrap items-center gap-x-1.5">
                                         <span class="material-symbols-outlined text-coral" style="font-size:16px">trip_origin</span>{{ $result['start']['label'] }}
-                                        @if(!empty($result['end']))<span class="material-symbols-outlined text-ink-muted" style="font-size:16px">arrow_forward</span>{{ $result['end']['label'] }}@endif
-                                        · {{ match($result['mode']) { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }}
-                                        @if(($result['routing_source'] ?? '') === 'valhalla') · trajets réels @endif
+                                        @if(!empty($result['end']))<span class="material-symbols-outlined text-white/50" style="font-size:16px">arrow_forward</span>{{ $result['end']['label'] }}@endif
                                     </p>
                                 </div>
                                 @if(!empty($result['weather']))
-                                    <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-2 rounded-full bg-sun-soft px-3 py-1.5 text-xs text-amber-800 hover:bg-sun-soft/70">
-                                        <span class="material-symbols-outlined filled" style="font-size:18px">{{ $result['weather']['icon'] }}</span>
-                                        {{ $result['weather']['label'] }}{{ $result['weather']['temp'] !== null ? ' · ' . round($result['weather']['temp']) . '°' : '' }} · pluie {{ $result['weather']['rain_probability'] }} %
+                                    <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs hover:bg-white/20 transition">
+                                        <span class="material-symbols-outlined filled text-sun" style="font-size:18px">{{ $result['weather']['icon'] }}</span>
+                                        {{ $result['weather']['label'] }}{{ $result['weather']['temp'] !== null ? ' · ' . round($result['weather']['temp']) . '°' : '' }}
                                     </button>
                                 @endif
                             </div>
 
-                            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                            <div class="mt-5 flex flex-wrap gap-2">
                                 @foreach([
-                                    ['schedule', floor($result['total_minutes'] / 60) . ' h ' . str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT), 'fin vers ' . $endsAt->format('H\hi')],
-                                    [$mobIcon, number_format($result['total_distance_km'], 1, ',', ' ') . ' km', ($v3 ? ($result['travel_share'] ?? 0) . ' % du temps' : 'de trajet')],
-                                    ['museum', count(array_filter($steps, fn ($s) => ($s['kind'] ?? 'visit') === 'visit')) . ' lieux', $v3 && ($result['wait_minutes'] ?? 0) > 0 ? $result['wait_minutes'] . ' min d\'attente' : 'sans attente'],
-                                    ['payments', number_format($result['total_cost_eur'], 0, ',', ' ') . ' €', 'estimés'],
+                                    ['schedule', floor($result['total_minutes'] / 60) . ' h ' . str_pad($result['total_minutes'] % 60, 2, '0', STR_PAD_LEFT), __('fin vers') . ' ' . $endsAt->format('H\hi')],
+                                    [$mobIcon, number_format($km, 1, ',', ' ') . ' km', $modeLabel],
+                                    ['museum', $visitCount . ' ' . __('lieux'), $v3 && ($result['wait_minutes'] ?? 0) > 0 ? $result['wait_minutes'] . ' ' . __('min d\'attente') : __('sans attente')],
+                                    ['payments', number_format($result['total_cost_eur'], 0, ',', ' ') . ' €', __('estimés')],
+                                    [$vibe[0], $vibe[1], $v3 ? ($result['travel_share'] ?? 0) . ' % ' . __('en trajet') : ''],
                                 ] as [$icon, $value, $label])
-                                    <div class="rounded-2xl bg-paper p-3">
-                                        <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">{{ $icon }}</span>
-                                        <p class="font-semibold text-lg leading-tight">{{ $value }}</p>
-                                        <p class="text-[11px] text-ink-muted">{{ $label }}</p>
+                                    <div class="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 min-w-0">
+                                        <span class="material-symbols-outlined text-sun" style="font-size:20px">{{ $icon }}</span>
+                                        <div class="leading-tight min-w-0"><p class="font-semibold text-sm whitespace-nowrap">{{ $value }}</p><p class="text-[10px] text-white/60 whitespace-nowrap">{{ $label }}</p></div>
                                     </div>
                                 @endforeach
                             </div>
 
-                            @if(!empty($result['warnings']))
-                                <div class="mt-4 space-y-1">
-                                    @foreach($result['warnings'] as $w)
-                                        <p class="text-xs text-amber-800 bg-sun-soft rounded-xl px-3 py-2 flex items-start gap-2"><span class="material-symbols-outlined shrink-0" style="font-size:16px">info</span>{{ $w }}</p>
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            {{-- Timeline --}}
-                            <ol class="mt-6 relative">
-                                <div class="absolute left-[15px] top-4 bottom-4 w-0.5 bg-ink/10"></div>
-                                <li class="relative pl-11 pb-5">
-                                    <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-coral text-white flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">flag</span></span>
-                                    <p class="text-sm font-semibold">{{ $result['start']['label'] }}</p>
-                                    <p class="text-xs text-ink-muted">Départ à {{ $startsAt->format('H\hi') }}</p>
-                                </li>
-                                @foreach($steps as $step)
-                                    @php $lunch = ($step['kind'] ?? 'visit') === 'lunch'; $h = $step['hours'] ?? null; @endphp
-                                    <li class="relative pl-11 pb-5">
-                                        <span class="absolute left-0 top-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold {{ $lunch ? 'bg-sun text-ink' : 'bg-ink text-white' }}">@if($lunch)<span class="material-symbols-outlined" style="font-size:16px">restaurant</span>@else{{ $step['order'] }}@endif</span>
-                                        <p class="text-[11px] text-ink-muted mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                            @if(!empty($step['transit']))
-                                                <span class="inline-flex flex-wrap items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">directions_subway</span>{{ $step['travel_minutes'] }} min ·
-                                                    @foreach($step['transit']['lines'] as $line)<span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold" style="background: {{ $line['color'] }}; color: {{ $line['text_color'] }}">{{ $line['mode'] }} {{ $line['code'] }}</span>@endforeach
-                                                    <span>· {{ $step['transit']['walking_min'] }} min à pied</span></span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">{{ ($step['travel_mode'] ?? '') === 'bike' ? 'directions_bike' : 'directions_walk' }}</span>{{ $step['travel_minutes'] }} min · {{ number_format($step['travel_km'], 1, ',', ' ') }} km</span>
-                                            @endif
-                                            @if(($step['wait_minutes'] ?? 0) > 0)<span class="inline-flex items-center gap-1 text-amber-700"><span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span>{{ $step['wait_minutes'] }} min d'attente avant l'ouverture</span>@endif
-                                        </p>
-                                        <a href="{{ route('places.show', $step['place_id']) }}" class="card card-hover flex gap-3 p-2.5 {{ $lunch ? 'border-sun/60' : '' }}">
-                                            <div class="w-24 h-24 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">
-                                                @if($step['cover'])<img src="{{ $step['cover'] }}" alt="" loading="lazy" class="w-full h-full object-cover">@else<span class="material-symbols-outlined text-white/80">{{ $lunch ? 'restaurant' : 'place' }}</span>@endif
-                                            </div>
-                                            <div class="min-w-0 flex-1">
-                                                <p class="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">{{ $lunch ? 'Pause déjeuner' : $step['category'] }}</p>
-                                                <p class="font-semibold leading-snug line-clamp-2">{{ $step['title'] }}</p>
-                                                <p class="text-xs text-ink-muted mt-0.5">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['visit_minutes'] }} min sur place{{ $step['is_free'] ? ' · gratuit' : ($step['cost_eur'] ? ' · ≈ ' . number_format($step['cost_eur'], 0) . ' €' : '') }}</p>
-                                                <div class="mt-1.5 flex flex-wrap gap-1">
-                                                    @if($h)
-                                                        @if($h['status'] === 'open')
-                                                            <span class="badge badge-free !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">schedule</span>Ouvert {{ $h['opens'] }}–{{ $h['closes'] }}</span>
-                                                        @else
-                                                            <span class="badge bg-paper-deep text-ink-muted !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">help</span>Horaires à vérifier</span>
-                                                        @endif
-                                                    @endif
-                                                    @if(array_key_exists('accessible', $step) && $step['accessible'] === true)<span class="badge badge-free !text-[10px]" title="{{ $step['accessibility_note'] ?? '' }}"><span class="material-symbols-outlined" style="font-size:12px">accessible</span>PMR</span>@elseif(!empty($result['accessible']) && ($step['accessible'] ?? null) === null)<span class="badge bg-paper-deep text-ink-muted !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">accessible</span>Accès à vérifier</span>@endif
-                                                    <span class="badge bg-teal-soft text-teal-dark !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">auto_awesome</span>{{ $step['reason'] }}</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                        @if(!empty($step['conflict']))
-                                            <p class="mt-1.5 text-[11px] text-coral-dark bg-coral-soft rounded-xl px-3 py-1.5 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">warning</span>La visite finirait après la fermeture ({{ $step['hours']['closes'] ?? '' }}).</p>
-                                        @endif
-                                        {{-- Outils d'édition de l'étape --}}
-                                        @php $i = $loop->index; $last = $loop->last; @endphp
-                                        <div class="mt-1.5 flex flex-wrap items-center gap-1">
-                                            <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="up"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="Monter" @disabled($loop->first)><span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span></button></form>
-                                            <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="down"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="Descendre" @disabled($last)><span class="material-symbols-outlined" style="font-size:18px">arrow_downward</span></button></form>
-                                            <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="-15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="15 min de moins" @disabled($step['visit_minutes'] <= 15)><span class="material-symbols-outlined" style="font-size:18px">remove</span></button></form>
-                                            <span class="text-[11px] font-semibold tabular-nums">{{ $step['visit_minutes'] }} min</span>
-                                            <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="15 min de plus"><span class="material-symbols-outlined" style="font-size:18px">add</span></button></form>
-                                            <span class="flex-1"></span>
-                                            @if(!$lunch)
-                                                <form method="POST" action="{{ route('itineraries.step-lock', $i) }}">@csrf<button class="btn btn-icon !h-8 !w-8 {{ !empty($step['locked']) ? 'btn-ink' : 'btn-ghost' }}" title="{{ !empty($step['locked']) ? 'Déverrouiller' : 'Garder ce lieu au recalcul' }}"><span class="material-symbols-outlined {{ !empty($step['locked']) ? 'filled' : '' }}" style="font-size:18px">{{ !empty($step['locked']) ? 'lock' : 'lock_open' }}</span></button></form>
-                                            @endif
-                                            <form method="POST" action="{{ route('itineraries.step-replace', $i) }}">@csrf<button class="btn btn-icon btn-ghost !h-8 !w-8" title="Remplacer par un lieu similaire"><span class="material-symbols-outlined" style="font-size:18px">swap_horiz</span></button></form>
-                                            <form method="POST" action="{{ route('itineraries.step-remove', $i) }}">@csrf<button class="btn btn-icon btn-ghost !h-8 !w-8 hover:text-coral" title="Retirer" @disabled(count($steps) <= 1)><span class="material-symbols-outlined" style="font-size:18px">close</span></button></form>
-                                        </div>
-                                        @if(!empty($step['alternative']))
-                                            <a href="{{ route('places.show', $step['alternative']['place_id']) }}" class="mt-1.5 flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 hover:bg-sky-100">
-                                                <span class="material-symbols-outlined" style="font-size:16px">umbrella</span>
-                                                <span class="min-w-0 truncate">Plan B s'il pleut : <span class="font-semibold">{{ $step['alternative']['title'] }}</span>{{ $step['alternative']['minutes_away'] !== null ? ' · à ' . $step['alternative']['minutes_away'] . ' min' : '' }}</span>
-                                            </a>
-                                        @endif
-                                    </li>
-                                @endforeach
-                                <li class="relative pl-11">
-                                    <span class="absolute left-0 top-0 h-8 w-8 rounded-full bg-paper-deep text-ink flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:16px">sports_score</span></span>
-                                    <p class="text-sm font-semibold">{{ $result['end']['label'] ?? 'Fin du parcours' }}</p>
-                                    <p class="text-xs text-ink-muted">@if(!empty($result['end']))<span class="material-symbols-outlined align-middle" style="font-size:14px">{{ $mobIcon }}</span> {{ $result['end']['travel_minutes'] ?? 0 }} min · {{ number_format($result['end']['travel_km'] ?? 0, 1, ',', ' ') }} km · arrivée @endif vers {{ $endsAt->format('H\hi') }}</p>
-                                </li>
-                            </ol>
-
-                            @php
-                                $coords = collect($steps)->map(fn ($s) => $s['lat'] . ',' . $s['lng'])->all();
-                                $origin = $result['start']['lat'] . ',' . $result['start']['lng'];
-                                $destination = !empty($result['end']) ? $result['end']['lat'] . ',' . $result['end']['lng'] : end($coords);
-                                $waypoints = !empty($result['end']) ? $coords : array_slice($coords, 0, -1);
-                                $gmUrl = 'https://www.google.com/maps/dir/?api=1&origin=' . $origin . '&destination=' . $destination . ($waypoints ? '&waypoints=' . implode('|', $waypoints) : '') . '&travelmode=' . ($result['mode'] === 'bike' ? 'bicycling' : 'walking');
-                            @endphp
-                            <div class="mt-6 flex flex-wrap gap-2">
-                                <a href="{{ route('itineraries.navigate') }}" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Suivre le parcours</a>
-                                <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>Google Maps</a>
+                            <div class="mt-5 flex flex-wrap gap-2">
+                                <a href="{{ route('itineraries.navigate') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">navigation</span>{{ __('Suivre le parcours') }}</a>
+                                <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">open_in_new</span>Google Maps</a>
+                                <button type="button" @click="navigator.clipboard.writeText(@js($gmUrl)); $dispatch('toast', @js(__('Lien copié')))" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">share</span>{{ __('Partager') }}</button>
                                 @auth
                                     @if(!empty($result['itinerary_id']))
-                                        <a href="{{ route('itineraries.show', $result['itinerary_id']) }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Enregistré · voir la fiche</a>
+                                        <a href="{{ route('itineraries.show', $result['itinerary_id']) }}" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">bookmark</span>{{ __('Enregistré') }}</a>
                                     @endif
                                 @else
-                                    <a href="{{ route('register') }}" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">bookmark</span>Créer un compte pour le garder</a>
+                                    <a href="{{ route('register') }}" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">bookmark</span>{{ __('Créer un compte pour le garder') }}</a>
                                 @endauth
-                                <button type="button" @click="navigator.clipboard.writeText(@js($gmUrl)); $dispatch('toast', 'Lien copié')" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
                             </div>
                         </div>
                     </div>
+
+                    {{-- Trois propositions --}}
+                    @if(!empty($result['variants']) && count($result['variants']) > 1)
+                        <div class="mt-3 grid grid-cols-3 gap-2">
+                            @foreach($result['variants'] as $v)
+                                <form method="POST" action="{{ route('itineraries.variant', $v['key']) }}">@csrf
+                                    <button type="submit" class="w-full text-left rounded-2xl border-2 p-3 transition {{ $v['active'] ? 'border-ink bg-white shadow-card' : 'border-transparent bg-white/70 hover:bg-white' }}" @disabled($v['active'])>
+                                        <span class="material-symbols-outlined {{ $v['active'] ? 'text-coral' : 'text-ink-muted' }}">{{ $v['icon'] }}</span>
+                                        <p class="font-semibold text-sm leading-tight mt-1">{{ __($v['label']) }}</p>
+                                        <p class="text-[11px] text-ink-muted mt-0.5">{{ $v['steps'] }} {{ __('lieux') }} · {{ floor($v['minutes'] / 60) }} h{{ $v['minutes'] % 60 ? str_pad($v['minutes'] % 60, 2, '0', STR_PAD_LEFT) : '' }} · {{ number_format($v['km'], 1, ',', ' ') }} km</p>
+                                        <p class="text-[10px] text-ink-muted mt-1 line-clamp-2 hidden sm:block">{{ implode(' · ', $v['titles']) }}</p>
+                                    </button>
+                                </form>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    {{-- Carte --}}
+                    <div class="card overflow-hidden mt-3 relative">
+                        <div id="itinerary-map" class="h-[300px] sm:h-[440px]"></div>
+                        <div class="absolute top-3 left-3 z-[500] pointer-events-none flex gap-1.5">
+                            <span class="badge bg-white/95 shadow-card !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">{{ $mobIcon }}</span>{{ ($result['routing_source'] ?? '') === 'valhalla' ? __('Trajets réels') : __('Trajets estimés') }}</span>
+                            @if(!empty($result['transit_used']))<span class="badge bg-white/95 shadow-card !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">directions_subway</span>{{ __('Transports') }}</span>@endif
+                        </div>
+                    </div>
+
+                    @if(!empty($result['warnings']))
+                        <div class="mt-3 space-y-1">
+                            @foreach($result['warnings'] as $w)
+                                <p class="text-xs text-amber-800 bg-sun-soft rounded-xl px-3 py-2 flex items-start gap-2"><span class="material-symbols-outlined shrink-0" style="font-size:16px">info</span>{{ __($w) }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    {{-- Chapitres du parcours --}}
+                    <div class="mt-5 flex items-end justify-between gap-3">
+                        <div><p class="eyebrow">{{ __('Étape par étape') }}</p><h3 class="display text-2xl">{{ __('Le programme') }}</h3></div>
+                        <p class="text-xs text-ink-muted hidden sm:block">{{ __('Tu peux réordonner, remplacer ou retirer chaque étape.') }}</p>
+                    </div>
+                    <ol class="mt-3 relative">
+                        <div class="absolute left-[19px] top-6 bottom-6 w-0.5 bg-ink/10"></div>
+
+                        <li class="relative pl-14 pb-4">
+                            <span class="absolute left-0 top-0 h-10 w-10 rounded-full bg-coral text-white flex items-center justify-center shadow-card"><span class="material-symbols-outlined" style="font-size:18px">flag</span></span>
+                            <div class="pt-2">
+                                <p class="font-semibold">{{ $result['start']['label'] }}</p>
+                                <p class="text-xs text-ink-muted">{{ __('Départ à') }} {{ $startsAt->format('H\hi') }}</p>
+                            </div>
+                        </li>
+
+                        @foreach($steps as $step)
+                            @php
+                                $lunch = ($step['kind'] ?? 'visit') === 'lunch';
+                                $h = $step['hours'] ?? null;
+                                $i = $loop->index;
+                                $last = $loop->last;
+                                $chapter = $lunch ? __('Pause bien méritée') : ($loop->first ? __('On commence fort') : ($last && empty($result['end']) ? __('Dernière étape') : __('Étape') . ' ' . $step['order']));
+                                $travelIcon = ($step['travel_mode'] ?? '') === 'transit' ? 'directions_subway' : ((($step['travel_mode'] ?? '') === 'bike') ? 'directions_bike' : 'directions_walk');
+                            @endphp
+                            {{-- Trajet --}}
+                            <li class="relative pl-14 pb-3">
+                                <span class="absolute left-[11px] top-0 h-[18px] w-[18px] rounded-full bg-paper border-2 border-ink/10 flex items-center justify-center"><span class="material-symbols-outlined text-ink-muted" style="font-size:11px">{{ $travelIcon }}</span></span>
+                                <div class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-white border border-ink/5 px-3 py-1 text-[11px] text-ink-muted">
+                                    @if(!empty($step['transit']))
+                                        <span class="font-semibold text-ink">{{ $step['travel_minutes'] }} min</span>
+                                        @foreach($step['transit']['lines'] as $line)<span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold" style="background: {{ $line['color'] }}; color: {{ $line['text_color'] }}">{{ $line['mode'] }} {{ $line['code'] }}</span>@endforeach
+                                        <span>{{ $step['transit']['walking_min'] }} {{ __('min à pied') }}</span>
+                                    @else
+                                        <span class="font-semibold text-ink">{{ $step['travel_minutes'] }} min</span><span>{{ number_format($step['travel_km'], 1, ',', ' ') }} km</span>
+                                    @endif
+                                    @if(($step['wait_minutes'] ?? 0) > 0)<span class="text-amber-700 inline-flex items-center gap-0.5"><span class="material-symbols-outlined" style="font-size:12px">hourglass_top</span>{{ $step['wait_minutes'] }} {{ __('min d\'attente') }}</span>@endif
+                                </div>
+                            </li>
+
+                            {{-- Étape --}}
+                            <li class="relative pl-14 pb-5" x-data="{ tools: false }">
+                                <span class="absolute left-0 top-3 h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shadow-card {{ $lunch ? 'bg-sun text-ink' : 'bg-ink text-white' }}">@if($lunch)<span class="material-symbols-outlined" style="font-size:18px">restaurant</span>@else{{ $step['order'] }}@endif</span>
+                                <div class="card overflow-hidden {{ $lunch ? 'border-sun/60' : '' }} {{ !empty($step['locked']) ? 'ring-2 ring-ink/80' : '' }}">
+                                    <div class="flex">
+                                        <a href="{{ route('places.show', $step['place_id']) }}" class="relative w-28 sm:w-36 shrink-0 placeholder-cover">
+                                            @if($step['cover'])<img src="{{ $step['cover'] }}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover">@else<span class="absolute inset-0 flex items-center justify-center"><span class="material-symbols-outlined text-white/80" style="font-size:28px">{{ $lunch ? 'restaurant' : 'place' }}</span></span>@endif
+                                            <span class="absolute bottom-1.5 left-1.5 rounded-full bg-ink/70 text-white text-[10px] font-semibold px-2 py-0.5 backdrop-blur">{{ $step['arrive_at'] }}</span>
+                                        </a>
+                                        <div class="min-w-0 flex-1 p-3">
+                                            <p class="text-[10px] font-bold uppercase tracking-wider {{ $lunch ? 'text-amber-700' : 'text-coral' }}">{{ $chapter }} · {{ $lunch ? __('Pause déjeuner') : $step['category'] }}</p>
+                                            <a href="{{ route('places.show', $step['place_id']) }}" class="block font-semibold leading-snug line-clamp-2 mt-0.5 hover:text-coral">{{ $step['title'] }}</a>
+                                            <p class="text-xs text-ink-muted mt-1">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['visit_minutes'] }} {{ __('min sur place') }}{{ $step['is_free'] ? ' · ' . __('gratuit') : ($step['cost_eur'] ? ' · ≈ ' . number_format($step['cost_eur'], 0) . ' €' : '') }}</p>
+                                            <div class="mt-1.5 flex flex-wrap gap-1">
+                                                @if($h && $h['status'] === 'open')<span class="badge badge-free !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">schedule</span>{{ $h['opens'] }}–{{ $h['closes'] }}</span>@elseif($h)<span class="badge bg-paper-deep text-ink-muted !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">help</span>{{ __('Horaires à vérifier') }}</span>@endif
+                                                @if(array_key_exists('accessible', $step) && $step['accessible'] === true)<span class="badge badge-free !text-[10px]" title="{{ $step['accessibility_note'] ?? '' }}"><span class="material-symbols-outlined" style="font-size:12px">accessible</span>PMR</span>@elseif(!empty($result['accessible']) && ($step['accessible'] ?? null) === null)<span class="badge bg-paper-deep text-ink-muted !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">accessible</span>{{ __('Accès à vérifier') }}</span>@endif
+                                                <span class="badge bg-teal-soft text-teal-dark !text-[10px]"><span class="material-symbols-outlined" style="font-size:12px">auto_awesome</span>{{ __($step['reason']) }}</span>
+                                                @if(!empty($step['locked']))<span class="badge bg-ink text-white !text-[10px]"><span class="material-symbols-outlined filled" style="font-size:12px">lock</span>{{ __('Gardé') }}</span>@endif
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="tools = !tools" class="self-start m-2 h-8 w-8 rounded-full hover:bg-paper flex items-center justify-center text-ink-muted" :class="tools && 'bg-paper text-ink'" title="{{ __('Modifier cette étape') }}"><span class="material-symbols-outlined" style="font-size:20px">more_horiz</span></button>
+                                    </div>
+
+                                    @if(!empty($step['conflict']))
+                                        <p class="mx-3 mb-2 text-[11px] text-coral-dark bg-coral-soft rounded-xl px-3 py-1.5 flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">warning</span>{{ __('La visite finirait après la fermeture') }} ({{ $step['hours']['closes'] ?? '' }}).</p>
+                                    @endif
+                                    @if(!empty($step['alternative']))
+                                        <a href="{{ route('places.show', $step['alternative']['place_id']) }}" class="mx-3 mb-2 flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-1.5 text-[11px] text-sky-800 hover:bg-sky-100">
+                                            <span class="material-symbols-outlined" style="font-size:14px">umbrella</span>
+                                            <span class="min-w-0 truncate">{{ __('Plan B s\'il pleut') }} : <span class="font-semibold">{{ $step['alternative']['title'] }}</span>{{ $step['alternative']['minutes_away'] !== null ? ' · ' . $step['alternative']['minutes_away'] . ' min' : '' }}</span>
+                                        </a>
+                                    @endif
+
+                                    {{-- Outils --}}
+                                    <div x-show="tools" x-cloak x-transition class="border-t border-ink/5 bg-paper/60 px-2 py-1.5 flex flex-wrap items-center gap-1">
+                                        <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="up"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="{{ __('Monter') }}" @disabled($loop->first)><span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span></button></form>
+                                        <form method="POST" action="{{ route('itineraries.step-move', $i) }}">@csrf<input type="hidden" name="direction" value="down"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="{{ __('Descendre') }}" @disabled($last)><span class="material-symbols-outlined" style="font-size:18px">arrow_downward</span></button></form>
+                                        <span class="mx-1 h-5 w-px bg-ink/10"></span>
+                                        <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="-15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="{{ __('15 min de moins') }}" @disabled($step['visit_minutes'] <= 15)><span class="material-symbols-outlined" style="font-size:18px">remove</span></button></form>
+                                        <span class="text-[11px] font-semibold tabular-nums">{{ $step['visit_minutes'] }} min</span>
+                                        <form method="POST" action="{{ route('itineraries.step-duration', $i) }}">@csrf<input type="hidden" name="delta" value="15"><button class="btn btn-icon btn-ghost !h-8 !w-8" title="{{ __('15 min de plus') }}"><span class="material-symbols-outlined" style="font-size:18px">add</span></button></form>
+                                        <span class="flex-1"></span>
+                                        @if(!$lunch)
+                                            <form method="POST" action="{{ route('itineraries.step-lock', $i) }}">@csrf<button class="btn btn-sm !h-8 {{ !empty($step['locked']) ? 'btn-ink' : 'btn-ghost' }}" title="{{ !empty($step['locked']) ? __('Déverrouiller') : __('Garder ce lieu au recalcul') }}"><span class="material-symbols-outlined {{ !empty($step['locked']) ? 'filled' : '' }}" style="font-size:16px">{{ !empty($step['locked']) ? 'lock' : 'lock_open' }}</span><span class="hidden sm:inline">{{ __('Garder') }}</span></button></form>
+                                        @endif
+                                        <form method="POST" action="{{ route('itineraries.step-replace', $i) }}">@csrf<button class="btn btn-sm btn-ghost !h-8" title="{{ __('Remplacer par un lieu similaire') }}"><span class="material-symbols-outlined" style="font-size:16px">swap_horiz</span><span class="hidden sm:inline">{{ __('Remplacer') }}</span></button></form>
+                                        <form method="POST" action="{{ route('itineraries.step-remove', $i) }}">@csrf<button class="btn btn-sm btn-ghost !h-8 hover:text-coral" title="{{ __('Retirer') }}" @disabled(count($steps) <= 1)><span class="material-symbols-outlined" style="font-size:16px">close</span><span class="hidden sm:inline">{{ __('Retirer') }}</span></button></form>
+                                    </div>
+                                </div>
+                            </li>
+                        @endforeach
+
+                        {{-- Arrivée --}}
+                        @if(!empty($result['end']))
+                            @php $endTravelIcon = ($result['end']['travel_mode'] ?? '') === 'transit' ? 'directions_subway' : $mobIcon; @endphp
+                            <li class="relative pl-14 pb-3">
+                                <span class="absolute left-[11px] top-0 h-[18px] w-[18px] rounded-full bg-paper border-2 border-ink/10 flex items-center justify-center"><span class="material-symbols-outlined text-ink-muted" style="font-size:11px">{{ $endTravelIcon }}</span></span>
+                                <div class="inline-flex flex-wrap items-center gap-x-2 rounded-full bg-white border border-ink/5 px-3 py-1 text-[11px] text-ink-muted">
+                                    <span class="font-semibold text-ink">{{ $result['end']['travel_minutes'] ?? 0 }} min</span>
+                                    @if(!empty($result['end']['transit']))@foreach($result['end']['transit']['lines'] as $line)<span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold" style="background: {{ $line['color'] }}; color: {{ $line['text_color'] }}">{{ $line['mode'] }} {{ $line['code'] }}</span>@endforeach @else<span>{{ number_format($result['end']['travel_km'] ?? 0, 1, ',', ' ') }} km</span>@endif
+                                </div>
+                            </li>
+                        @endif
+                        <li class="relative pl-14">
+                            <span class="absolute left-0 top-0 h-10 w-10 rounded-full bg-teal text-white flex items-center justify-center shadow-card"><span class="material-symbols-outlined" style="font-size:18px">sports_score</span></span>
+                            <div class="pt-2">
+                                <p class="font-semibold">{{ $result['end']['label'] ?? __('Fin du parcours') }}</p>
+                                <p class="text-xs text-ink-muted">{{ __('vers') }} {{ $endsAt->format('H\hi') }} · {{ __('Belle journée !') }}</p>
+                            </div>
+                        </li>
+                    </ol>
+
+                    {{-- Barre d'action mobile --}}
+                    <div class="lg:hidden fixed inset-x-3 bottom-[4.6rem] z-[900] flex gap-2 pointer-events-none">
+                        <a href="{{ route('itineraries.navigate') }}" class="pointer-events-auto btn btn-lg btn-primary flex-1 shadow-float"><span class="material-symbols-outlined">navigation</span>{{ __('Suivre le parcours') }}</a>
+                    </div>
+                    <div class="lg:hidden h-16"></div>
                 @elseif($result)
-                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>Modifier les critères</button>
+                    <button type="button" @click="showForm = true; step = 1" class="lg:hidden btn btn-md btn-soft w-full mb-3"><span class="material-symbols-outlined" style="font-size:18px">tune</span>{{ __('Modifier les critères') }}</button>
                     <div class="card p-8 text-center">
                         <span class="material-symbols-outlined text-4xl text-ink-muted">explore_off</span>
-                        <p class="mt-3 font-semibold">Aucun parcours possible avec ces paramètres.</p>
-                        <ul class="mt-2 text-sm text-ink-muted space-y-1">@foreach($result['warnings'] ?? [] as $w)<li>{{ $w }}</li>@endforeach</ul>
-                        <p class="mt-3 text-sm text-ink-muted">Élargis le rayon, augmente le temps ou le budget, change de jour ou de point de départ.</p>
+                        <p class="mt-3 font-semibold">{{ __('Aucun parcours possible avec ces paramètres.') }}</p>
+                        <ul class="mt-2 text-sm text-ink-muted space-y-1">@foreach($result['warnings'] ?? [] as $w)<li>{{ __($w) }}</li>@endforeach</ul>
+                        <p class="mt-3 text-sm text-ink-muted">{{ __('Élargis le rayon, augmente le temps ou le budget, change de jour ou de point de départ.') }}</p>
                     </div>
                 @else
                     <div class="card p-8 sm:p-12 text-center">
                         <div class="mx-auto h-16 w-16 rounded-3xl bg-coral-soft text-coral flex items-center justify-center"><span class="material-symbols-outlined" style="font-size:32px">auto_awesome</span></div>
-                        <h2 class="display text-2xl mt-4">Prêt quand tu l'es.</h2>
-                        <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">Indique d'où tu pars, quand, combien de temps tu as. CAMINO choisit des lieux ouverts à ce moment-là, optimise l'ordre, calcule les vrais trajets et te donne l'heure d'arrivée à chaque étape.</p>
+                        <h2 class="display text-2xl mt-4">{{ __('Prêt quand tu l\'es.') }}</h2>
+                        <p class="mt-2 text-sm text-ink-muted max-w-md mx-auto">{{ __('Indique d\'où tu pars, quand, combien de temps tu as. CAMINO choisit des lieux ouverts à ce moment-là, optimise l\'ordre, calcule les vrais trajets et te donne l\'heure d\'arrivée à chaque étape.') }}</p>
                         <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-sm">
-                            @foreach([['schedule', 'Horaires vérifiés', 'Les lieux fermés ce jour-là sont écartés, l\'attente est calculée.'], ['route', 'Trajets réels', 'Rues et durées OpenStreetMap, à pied ou à vélo, ordre optimisé.'], ['umbrella', 'Météo et plan B', 'S\'il pleut, on privilégie le couvert et chaque étape dehors a une alternative.']] as [$i, $t, $d])
+                            @foreach([['schedule', __('Horaires vérifiés'), __('Les lieux fermés ce jour-là sont écartés, l\'attente est calculée.')], ['route', __('Trajets réels'), __('Rues et durées OpenStreetMap, à pied, à vélo ou en transports, ordre optimisé.')], ['umbrella', __('Météo et plan B'), __('S\'il pleut, on privilégie le couvert et chaque étape dehors a une alternative.')]] as [$i, $t, $d])
                                 <div class="rounded-2xl bg-paper p-4"><span class="material-symbols-outlined text-teal">{{ $i }}</span><p class="font-semibold mt-2">{{ $t }}</p><p class="text-xs text-ink-muted mt-1">{{ $d }}</p></div>
                             @endforeach
                         </div>
@@ -493,13 +554,27 @@
             C.tileLayer().addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
             const pts = (result.geometry && result.geometry.length > 1) ? result.geometry : [[result.start.lat, result.start.lng], ...result.steps.map(s => [s.lat, s.lng])];
-            L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.25 }).addTo(map);
-            const line = L.polyline(pts, { color: result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C', weight: 4, opacity: result.mode === 'transit' ? 0.35 : 0.95, lineJoin: 'round' }).addTo(map);
-            (result.legs || []).forEach(l => { if (l.shape && l.shape.length > 1) L.polyline(l.shape, { color: l.transit ? (l.color || '#1D4ED8') : '#FF5A3C', weight: l.transit ? 5 : 4, opacity: 0.95, dashArray: l.transit ? '8 8' : null, lineJoin: 'round' }).addTo(map); });
-            L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Départ</div>');
-            result.steps.forEach(s => L.marker([s.lat, s.lng], { icon: s.kind === 'lunch' ? C.placeIcon('restauration', { size: 30 }) : C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.kind === 'lunch' ? '🍽️ ' : s.order + '. '}${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`));
-            if (result.end) L.marker([result.end.lat, result.end.lng], { icon: C.stepIcon('<span class="material-symbols-outlined" style="font-size:16px">sports_score</span>') }).addTo(map).bindPopup('<div class="p-3 text-sm font-semibold">Arrivée</div>');
-            map.fitBounds(line.getBounds(), { padding: [30, 30] });
+            const full = L.polyline(pts, { color: '#12161C', weight: 7, opacity: 0.12 }).addTo(map);
+            map.fitBounds(full.getBounds(), { padding: [30, 30] });
+            L.marker([result.start.lat, result.start.lng], { icon: C.stepIcon(0, true) }).addTo(map).bindPopup(`<div class="p-3 text-sm font-semibold">${C.escapeHtml(result.start.label || 'Départ')}</div>`);
+
+            // Le tracé se dessine tronçon par tronçon, et chaque étape « tombe » sur la carte à son tour.
+            const legs = (result.legs && result.legs.length) ? result.legs.filter(l => l.shape && l.shape.length > 1) : [{ transit: false, shape: pts }];
+            const walkColor = result.mode === 'bike' ? '#0F8B8D' : '#FF5A3C';
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            let legIndex = 0;
+            const dropStep = (i) => { const s = result.steps[i]; if (!s) return; const m = L.marker([s.lat, s.lng], { icon: s.kind === 'lunch' ? C.placeIcon('restauration', { size: 30 }) : C.stepIcon(s.order) }).addTo(map).bindPopup(`<div class="p-3"><p class="text-sm font-semibold">${s.kind === 'lunch' ? '🍽️ ' : s.order + '. '}${C.escapeHtml(s.title)}</p><p class="text-xs text-ink-muted">Arrivée ${s.arrive}</p></div>`); m.getElement()?.querySelector('.camino-pin')?.classList.add('pin-pop'); };
+            const drawLeg = () => {
+                const leg = legs[legIndex];
+                if (!leg) { if (result.end) L.marker([result.end.lat, result.end.lng], { icon: C.stepIcon('<span class="material-symbols-outlined" style="font-size:16px">sports_score</span>') }).addTo(map); return; }
+                const color = leg.transit ? (leg.color || '#1D4ED8') : walkColor;
+                const line = L.polyline([], { color, weight: leg.transit ? 5 : 4, opacity: 0.95, lineJoin: 'round', dashArray: leg.transit ? '8 8' : null }).addTo(map);
+                if (reduce) { line.setLatLngs(leg.shape); dropStep(legIndex); legIndex++; drawLeg(); return; }
+                let k = 0; const step = Math.max(1, Math.ceil(leg.shape.length / 40));
+                const tick = () => { k = Math.min(leg.shape.length, k + step); line.setLatLngs(leg.shape.slice(0, k)); if (k < leg.shape.length) requestAnimationFrame(tick); else { dropStep(legIndex); legIndex++; setTimeout(drawLeg, 120); } };
+                requestAnimationFrame(tick);
+            };
+            setTimeout(drawLeg, 250);
         });
         @endif
     </script>
