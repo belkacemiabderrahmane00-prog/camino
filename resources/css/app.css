@@ -4,6 +4,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Palette pilotée par variables : mode clair (défaut) et mode sombre (classe `dark` sur <html>).
+   Valeurs en composantes RGB pour garder les variantes d'opacité de Tailwind (bg-ink/70, border-ink/10…). */
+:root {
+    --c-ink: 18 22 28;          /* #12161C texte principal */
+    --c-ink-soft: 59 69 82;     /* #3B4552 */
+    --c-ink-muted: 107 118 132; /* #6B7684 */
+    --c-bg-ink: 18 22 28;       /* fonds sombres (boutons, bandeaux) */
+    --c-bg-ink-soft: 59 69 82;
+    --c-paper: 246 243 236;     /* #F6F3EC fond de page */
+    --c-paper-deep: 238 233 223;/* #EEE9DF */
+    --c-surface: 255 255 255;   /* cartes, champs, en-tête */
+    --c-coral-dark: 227 67 42;  /* #E3432A */
+    --c-coral-soft: 255 233 227;/* #FFE9E3 */
+    --c-teal-dark: 11 111 113;  /* #0B6F71 */
+    --c-teal-soft: 221 243 242; /* #DDF3F2 */
+    --c-sun-soft: 255 243 214;  /* #FFF3D6 */
+    color-scheme: light;
+}
+.dark {
+    --c-ink: 243 239 231;       /* texte clair, légèrement chaud */
+    --c-ink-soft: 200 205 214;
+    --c-ink-muted: 150 158 170; /* ≥ 4.5:1 sur les surfaces sombres */
+    --c-bg-ink: 44 50 60;       /* boutons « noirs » : visibles sur fond sombre, blanc lisible dessus */
+    --c-bg-ink-soft: 62 70 82;
+    --c-paper: 15 18 22;        /* #0F1216 */
+    --c-paper-deep: 26 31 39;   /* #1A1F27 */
+    --c-surface: 23 27 34;      /* #171B22 */
+    --c-coral-dark: 255 138 114;/* texte corail lisible sur teinte sombre */
+    --c-coral-soft: 58 33 25;
+    --c-teal-dark: 110 211 213;
+    --c-teal-soft: 18 49 47;
+    --c-sun-soft: 58 46 18;
+    color-scheme: dark;
+}
+
 @layer base {
     html {
         scroll-behavior: smooth;
@@ -58,13 +93,13 @@
     .btn-primary { @apply bg-coral text-white hover:bg-coral-dark hover:-translate-y-0.5 shadow-card; }
     .btn-ink { @apply bg-ink text-white hover:bg-ink-soft hover:-translate-y-0.5; }
     .btn-teal { @apply bg-teal text-white hover:bg-teal-dark hover:-translate-y-0.5; }
-    .btn-soft { @apply bg-white text-ink border border-ink/10 hover:border-ink/30 hover:-translate-y-0.5 shadow-card; }
+    .btn-soft { @apply bg-surface text-ink border border-ink/10 hover:border-ink/30 hover:-translate-y-0.5 shadow-card; }
     .btn-ghost { @apply bg-transparent text-ink-soft hover:bg-ink/5; }
     .btn-icon { @apply h-10 w-10 p-0 rounded-full; }
 
     /* Cartes ----------------------------------------------------------------- */
     .card {
-        @apply bg-white rounded-3xl shadow-card border border-ink/5;
+        @apply bg-surface rounded-3xl shadow-card border border-ink/5;
     }
     .card-hover {
         @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-float;
@@ -73,7 +108,7 @@
     /* Chips ------------------------------------------------------------------ */
     .chip {
         @apply inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold whitespace-nowrap cursor-pointer transition-all duration-200 border;
-        @apply bg-white text-ink-soft border-ink/10 hover:border-ink/40 hover:text-ink;
+        @apply bg-surface text-ink-soft border-ink/10 hover:border-ink/40 hover:text-ink;
     }
     .chip-active, .chip[data-active="true"] {
         @apply bg-ink text-white border-ink;
@@ -81,7 +116,7 @@
 
     /* Champs ----------------------------------------------------------------- */
     .field {
-        @apply block w-full rounded-2xl border-ink/10 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-muted/70;
+        @apply block w-full rounded-2xl border-ink/10 bg-surface px-4 py-3 text-sm text-ink placeholder:text-ink-muted/70;
         @apply focus:border-coral focus:ring-0 focus:shadow-ring transition;
     }
     .label {
@@ -114,7 +149,7 @@
     .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
     .glass {
-        @apply bg-white/85 backdrop-blur-xl border border-white/60 shadow-card;
+        @apply bg-surface/85 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-card;
     }
 
     .placeholder-cover {
@@ -361,13 +396,13 @@
 #nav-map, #nav-map.maplibregl-map { position: absolute !important; inset: 0; width: 100%; height: 100%; }
 
 /* Générateur v3 : tuiles illustrées, lignes d'option, interrupteurs -------------- */
-.tile { @apply flex flex-col items-center justify-center gap-1 rounded-2xl border border-ink/10 bg-white px-2 py-2.5 text-center text-ink transition hover:border-ink/30; }
+.tile { @apply flex flex-col items-center justify-center gap-1 rounded-2xl border border-ink/10 bg-surface px-2 py-2.5 text-center text-ink transition hover:border-ink/30; }
 .tile[data-active="true"] { @apply border-ink bg-ink text-white shadow-card; }
 .tile .picto { @apply text-ink; }
 .tile[data-active="true"] .picto { @apply text-white; }
 .tile-label { @apply text-xs font-semibold leading-tight; }
 .tile-hint { @apply text-[10px] leading-tight opacity-60; }
-.tile-row-inner { @apply flex items-center gap-2 rounded-2xl border border-ink/10 bg-white px-2.5 py-2 text-ink transition; }
+.tile-row-inner { @apply flex items-center gap-2 rounded-2xl border border-ink/10 bg-surface px-2.5 py-2 text-ink transition; }
 .tile-row-inner .check { color: #FF5A3C; }
 .tile-row:hover .tile-row-inner { @apply border-ink/30; }
 .option-row { @apply flex items-center gap-3 rounded-2xl bg-paper px-3 py-2 cursor-pointer text-ink; }
@@ -379,3 +414,47 @@
 .switch:focus-visible { @apply outline-none ring-2 ring-coral/40; }
 .tile-row input:checked + .tile-row-inner .check { opacity: 1; color: #FF5A3C; }
 .tile-row input:focus-visible + .tile-row-inner { @apply ring-2 ring-coral/40; }
+
+/* Mode sombre : surcharges des utilitaires employés en dur dans les vues ------------------ */
+.dark .bg-white, .dark .bg-white\/95, .dark .bg-white\/90 { background-color: rgb(var(--c-surface)); }
+.dark .bg-white\/85 { background-color: rgb(var(--c-surface) / 0.85); }
+.dark .bg-white\/70 { background-color: rgb(var(--c-surface) / 0.7); }
+.dark .hover\:bg-white:hover { background-color: rgb(var(--c-paper-deep)); }
+.dark .bg-paper\/70 { background-color: rgb(var(--c-paper-deep) / 0.7); }
+.dark .bg-ink\/5 { background-color: rgb(255 255 255 / 0.06); }
+.dark .hover\:bg-ink\/5:hover { background-color: rgb(255 255 255 / 0.08); }
+.dark .bg-ink\/10 { background-color: rgb(255 255 255 / 0.1); }
+.dark .bg-ink\/15 { background-color: rgb(255 255 255 / 0.14); }
+.dark .bg-ink\/25 { background-color: rgb(255 255 255 / 0.22); }
+/* Teintes pastel + texte foncé de la palette Tailwind : équivalents sombres lisibles (contraste ≥ 4.5:1) */
+.dark .bg-emerald-50 { background-color: #0F2E22; } .dark .text-emerald-700 { color: #6EE7B7; } .dark .text-emerald-500 { color: #34D399; }
+.dark .bg-amber-50 { background-color: #3A2E12; } .dark .text-amber-800, .dark .text-amber-700 { color: #FCD34D; } .dark .text-amber-600 { color: #FBBF24; }
+.dark .bg-sky-50 { background-color: #0C2A3A; } .dark .hover\:bg-sky-100:hover { background-color: #10354A; } .dark .text-sky-800 { color: #7DD3FC; }
+.dark .bg-rose-50 { background-color: #3B1420; } .dark .text-rose-600 { color: #FDA4AF; }
+.dark .bg-violet-50 { background-color: #2A1F4A; } .dark .text-violet-700 { color: #C4B5FD; }
+.dark .bg-gray-50, .dark .bg-gray-100 { background-color: rgb(var(--c-paper-deep)); } .dark .text-gray-700, .dark .text-gray-800 { color: rgb(var(--c-ink-soft)); }
+.dark .border-gray-300 { border-color: rgb(var(--c-ink) / 0.15); }
+.dark .bg-amber-500 { background-color: #F59E0B; }
+/* Texte sombre imposé sur un fond coloré qui reste clair (soleil, ambre, blanc) */
+.dark .bg-sun.text-ink, .dark .bg-amber-500.text-ink, .dark .bg-sun .text-ink { color: #12161C; }
+/* Champs de formulaire (plugin forms) */
+.dark input:not([type=checkbox]):not([type=radio]):not([type=range]), .dark select, .dark textarea { background-color: rgb(var(--c-surface)); color: rgb(var(--c-ink)); border-color: rgb(var(--c-ink) / 0.15); }
+.dark input::placeholder, .dark textarea::placeholder { color: rgb(var(--c-ink-muted) / 0.8); }
+.dark select option { background-color: rgb(var(--c-surface)); }
+.dark [type=checkbox], .dark [type=radio] { background-color: rgb(var(--c-paper-deep)); border-color: rgb(var(--c-ink) / 0.3); }
+.dark .switch { background-color: rgb(255 255 255 / 0.18); }
+.dark .switch:checked { background-color: #FF5A3C; }
+/* Cartes : fond de carte inversé (OSM France) et contrôles */
+.dark .leaflet-container { background: #0F1216; }
+.dark .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(0.92) saturate(0.55); }
+.dark .leaflet-popup-content-wrapper, .dark .leaflet-popup-close-button { background: rgb(var(--c-surface)) !important; color: rgb(var(--c-ink)) !important; }
+.dark .leaflet-bar a { background: rgb(var(--c-surface)); color: rgb(var(--c-ink)); border-color: rgb(var(--c-ink) / 0.15); }
+.dark .camino-pin { border-color: rgb(var(--c-surface)); }
+.dark .camino-pin-step { background: #F3EFE7; color: #12161C; }
+.dark .camino-pin-step .material-symbols-outlined { color: #12161C; }
+.dark .placeholder-cover { filter: brightness(0.85); }
+.dark .maplibregl-ctrl-attrib { background: rgb(var(--c-surface) / 0.8) !important; color: rgb(var(--c-ink-muted)); }
+.dark .nav-turn-icon { color: #fff; }
+.dark img { filter: brightness(0.94); }
+.dark .shadow-card { box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6); }
+.dark .shadow-float { box-shadow: 0 12px 40px -12px rgba(0,0,0,0.8); }

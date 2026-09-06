@@ -11,6 +11,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#FF5A3C">
+    {{-- Thème sombre appliqué avant le premier rendu (pas de flash) : choix mémorisé, sinon réglage du système --}}
+    <script>(function(){try{var t=localStorage.getItem('camino-theme');var d=t==='dark'||((!t||t==='system')&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.querySelector('meta[name=theme-color]').setAttribute('content','#171B22');}}catch(e){}})();</script>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -61,6 +63,9 @@
                     </nav>
 
                     <div class="ml-auto flex items-center gap-2">
+                        <button type="button" @click="$store.theme.cycle()" class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-ink/5 transition text-ink-soft" :title="$store.theme.mode === 'light' ? @js(__('Thème clair')) : ($store.theme.mode === 'dark' ? @js(__('Thème sombre')) : @js(__('Thème du système')))" aria-label="{{ __('Thème') }}">
+                            <span class="material-symbols-outlined" style="font-size:20px" x-text="$store.theme.mode === 'light' ? 'light_mode' : ($store.theme.mode === 'dark' ? 'dark_mode' : 'brightness_auto')"></span>
+                        </button>
                         <div class="relative" x-data="{ lang: false }" @click.outside="lang = false">
                             <button type="button" @click="lang = !lang" class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold hover:bg-ink/5 transition" aria-label="{{ __('Langue') }}"><x-flag :code="app()->getLocale()" :size="18" />{{ app()->getLocale() === 'zh' ? '中文' : strtoupper(app()->getLocale()) }}<span class="material-symbols-outlined text-ink-muted" style="font-size:16px">expand_more</span></button>
                             <div x-cloak x-show="lang" x-transition.origin.top.right class="absolute right-0 mt-2 w-40 card p-1.5 text-sm z-50">
@@ -146,6 +151,12 @@
                         <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">language</span>
                         @foreach(['fr' => 'Français', 'en' => 'English', 'zh' => '中文'] as $code => $label)
                             <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold {{ app()->getLocale() === $code ? 'bg-ink text-white' : 'bg-paper text-ink-soft' }}"><x-flag :code="$code" :size="16" />{{ $label }}</a>
+                        @endforeach
+                    </div>
+                    <div class="px-3 pb-2 pt-1 flex items-center gap-2 text-xs">
+                        <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">contrast</span>
+                        @foreach(['light' => ['light_mode', __('Clair')], 'dark' => ['dark_mode', __('Sombre')], 'system' => ['brightness_auto', __('Système')]] as $mode => [$icon, $label])
+                            <button type="button" @click="$store.theme.set('{{ $mode }}')" class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition" :class="$store.theme.mode === '{{ $mode }}' ? 'bg-ink text-white' : 'bg-paper text-ink-soft'"><span class="material-symbols-outlined" style="font-size:14px">{{ $icon }}</span>{{ $label }}</button>
                         @endforeach
                     </div>
                 </div>

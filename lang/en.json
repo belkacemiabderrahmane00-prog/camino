@@ -747,5 +747,12 @@
     "Traduit automatiquement du français.": "Automatically translated from French.",
     "Voir la traduction": "See the translation",
     "Voir l'original": "See the original",
-    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "French description: automatic translation is not available right now."
+    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "French description: automatic translation is not available right now.",
+    "Thème": "Theme",
+    "Thème clair": "Light theme",
+    "Thème sombre": "Dark theme",
+    "Thème du système": "System theme",
+    "Clair": "Light",
+    "Sombre": "Dark",
+    "Système": "System"
 }

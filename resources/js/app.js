@@ -151,4 +151,28 @@ export function loadNavMap() {
 
 window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap };
 
+/**
+ * Thème clair / sombre / système : mémorisé dans le navigateur, appliqué avant le premier rendu par le script de <head>.
+ */
+const THEME_KEY = 'camino-theme';
+const prefersDark = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+Alpine.store('theme', {
+    mode: (() => { try { return localStorage.getItem(THEME_KEY) || 'system'; } catch (e) { return 'system'; } })(),
+    get dark() { return this.mode === 'dark' || (this.mode === 'system' && prefersDark()); },
+    set(mode) {
+        this.mode = mode;
+        try { localStorage.setItem(THEME_KEY, mode); } catch (e) {}
+        this.apply();
+    },
+    cycle() { this.set(this.mode === 'light' ? 'dark' : (this.mode === 'dark' ? 'system' : 'light')); },
+    apply() {
+        const dark = this.dark;
+        document.documentElement.classList.toggle('dark', dark);
+        const meta = document.querySelector('meta[name=theme-color]');
+        if (meta) meta.setAttribute('content', dark ? '#171B22' : '#FF5A3C');
+        window.dispatchEvent(new CustomEvent('camino-theme', { detail: { dark } }));
+    },
+});
+if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (Alpine.store('theme').mode === 'system') Alpine.store('theme').apply(); });
+
 Alpine.start();

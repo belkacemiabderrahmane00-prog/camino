@@ -1,8 +1,13 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
 
+// Couleurs pilotées par des variables CSS (voir resources/css/app.css) : mode clair par défaut, mode sombre via la classe `dark`.
+const v = (name) => `rgb(var(${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
+
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
@@ -17,28 +22,31 @@ export default {
                 display: ['Fraunces', 'Georgia', 'serif'],
             },
             colors: {
+                // Texte / bordures : « ink » s'éclaircit en mode sombre.
                 ink: {
-                    DEFAULT: '#12161C',
-                    soft: '#3B4552',
-                    muted: '#6B7684',
+                    DEFAULT: v('--c-ink'),
+                    soft: v('--c-ink-soft'),
+                    muted: v('--c-ink-muted'),
+                    fixed: '#12161C',
                 },
                 paper: {
-                    DEFAULT: '#F6F3EC',
-                    deep: '#EEE9DF',
+                    DEFAULT: v('--c-paper'),
+                    deep: v('--c-paper-deep'),
                 },
+                surface: v('--c-surface'),
                 coral: {
                     DEFAULT: '#FF5A3C',
-                    dark: '#E3432A',
-                    soft: '#FFE9E3',
+                    dark: v('--c-coral-dark'),
+                    soft: v('--c-coral-soft'),
                 },
                 teal: {
                     DEFAULT: '#0F8B8D',
-                    dark: '#0B6F71',
-                    soft: '#DDF3F2',
+                    dark: v('--c-teal-dark'),
+                    soft: v('--c-teal-soft'),
                 },
                 sun: {
                     DEFAULT: '#FFC857',
-                    soft: '#FFF3D6',
+                    soft: v('--c-sun-soft'),
                 },
                 cat: {
                     musee: '#7C3AED',
@@ -51,6 +59,16 @@ export default {
                     itineraire: '#0F766E',
                 },
             },
+            // Fonds : « ink » reste sombre (boutons noirs, bandeaux) mais s'éclaircit légèrement en mode sombre pour rester visible.
+            backgroundColor: ({ theme }) => ({
+                ...theme('colors'),
+                ink: {
+                    DEFAULT: v('--c-bg-ink'),
+                    soft: v('--c-bg-ink-soft'),
+                    muted: v('--c-ink-muted'),
+                    fixed: '#12161C',
+                },
+            }),
             borderRadius: {
                 '2xl': '1.25rem',
                 '3xl': '1.75rem',

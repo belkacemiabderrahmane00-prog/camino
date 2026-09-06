@@ -747,5 +747,12 @@
     "Traduit automatiquement du français.": "由法语自动翻译。",
     "Voir la traduction": "查看译文",
     "Voir l'original": "查看原文",
-    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "法语描述：自动翻译暂时不可用。"
+    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "法语描述：自动翻译暂时不可用。",
+    "Thème": "主题",
+    "Thème clair": "浅色主题",
+    "Thème sombre": "深色主题",
+    "Thème du système": "跟随系统",
+    "Clair": "浅色",
+    "Sombre": "深色",
+    "Système": "系统"
 }
