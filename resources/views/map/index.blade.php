@@ -59,6 +59,7 @@
                                     <p class="text-[11px] text-ink-muted line-clamp-1" x-text="p.address || ''"></p>
                                     <div class="flex items-center gap-2 mt-0.5 text-[10px]">
                                         <span x-show="p.is_free" class="badge badge-free !py-0.5">Gratuit</span>
+                                        <span x-show="p.accessible === true" class="badge badge-free !py-0.5" title="Accessible PMR"><span class="material-symbols-outlined" style="font-size:12px">accessible</span></span>
                                         <span x-show="!p.is_free && p.price_level" class="text-ink-muted font-semibold" x-text="'€'.repeat(p.price_level || 0)"></span>
                                         <span x-show="p.rating" class="text-amber-600 inline-flex items-center gap-0.5"><span class="material-symbols-outlined filled" style="font-size:12px">star</span><span x-text="p.rating"></span></span>
                                         <span x-show="p.alerts" class="badge badge-alert !py-0.5"><span class="material-symbols-outlined" style="font-size:12px">campaign</span><span x-text="p.alerts"></span></span>
@@ -145,6 +146,8 @@
                         <p class="text-sm text-ink-muted flex items-start gap-1.5"><span class="material-symbols-outlined" style="font-size:18px">location_on</span><span x-text="selected.address || 'Adresse non renseignée'"></span></p>
                         <div class="flex flex-wrap gap-1.5">
                             <span class="badge" :class="selected.is_free ? 'badge-free' : 'badge-paid'" x-text="priceLabel(selected)"></span>
+                            <span x-show="selected.accessible === true" class="badge badge-free"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accessible PMR</span>
+                            <span x-show="selected.accessible === false" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accès difficile</span>
                             <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span><span x-text="'≈ ' + (selected.visit_duration_min || 60) + ' min'"></span></span>
                             <span x-show="selected.rating" class="badge bg-amber-50 text-amber-700"><span class="material-symbols-outlined filled" style="font-size:14px">star</span><span x-text="selected.rating"></span></span>
                             <span x-show="selected.alerts" class="badge badge-alert"><span class="material-symbols-outlined" style="font-size:14px">campaign</span><span x-text="selected.alerts + ' alerte' + (selected.alerts > 1 ? 's' : '')"></span></span>

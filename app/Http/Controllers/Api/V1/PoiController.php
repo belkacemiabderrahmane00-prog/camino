@@ -130,6 +130,7 @@ class PoiController extends Controller
             'lng' => $place->lng,
             'address' => $place->address,
             'is_free' => $place->is_free,
+            'accessible' => $place->accessible,
             'price_level' => $place->price_level,
             'visit_duration_min' => $place->visit_duration_min,
             'opening_hours' => $place->opening_hours,
