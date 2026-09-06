@@ -25,7 +25,7 @@
                                 <div class="min-w-0 flex-1">
                                     <p class="font-semibold leading-snug">{{ $step['title'] }}</p>
                                     <p class="text-xs text-ink-muted">{{ $step['address'] ?? '' }}</p>
-                                    @if($v2)<p class="text-xs text-ink-muted mt-0.5">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['travel_minutes'] }} min de trajet · {{ $step['visit_minutes'] }} min sur place{{ !empty($step['wait_minutes']) ? ' · ' . $step['wait_minutes'] . ' min d\x27attente' : '' }}{{ ($step['kind'] ?? 'visit') === 'lunch' ? ' · pause déjeuner' : '' }}</p>@endif
+                                    @if($v2)<p class="text-xs text-ink-muted mt-0.5">{{ $step['arrive_at'] }} → {{ $step['leave_at'] }} · {{ $step['travel_minutes'] }} {{ __('min de trajet') }} · {{ $step['visit_minutes'] }} {{ __('min sur place') }}{{ !empty($step['wait_minutes']) ? ' · ' . $step['wait_minutes'] . ' ' . __('min d\'attente') : '' }}{{ ($step['kind'] ?? 'visit') === 'lunch' ? ' · ' . __('pause déjeuner') : '' }}</p>@endif
                                 </div>
                             </a>
                         </li>

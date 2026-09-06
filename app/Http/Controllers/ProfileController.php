@@ -61,7 +61,7 @@ class ProfileController extends Controller
             // PHP n'a pas pu créer le fichier temporaire (dossier tmp non inscriptible) : on le dit au lieu d'ignorer.
             Log::warning('Upload avatar sans fichier reçu', ['files' => $_FILES, 'tmp' => sys_get_temp_dir(), 'length' => $request->header('Content-Length')]);
 
-            return Redirect::route('profile.edit')->withErrors(['avatar' => 'La photo n\x27a pas pu être reçue par le serveur. Réessaie dans un instant.']);
+            return Redirect::route('profile.edit')->withErrors(['avatar' => __('La photo n\'a pas pu être reçue par le serveur. Réessaie dans un instant.')]);
         }
 
         if ($request->hasFile('avatar')) {
