@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Route;
 
 // ------------------------------------------------------------------ Public
 Route::get('/', [DashboardController::class, 'landing'])->name('home');
+// Démo commerciale : téléphone qui enchaîne les vrais écrans (fr, en, zh), enregistrable en vidéo.
+Route::view('/presentation', 'presentation')->name('presentation');
 
 Route::get('/carte', [MapController::class, 'index'])->name('map.index');
 
