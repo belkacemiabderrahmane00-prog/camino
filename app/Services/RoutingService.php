@@ -191,7 +191,7 @@ class RoutingService
         $costing = self::COSTING[$mode] ?? 'pedestrian';
         $costingOptions = $this->costingOptions($costing, $wheelchair);
         $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], array_values($points));
-        $cacheKey = 'routing:v2:' . md5($endpoint . $costing . json_encode($costingOptions) . json_encode($locations));
+        $cacheKey = 'routing:v2:' . md5($endpoint . $costing . \App\Http\Middleware\SetLocale::routingLanguage() . json_encode($costingOptions) . json_encode($locations));
 
         return Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($endpoint, $locations, $costing, $costingOptions) {
             try {
@@ -202,7 +202,7 @@ class RoutingService
                         'costing' => $costing,
                         'costing_options' => $costingOptions,
                         'units' => 'kilometers',
-                        'directions_options' => ['language' => 'fr-FR'],
+                        'directions_options' => ['language' => \App\Http\Middleware\SetLocale::routingLanguage()],
                     ]);
             } catch (\Throwable $e) {
                 Log::warning('Routing unavailable: ' . $e->getMessage());

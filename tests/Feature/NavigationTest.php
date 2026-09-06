@@ -32,7 +32,7 @@ class NavigationTest extends TestCase
 
     public function test_navigation_page_renders_the_session_itinerary(): void
     {
-        $this->withSession(['itinerary_result' => $this->sampleResult()])
+        $this->withHeaders(['Accept-Language' => 'fr'])->withSession(['itinerary_result' => $this->sampleResult()])
             ->get('/parcours/suivre')
             ->assertOk()
             ->assertSee('Démarrer le guidage')

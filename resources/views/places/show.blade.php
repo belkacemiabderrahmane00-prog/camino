@@ -37,9 +37,9 @@
             <div class="card p-6 sm:p-8">
                 <div class="flex flex-wrap items-center gap-2">
                     <x-category-pill :category="$place->category" />
-                    @if($place->is_free)<span class="badge badge-free">Gratuit</span>@elseif($place->price_level)<span class="badge badge-paid">{{ str_repeat('€', (int) $place->price_level) }} · dès {{ [1 => 5, 2 => 15, 3 => 30][$place->price_level] }} €</span>@endif
+                    @if($place->is_free)<span class="badge badge-free">{{ __('Gratuit') }}</span>@elseif($place->price_level)<span class="badge badge-paid">{{ str_repeat('€', (int) $place->price_level) }} · dès {{ [1 => 5, 2 => 15, 3 => 30][$place->price_level] }} €</span>@endif
                     <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span>≈ {{ $place->visit_duration_min ?? 60 }} min</span>
-                    @if($place->accessible === true)<span class="badge badge-free" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accessible PMR</span>@elseif($place->accessible === false)<span class="badge badge-alert" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accès difficile</span>@endif
+                    @if($place->accessible === true)<span class="badge badge-free" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accessible PMR') }}</span>@elseif($place->accessible === false)<span class="badge badge-alert" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>{{ __('Accès difficile') }}</span>@endif
                     @if($place->event_end_at)
                         <span class="badge badge-event"><span class="material-symbols-outlined" style="font-size:14px">event</span>
                             @if($place->event_start_at && !$place->event_start_at->isSameDay($place->event_end_at)) Du {{ $place->event_start_at->translatedFormat('j M') }} au {{ $place->event_end_at->translatedFormat('j M Y') }} @else Le {{ ($place->event_start_at ?? $place->event_end_at)->translatedFormat('j F Y') }} @endif
@@ -87,18 +87,18 @@
                         </form>
                     @else
                         <form method="POST" action="{{ route('itineraries.add-place', $place) }}">@csrf
-                            <button class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>Ajouter au parcours</button>
+                            <button class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>{{ __('Ajouter au parcours') }}</button>
                         </form>
                     @endif
                     @auth
                         <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
-                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>J'y suis allé</button>
+                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
                         </form>
                     @endauth
                     @if($gmUrl)
                         <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Y aller</a>
                     @endif
-                    <button @click="$dispatch('open-alert')" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">campaign</span>Signaler</button>
+                    <button @click="$dispatch('open-alert')" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">campaign</span>{{ __('Signaler') }}</button>
                     <button x-data @click="navigator.share ? navigator.share({ title: @js($place->title), url: window.location.href }) : (navigator.clipboard.writeText(window.location.href), alert('Lien copié !'))" class="btn btn-md btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">share</span>Partager</button>
                 </div>
             </div>
@@ -126,7 +126,7 @@
             {{-- Photos communauté --}}
             <div class="card p-6 sm:p-8" id="photos">
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <div><p class="eyebrow mb-1">Communauté</p><h2 class="display text-2xl">Photos</h2></div>
+                    <div><p class="eyebrow mb-1">Communauté</p><h2 class="display text-2xl">{{ __('Photos') }}</h2></div>
                     <span class="text-xs text-ink-muted">{{ $place->photos->count() }} photo{{ $place->photos->count() > 1 ? 's' : '' }}</span>
                 </div>
                 @if($place->photos->isNotEmpty())
@@ -143,14 +143,14 @@
                         @csrf
                         <input type="file" name="photo" accept="image/*" class="sr-only" required x-ref="photo" @change="onFile($event)">
                         <div class="grid grid-cols-2 gap-2">
-                            <button type="button" @click="pick(true)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-coral">photo_camera</span>Prendre une photo</button>
-                            <button type="button" @click="pick(false)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-ink-muted">photo_library</span>Galerie</button>
+                            <button type="button" @click="pick(true)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-coral">photo_camera</span>{{ __('Prendre une photo') }}</button>
+                            <button type="button" @click="pick(false)" class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-ink/20 px-3 py-3 text-sm font-medium hover:border-ink/50 hover:bg-paper"><span class="material-symbols-outlined text-ink-muted">photo_library</span>{{ __('Galerie') }}</button>
                         </div>
                         <div x-show="preview" x-cloak class="flex items-center gap-3">
                             <img :src="preview" alt="" class="h-16 w-16 rounded-xl object-cover shrink-0">
                             <div class="flex-1 min-w-0 flex flex-col sm:flex-row gap-2">
                                 <input type="text" name="caption" maxlength="160" placeholder="Légende (optionnel)" class="field flex-1 min-w-0">
-                                <button class="btn btn-md btn-ink shrink-0"><span class="material-symbols-outlined" style="font-size:18px">upload</span>Envoyer</button>
+                                <button class="btn btn-md btn-ink shrink-0"><span class="material-symbols-outlined" style="font-size:18px">upload</span>{{ __('Envoyer') }}</button>
                             </div>
                         </div>
                         <p class="text-[11px] text-ink-muted">JPEG, PNG ou WebP · 8 Mo max · publiée après validation.</p>
@@ -164,7 +164,7 @@
             {{-- Avis --}}
             <div class="card p-6 sm:p-8" id="avis">
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <div><p class="eyebrow mb-1">Avis</p><h2 class="display text-2xl">{{ $reviewCount > 0 ? $averageRating . '/5 · ' . $reviewCount . ' avis' : 'Aucun avis pour l\'instant' }}</h2></div>
+                    <div><p class="eyebrow mb-1">{{ __('Avis') }}</p><h2 class="display text-2xl">{{ $reviewCount > 0 ? $averageRating . '/5 · ' . $reviewCount . ' avis' : 'Aucun avis pour l\'instant' }}</h2></div>
                 </div>
                 @auth
                     <form method="POST" action="{{ route('places.reviews.store', $place) }}" class="rounded-2xl bg-paper p-4 mb-5 space-y-3" x-data="{ rating: 5 }">
@@ -213,7 +213,7 @@
                     <p class="flex items-start gap-2 text-ink-soft"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">location_on</span>{{ $place->address ?? 'Adresse non renseignée' }}</p>
                     @auth
                         <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
-                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>J'y suis allé</button>
+                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>{{ __('J\'y suis allé') }}</button>
                         </form>
                     @endauth
                     @if($gmUrl)
@@ -241,7 +241,7 @@
                             @foreach(['Lieu fermé définitivement', 'Adresse ou position incorrecte', 'Informations erronées', 'Contenu inapproprié', 'Doublon'] as $r)<option>{{ $r }}</option>@endforeach
                         </select>
                         <textarea name="message" rows="2" class="field !py-2 text-xs" placeholder="Précisions (optionnel)"></textarea>
-                        <button class="btn btn-sm btn-soft w-full">Envoyer</button>
+                        <button class="btn btn-sm btn-soft w-full">{{ __('Envoyer') }}</button>
                     </form>
                 </details>
             </div>

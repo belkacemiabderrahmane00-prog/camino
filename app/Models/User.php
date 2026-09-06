@@ -24,6 +24,7 @@ class User extends Authenticatable
         'interests',
         'mobility',
         'city',
+        'locale',
     ];
 
     /**

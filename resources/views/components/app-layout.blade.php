@@ -5,7 +5,7 @@
     'description' => 'CAMINO, le GPS culturel intelligent : carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.',
 ])
 <!DOCTYPE html>
-<html lang="fr" class="h-full">
+<html lang="{{ app()->getLocale() === 'zh' ? 'zh-CN' : app()->getLocale() }}" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -47,9 +47,9 @@
                     <nav class="hidden md:flex items-center gap-1 ml-4 text-sm font-medium">
                         @php
                             $links = [
-                                ['route' => 'map.index', 'label' => 'Explorer', 'icon' => 'map', 'active' => request()->routeIs('map.*')],
-                                ['route' => 'itineraries.create', 'label' => 'Parcours', 'icon' => 'route', 'active' => request()->routeIs('itineraries.create')],
-                                ['route' => 'map.index', 'label' => 'Événements', 'icon' => 'celebration', 'active' => false, 'query' => ['filtre' => 'evenements']],
+                                ['route' => 'map.index', 'label' => __('Explorer'), 'icon' => 'map', 'active' => request()->routeIs('map.*')],
+                                ['route' => 'itineraries.create', 'label' => __('Parcours'), 'icon' => 'route', 'active' => request()->routeIs('itineraries.create')],
+                                ['route' => 'map.index', 'label' => __('Événements'), 'icon' => 'celebration', 'active' => false, 'query' => ['filtre' => 'evenements']],
                             ];
                         @endphp
                         @foreach($links as $link)
@@ -61,6 +61,14 @@
                     </nav>
 
                     <div class="ml-auto flex items-center gap-2">
+                        <div class="relative" x-data="{ lang: false }" @click.outside="lang = false">
+                            <button type="button" @click="lang = !lang" class="hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold hover:bg-ink/5 transition" aria-label="{{ __('Langue') }}"><span class="material-symbols-outlined" style="font-size:16px">language</span>{{ strtoupper(app()->getLocale()) === 'ZH' ? '中文' : strtoupper(app()->getLocale()) }}</button>
+                            <div x-cloak x-show="lang" x-transition.origin.top.right class="absolute right-0 mt-2 w-40 card p-1.5 text-sm z-50">
+                                @foreach(['fr' => 'Français', 'en' => 'English', 'zh' => '中文'] as $code => $label)
+                                    <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-paper {{ app()->getLocale() === $code ? 'font-semibold text-coral' : '' }}">{{ $label }}@if(app()->getLocale() === $code)<span class="material-symbols-outlined" style="font-size:16px">check</span>@endif</a>
+                                @endforeach
+                            </div>
+                        </div>
                         @if(!empty($globalForecast['current']))
                             <button type="button" @click="$dispatch('open-weather')" class="inline-flex items-center gap-1.5 rounded-full bg-sun-soft/80 text-ink pl-1.5 pr-3 py-1 text-xs font-semibold hover:bg-sun-soft transition" title="{{ $globalAdvice['title'] ?? 'Météo' }}" aria-label="Météo">
                                 <span class="h-6 w-6 rounded-full bg-white text-amber-600 flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:15px">{{ $globalForecast['current']['icon'] }}</span></span>
@@ -112,8 +120,8 @@
                                 </div>
                             </div>
                         @else
-                            <a href="{{ route('login') }}" class="hidden sm:inline-flex btn btn-sm btn-ghost">Connexion</a>
-                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink !px-2.5 sm:!px-4" aria-label="Créer un compte"><span class="material-symbols-outlined sm:hidden" style="font-size:18px">person_add</span><span class="hidden sm:inline">Créer un compte</span></a>
+                            <a href="{{ route('login') }}" class="hidden sm:inline-flex btn btn-sm btn-ghost">{{ __('Connexion') }}</a>
+                            <a href="{{ route('register') }}" class="btn btn-sm btn-ink !px-2.5 sm:!px-4" aria-label="Créer un compte"><span class="material-symbols-outlined sm:hidden" style="font-size:18px">person_add</span><span class="hidden sm:inline">{{ __('Créer un compte') }}</span></a>
                         @endauth
 
                         <button @click="open = !open" class="md:hidden btn btn-icon btn-ghost" aria-label="Menu">
@@ -131,9 +139,15 @@
                     @endforeach
                     @guest
                         <a href="{{ route('login') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-paper">
-                            <span class="material-symbols-outlined text-ink-muted" style="font-size:20px">login</span>Connexion
+                            <span class="material-symbols-outlined text-ink-muted" style="font-size:20px">login</span>{{ __('Connexion') }}
                         </a>
                     @endguest
+                    <div class="border-t border-ink/5 mt-1 pt-2 px-3 pb-1 flex items-center gap-2 text-xs">
+                        <span class="material-symbols-outlined text-ink-muted" style="font-size:18px">language</span>
+                        @foreach(['fr' => 'FR', 'en' => 'EN', 'zh' => '中文'] as $code => $label)
+                            <a href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" class="rounded-full px-2.5 py-1 font-semibold {{ app()->getLocale() === $code ? 'bg-ink text-white' : 'bg-paper text-ink-soft' }}">{{ $label }}</a>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
@@ -180,17 +194,17 @@
                 <div>
                     <p class="font-semibold mb-3">Explorer</p>
                     <ul class="space-y-2 text-ink-muted">
-                        <li><a href="{{ route('map.index') }}" class="hover:text-ink">Carte culturelle</a></li>
-                        <li><a href="{{ route('itineraries.create') }}" class="hover:text-ink">Générer un parcours</a></li>
-                        <li><a href="{{ route('map.index', ['filtre' => 'free']) }}" class="hover:text-ink">Lieux gratuits</a></li>
-                        <li><a href="{{ route('map.index', ['filtre' => 'evenements']) }}" class="hover:text-ink">Événements</a></li>
+                        <li><a href="{{ route('map.index') }}" class="hover:text-ink">{{ __('Carte culturelle') }}</a></li>
+                        <li><a href="{{ route('itineraries.create') }}" class="hover:text-ink">{{ __('Générer un parcours') }}</a></li>
+                        <li><a href="{{ route('map.index', ['filtre' => 'free']) }}" class="hover:text-ink">{{ __('Lieux gratuits') }}</a></li>
+                        <li><a href="{{ route('map.index', ['filtre' => 'evenements']) }}" class="hover:text-ink">{{ __('Événements') }}</a></li>
                     </ul>
                 </div>
                 <div>
-                    <p class="font-semibold mb-3">Communauté</p>
+                    <p class="font-semibold mb-3">{{ __('Communauté') }}</p>
                     <ul class="space-y-2 text-ink-muted">
-                        <li><a href="{{ route('community.propose') }}" class="hover:text-ink">Proposer un lieu</a></li>
-                        <li><a href="{{ route('register') }}" class="hover:text-ink">Créer un compte</a></li>
+                        <li><a href="{{ route('community.propose') }}" class="hover:text-ink">{{ __('Proposer un lieu') }}</a></li>
+                        <li><a href="{{ route('register') }}" class="hover:text-ink">{{ __('Créer un compte') }}</a></li>
                         <li class="pt-2 text-xs">Données : DATAtourisme, OpenStreetMap, Wikimedia Commons, Open-Meteo.</li>
                     </ul>
                 </div>
@@ -208,16 +222,16 @@
             @php
                 $tabs = [
                     auth()->check()
-                        ? ['route' => 'dashboard', 'icon' => 'home', 'label' => 'Accueil', 'active' => request()->routeIs('dashboard')]
-                        : ['route' => 'home', 'icon' => 'home', 'label' => 'Accueil', 'active' => request()->routeIs('home')],
-                    ['route' => 'map.index', 'icon' => 'map', 'label' => 'Carte', 'active' => request()->routeIs('map.*')],
-                    ['route' => 'itineraries.create', 'icon' => 'route', 'label' => 'Parcours', 'active' => request()->routeIs('itineraries.*')],
+                        ? ['route' => 'dashboard', 'icon' => 'home', 'label' => __('Accueil'), 'active' => request()->routeIs('dashboard')]
+                        : ['route' => 'home', 'icon' => 'home', 'label' => __('Accueil'), 'active' => request()->routeIs('home')],
+                    ['route' => 'map.index', 'icon' => 'map', 'label' => __('Carte'), 'active' => request()->routeIs('map.*')],
+                    ['route' => 'itineraries.create', 'icon' => 'route', 'label' => __('Parcours'), 'active' => request()->routeIs('itineraries.*')],
                     auth()->check()
-                        ? ['route' => 'places.favorites', 'icon' => 'favorite', 'label' => 'Favoris', 'active' => request()->routeIs('places.favorites')]
-                        : ['route' => 'login', 'icon' => 'login', 'label' => 'Connexion', 'active' => request()->routeIs('login')],
+                        ? ['route' => 'places.favorites', 'icon' => 'favorite', 'label' => __('Favoris'), 'active' => request()->routeIs('places.favorites')]
+                        : ['route' => 'login', 'icon' => 'login', 'label' => __('Connexion'), 'active' => request()->routeIs('login')],
                     auth()->check()
-                        ? ['route' => 'profile.edit', 'icon' => 'person', 'label' => 'Profil', 'active' => request()->routeIs('profile.*')]
-                        : ['route' => 'register', 'icon' => 'person_add', 'label' => 'Compte', 'active' => request()->routeIs('register')],
+                        ? ['route' => 'profile.edit', 'icon' => 'person', 'label' => __('Profil'), 'active' => request()->routeIs('profile.*')]
+                        : ['route' => 'register', 'icon' => 'person_add', 'label' => __('Compte'), 'active' => request()->routeIs('register')],
                 ];
             @endphp
             @foreach($tabs as $tab)

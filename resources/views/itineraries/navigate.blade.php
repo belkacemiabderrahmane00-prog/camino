@@ -16,6 +16,13 @@
         'simulate' => max(0, (int) request()->query('simulate', 0)),
         'auth' => auth()->check(),
         'itineraryId' => $result['itinerary_id'] ?? null,
+        'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
+        't' => [
+            'started' => __('Guidage lancé.'), 'follow' => __('Suivez le tracé.'), 'in' => __('Dans'), 'meters' => __('mètres'), 'arrived' => __('Vous êtes arrivé à'), 'visit' => __('Visite prévue :'), 'minutes' => __('minutes'),
+            'direction' => __('Direction'), 'lastStep' => __('Dernière étape : retour au point de départ.'), 'rerouted' => __('Itinéraire recalculé.'), 'done' => __('Parcours terminé. Bravo !'), 'voiceOn' => __('Guidage vocal activé.'),
+            'headTo' => __('Dirige-toi vers'), 'headToVerbal' => __('Dirigez-vous vers'), 'backToStart' => __('Retourne au point de départ'), 'backToStartVerbal' => __('Retournez au point de départ.'), 'now' => __('Maintenant'), 'onRoute' => __('En route'), 'inShort' => __('Dans'),
+            'stepOf' => __('Étape'), 'returnArrival' => __('Retour · arrivée'), 'imminent' => __('arrivée imminente'), 'about' => __('environ'), 'min' => __('min'), 'finish' => __('Terminer'), 'towards' => __('Vers'), 'returnStart' => __('Retour au départ'), 'nextStep' => __('la prochaine étape'),
+        ],
     ];
 @endphp
 <x-app-layout :title="'Guidage · ' . $result['title']" :fullscreen="true" :bottom-nav="false">
@@ -28,7 +35,7 @@
                 <span class="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:34px" x-text="icon"></span></span>
                 <div class="min-w-0 flex-1">
                     <p class="text-[11px] uppercase tracking-[0.14em] text-white/60 font-bold" x-text="distanceLabel"></p>
-                    <p class="font-semibold leading-snug line-clamp-2" x-text="instruction || 'Suis le tracé'"></p>
+                    <p class="font-semibold leading-snug line-clamp-2" x-text="instruction || @js(__('Suis le tracé'))"></p>
                     <p x-show="street" class="text-xs text-white/60 truncate" x-text="street"></p>
                 </div>
                 <button type="button" @click="toggleMute()" class="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0" :aria-label="muted ? 'Activer la voix' : 'Couper la voix'"><span class="material-symbols-outlined" style="font-size:20px" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
@@ -50,17 +57,17 @@
                 <div class="flex items-start gap-3">
                     <span class="h-11 w-11 rounded-2xl bg-coral-soft text-coral flex items-center justify-center shrink-0"><span class="material-symbols-outlined">navigation</span></span>
                     <div class="min-w-0 flex-1">
-                        <p class="eyebrow">Guidage</p>
+                        <p class="eyebrow">{{ __('Guidage') }}</p>
                         <p class="font-display text-xl leading-tight truncate">{{ $result['title'] }}</p>
-                        <p class="text-xs text-ink-muted mt-1">{{ count($steps) }} étape{{ count($steps) > 1 ? 's' : '' }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · instructions vocales en français</p>
+                        <p class="text-xs text-ink-muted mt-1">{{ count($steps) }} étape{{ count($steps) > 1 ? 's' : '' }} · {{ number_format($result['total_distance_km'] ?? 0, 1, ',', ' ') }} km {{ match($result['mode'] ?? 'walk') { 'bike' => 'à vélo', 'transit' => 'à pied et en transports', default => 'à pied' } }} · {{ __('instructions vocales') }}</p>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-2">
-                    <button type="button" @click="start()" class="btn btn-lg btn-primary flex-1"><span class="material-symbols-outlined">play_arrow</span>Démarrer le guidage</button>
+                    <button type="button" @click="start()" class="btn btn-lg btn-primary flex-1"><span class="material-symbols-outlined">play_arrow</span>{{ __('Démarrer le guidage') }}</button>
                     <button type="button" @click="toggleMute()" class="btn btn-lg btn-soft !px-4" :aria-label="muted ? 'Activer la voix' : 'Couper la voix'"><span class="material-symbols-outlined" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
                 </div>
-                <p class="mt-2 text-[11px] text-ink-muted">CAMINO utilise ta position uniquement pendant le guidage, rien n'est enregistré. Garde l'écran allumé, on s'en occupe.</p>
-                <a :href="backUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:14px">arrow_back</span>Retour</a>
+                <p class="mt-2 text-[11px] text-ink-muted">{{ __('CAMINO utilise ta position uniquement pendant le guidage, rien n\'est enregistré. Garde l\'écran allumé, on s\'en occupe.') }}</p>
+                <a :href="backUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:14px">arrow_back</span>{{ __('Retour') }}</a>
             </div>
 
             {{-- Pendant le guidage : étape en cours --}}
@@ -81,7 +88,7 @@
                 <div class="mt-2.5 flex items-center justify-between text-[11px] text-ink-muted">
                     <span x-show="accuracy" x-text="'GPS ± ' + Math.round(accuracy) + ' m'"></span>
                     <span x-show="simulate" class="text-coral font-semibold">Simulation</span>
-                    <button type="button" @click="quit()" class="font-semibold text-ink-muted hover:text-coral inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">close</span>Quitter</button>
+                    <button type="button" @click="quit()" class="font-semibold text-ink-muted hover:text-coral inline-flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">close</span>{{ __('Quitter') }}</button>
                 </div>
             </div>
 
@@ -90,25 +97,25 @@
                 <div class="flex items-center gap-3">
                     <span class="h-11 w-11 rounded-2xl bg-teal-soft text-teal flex items-center justify-center shrink-0"><span class="material-symbols-outlined">check_circle</span></span>
                     <div class="min-w-0 flex-1">
-                        <p class="eyebrow">Tu es arrivé</p>
+                        <p class="eyebrow">{{ __('Tu es arrivé') }}</p>
                         <p class="font-display text-xl leading-tight line-clamp-2" x-text="target ? target.title : ''"></p>
                         <p class="text-xs text-ink-muted mt-0.5" x-text="target && target.visit ? 'Visite prévue : ' + target.visit + ' min' + (target.hours && target.hours.status === 'open' ? ' · ouvert ' + target.hours.opens + '–' + target.hours.closes : '') : ''"></p>
                     </div>
                 </div>
                 <div class="mt-3 flex gap-2">
                     <button type="button" @click="continueRoute()" class="btn btn-md btn-primary flex-1"><span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span><span x-text="nextLabel"></span></button>
-                    <template x-if="target && target.url"><a :href="target.url" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">info</span>Fiche</a></template>
+                    <template x-if="target && target.url"><a :href="target.url" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">info</span>{{ __('Fiche') }}</a></template>
                 </div>
             </div>
 
             {{-- Fin --}}
             <div :class="{ hidden: !done }" class="hidden nav-card card p-4 sm:p-5 text-center">
                 <span class="material-symbols-outlined text-coral" style="font-size:40px">celebration</span>
-                <p class="font-display text-2xl mt-1">Parcours terminé !</p>
+                <p class="font-display text-2xl mt-1">{{ __('Parcours terminé !') }}</p>
                 <p class="text-sm text-ink-muted mt-1" x-text="walked > 0 ? 'Tu as parcouru ' + formatDistance(walked) + '. Bravo.' : 'Bravo.'"></p>
                 <div class="mt-3 flex gap-2 justify-center">
-                    <a :href="backUrl" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>Retour au parcours</a>
-                    <a href="{{ route('map.index') }}" class="btn btn-md btn-soft">Carte</a>
+                    <a :href="backUrl" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>{{ __('Retour au parcours') }}</a>
+                    <a href="{{ route('map.index') }}" class="btn btn-md btn-soft">{{ __('Carte') }}</a>
                 </div>
             </div>
         </div>
@@ -138,11 +145,11 @@
                 backUrl: data.backUrl,
 
                 get target() { return targets[this.legIndex] || null; },
-                get progressLabel() { const n = targets.length; const t = this.target; return t && t.kind === 'end' ? 'Retour · arrivée' : 'Étape ' + (this.legIndex + 1) + ' / ' + (data.end ? n - 1 : n); },
+                get progressLabel() { const n = targets.length; const t = this.target; return t && t.kind === 'end' ? data.t.returnArrival : data.t.stepOf + ' ' + (this.legIndex + 1) + ' / ' + (data.end ? n - 1 : n); },
                 get progressPct() { const total = this.legTotal(); return total > 0 ? Math.max(0, Math.min(100, Math.round((total - this.remaining) / total * 100))) : 0; },
-                get etaLabel() { const speed = data.mode === 'bike' ? 3.6 : 1.3; const min = Math.round(this.remaining / speed / 60); const eta = new Date(Date.now() + min * 60000); return (min <= 1 ? 'arrivée imminente' : 'environ ' + min + ' min') + ' · ' + eta.getHours() + 'h' + String(eta.getMinutes()).padStart(2, '0'); },
-                get distanceLabel() { if (this.distToManeuver === null) return 'En route'; if (this.distToManeuver < 15) return 'Maintenant'; return 'Dans ' + this.formatDistance(this.distToManeuver); },
-                get nextLabel() { const next = targets[this.legIndex + 1]; if (!next) return 'Terminer'; return next.kind === 'end' ? 'Retour au départ' : 'Vers ' + next.title; },
+                get etaLabel() { const speed = data.mode === 'bike' ? 3.6 : 1.3; const min = Math.round(this.remaining / speed / 60); const eta = new Date(Date.now() + min * 60000); return (min <= 1 ? data.t.imminent : data.t.about + ' ' + min + ' ' + data.t.min) + ' · ' + eta.getHours() + 'h' + String(eta.getMinutes()).padStart(2, '0'); },
+                get distanceLabel() { if (this.distToManeuver === null) return data.t.onRoute; if (this.distToManeuver < 15) return data.t.now; return data.t.inShort + ' ' + this.formatDistance(this.distToManeuver); },
+                get nextLabel() { const next = targets[this.legIndex + 1]; if (!next) return data.t.finish; return next.kind === 'end' ? data.t.returnStart : data.t.towards + ' ' + next.title; },
 
                 init() {
                     map = L.map(document.getElementById('nav-map'), { zoomControl: false, attributionControl: true });
@@ -158,7 +165,7 @@
                 },
                 fitAll() { map.fitBounds(routeLine.getBounds(), { padding: [40, 40] }); this.follow = false; },
                 recenter() { this.follow = true; if (this.pos) map.setView(this.pos, Math.max(map.getZoom(), 17), { animate: true }); },
-                toggleMute() { this.muted = !this.muted; if (this.muted && 'speechSynthesis' in window) window.speechSynthesis.cancel(); else this.speak('Guidage vocal activé.'); },
+                toggleMute() { this.muted = !this.muted; if (this.muted && 'speechSynthesis' in window) window.speechSynthesis.cancel(); else this.speak(data.t.voiceOn); },
                 legTotal() { return cum.length ? cum[cum.length - 1] : 0; },
                 formatDistance(m) { if (m === null || m === undefined) return ''; if (m >= 1000) return (m / 1000).toFixed(1).replace('.', ',') + ' km'; return Math.max(0, Math.round(m / 10) * 10) + ' m'; },
 
@@ -172,7 +179,7 @@
                     if (!shape) {
                         const from = fromPos || (index === 0 ? [data.start.lat, data.start.lng] : [targets[index - 1].lat, targets[index - 1].lng]);
                         shape = [from, [t.lat, t.lng]];
-                        maneuvers = [t.kind === 'end' ? { type: 8, text: 'Retourne au point de départ', verbal: 'Retournez au point de départ.', street: '', begin: 0, end: 1 } : { type: 8, text: 'Dirige-toi vers ' + t.title, verbal: 'Dirigez-vous vers ' + t.title + '.', street: '', begin: 0, end: 1 }];
+                        maneuvers = [t.kind === 'end' ? { type: 8, text: data.t.backToStart, verbal: data.t.backToStartVerbal, street: '', begin: 0, end: 1 } : { type: 8, text: data.t.headTo + ' ' + t.title, verbal: data.t.headToVerbal + ' ' + t.title + '.', street: '', begin: 0, end: 1 }];
                     }
                     this.setLeg(shape, maneuvers, !!(stored && stored.transit));
                 },
@@ -191,7 +198,7 @@
                 // ---------------------------------------------------------------- démarrage
                 async start() {
                     this.started = true; this.follow = true;
-                    this.speak('Guidage lancé. ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : 'Suivez le tracé.'));
+                    this.speak(data.t.started + ' ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : data.t.follow));
                     try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
                     document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && 'wakeLock' in navigator && this.started) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} } });
                     if (this.simulate) { this.runSimulation(); return; }
@@ -246,7 +253,7 @@
                 },
                 updateInstruction(along) {
                     const ms = this.leg.maneuvers;
-                    if (!ms.length) { this.instruction = this.target && this.target.kind === 'end' ? 'Retourne au point de départ' : 'Dirige-toi vers ' + (this.target ? this.target.title : 'l’étape'); this.street = ''; this.icon = 'straight'; this.distToManeuver = this.remaining; return; }
+                    if (!ms.length) { this.instruction = this.target && this.target.kind === 'end' ? data.t.backToStart : data.t.headTo + ' ' + (this.target ? this.target.title : data.t.nextStep); this.street = ''; this.icon = 'straight'; this.distToManeuver = this.remaining; return; }
                     // Prochaine manœuvre : la première dont le point de début est devant nous.
                     let idx = ms.findIndex(m => (cum[m.begin] ?? 0) > along + 8);
                     if (idx === -1) idx = ms.length - 1;
@@ -257,7 +264,7 @@
                     if (idx !== this.maneuverIdx) { this.maneuverIdx = idx; this.spokenApproach = -1; }
                     // Voix : annonce à ~80 m (150 m à vélo), puis au moment de tourner.
                     const approach = data.mode === 'bike' ? 150 : 80;
-                    if (d <= approach && d > 25 && this.spokenApproach !== idx) { this.spokenApproach = idx; this.speak('Dans ' + Math.round(d / 10) * 10 + ' mètres, ' + this.lower(m.verbal)); }
+                    if (d <= approach && d > 25 && this.spokenApproach !== idx) { this.spokenApproach = idx; this.speak(data.t.in + ' ' + Math.round(d / 10) * 10 + ' ' + data.t.meters + ', ' + this.lower(m.verbal)); }
                     else if (d <= 25 && this.spokenIdx !== idx) { this.spokenIdx = idx; this.speak(m.verbal); }
                 },
                 lower(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : ''; },
@@ -268,7 +275,7 @@
                     this.arrived = true;
                     const t = this.target;
                     if (t.kind === 'end') { this.finish(); return; }
-                    this.speak('Vous êtes arrivé à ' + t.title + '.' + (t.visit ? ' Visite prévue : ' + t.visit + ' minutes.' : ''));
+                    this.speak(data.t.arrived + ' ' + t.title + '.' + (t.visit ? ' ' + data.t.visit + ' ' + t.visit + ' ' + data.t.minutes + '.' : ''));
                     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
                     this.recordVisit(t);
                 },
@@ -288,10 +295,10 @@
                     this.legIndex = next;
                     // Depuis la position réelle si on l'a, sinon le tronçon calculé à l'avance.
                     if (this.pos && !this.simulate) { await this.reroute(true); } else { this.loadLeg(next, this.pos); }
-                    this.speak((targets[next].kind === 'end' ? 'Dernière étape : retour au point de départ. ' : 'Direction ' + targets[next].title + '. ') + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : ''));
+                    this.speak((targets[next].kind === 'end' ? data.t.lastStep + ' ' : data.t.direction + ' ' + targets[next].title + '. ') + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : ''));
                     if (this.simulate) this.runSimulation();
                 },
-                finish() { this.done = true; this.arrived = false; this.stopTracking(); this.speak('Parcours terminé. Bravo !'); },
+                finish() { this.done = true; this.arrived = false; this.stopTracking(); this.speak(data.t.done); },
                 async reroute(silent = false) {
                     if (!this.pos) { this.loadLeg(this.legIndex, null); return; }
                     this.rerouting = true;
@@ -299,7 +306,7 @@
                         const r = await fetch('/api/v1/route', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ points: [{ lat: this.pos[0], lng: this.pos[1] }, { lat: this.target.lat, lng: this.target.lng }], mode: data.mode }) });
                         const j = await r.json();
                         const leg = j.legs && j.legs[0];
-                        if (leg && leg.shape && leg.shape.length > 1) { this.setLeg(leg.shape, leg.maneuvers || [], false); if (!silent) this.speak('Itinéraire recalculé. ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : '')); }
+                        if (leg && leg.shape && leg.shape.length > 1) { this.setLeg(leg.shape, leg.maneuvers || [], false); if (!silent) this.speak(data.t.rerouted + ' ' + (this.leg.maneuvers[0] ? this.leg.maneuvers[0].verbal : '')); }
                         else this.loadLeg(this.legIndex, this.pos);
                     } catch (e) { this.loadLeg(this.legIndex, this.pos); }
                     this.rerouting = false; this.offRoute = false; this.offRouteCount = 0;
@@ -309,8 +316,8 @@
                 speak(text) {
                     if (this.muted || !('speechSynthesis' in window) || !text) return;
                     const u = new SpeechSynthesisUtterance(text.replace(/\s+/g, ' '));
-                    u.lang = 'fr-FR'; u.rate = 1.0;
-                    const voice = window.speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+                    u.lang = data.lang; u.rate = 1.0;
+                    const voice = window.speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(data.lang.slice(0, 2).toLowerCase()));
                     if (voice) u.voice = voice;
                     window.speechSynthesis.cancel();
                     window.speechSynthesis.speak(u);

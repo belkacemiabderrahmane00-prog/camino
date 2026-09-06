@@ -46,15 +46,15 @@
                     </a>
                     <div class="relative p-5 sm:p-6 pointer-events-none">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <span class="inline-flex items-center gap-1 rounded-full bg-coral px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"><span class="material-symbols-outlined" style="font-size:14px">lightbulb</span>Idée du jour</span>
+                            <span class="inline-flex items-center gap-1 rounded-full bg-coral px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider"><span class="material-symbols-outlined" style="font-size:14px">lightbulb</span>{{ __('Idée du jour') }}</span>
                             <button type="button" @click="$dispatch('open-weather')" class="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] hover:bg-white/25 transition"><span class="material-symbols-outlined filled text-sun" style="font-size:14px">{{ $advice['icon'] }}</span>{{ $advice['title'] }}</button>
                         </div>
                         <p class="text-[11px] uppercase tracking-widest text-white/70 mt-3">{{ $idea->category->name ?? 'Lieu' }}{{ $idea->is_free ? ' · Gratuit' : '' }}</p>
                         <p class="font-display text-2xl sm:text-3xl leading-tight mt-0.5 line-clamp-2">{{ $idea->title }}</p>
                         <p class="text-sm text-white/75 mt-1 line-clamp-1">{{ $reason }}</p>
                         <div class="mt-3 flex gap-2 pointer-events-auto">
-                            <a href="{{ route('places.show', $idea) }}" class="btn btn-sm bg-white text-ink">Voir la fiche</a>
-                            <form method="POST" action="{{ route('itineraries.add-place', $idea) }}">@csrf<button type="submit" class="btn btn-sm bg-white/15 text-white border border-white/20 hover:bg-white/25"><span class="material-symbols-outlined" style="font-size:16px">add_location_alt</span>Au parcours</button></form>
+                            <a href="{{ route('places.show', $idea) }}" class="btn btn-sm bg-white text-ink">{{ __('Voir la fiche') }}</a>
+                            <form method="POST" action="{{ route('itineraries.add-place', $idea) }}">@csrf<button type="submit" class="btn btn-sm bg-white/15 text-white border border-white/20 hover:bg-white/25"><span class="material-symbols-outlined" style="font-size:16px">add_location_alt</span>{{ __('Au parcours') }}</button></form>
                         </div>
                     </div>
                 </div>
@@ -69,7 +69,7 @@
 
         {{-- ============================================================ Raccourcis --}}
         <div>
-            <p class="eyebrow mb-3">Raccourcis</p>
+            <p class="eyebrow mb-3">{{ __('Raccourcis') }}</p>
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
                 @foreach([
                     [route('map.index', ['locate' => 1]), 'my_location', 'Près de moi', 'bg-teal-soft text-teal'],
@@ -101,7 +101,7 @@
                             @endforeach
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="eyebrow">Reprendre</p>
+                            <p class="eyebrow">{{ __('Reprendre') }}</p>
                             <p class="font-semibold leading-snug line-clamp-1 mt-0.5">{{ $lastItinerary->name }}</p>
                             <p class="text-xs text-ink-muted">{{ $lastItinerary->created_at->diffForHumans() }} · {{ count($steps) }} étapes · {{ number_format($r['total_distance_km'] ?? 0, 1, ',', ' ') }} km</p>
                         </div>
@@ -112,7 +112,7 @@
                     <a href="{{ route('itineraries.create') }}" class="card card-hover p-4 sm:p-5 flex gap-4 items-center border-teal/30">
                         <span class="h-14 w-14 rounded-2xl bg-teal-soft text-teal flex items-center justify-center shrink-0"><span class="material-symbols-outlined">playlist_add_check</span></span>
                         <div class="min-w-0 flex-1">
-                            <p class="eyebrow">Ta sélection</p>
+                            <p class="eyebrow">{{ __('Ta sélection') }}</p>
                             <p class="font-semibold mt-0.5">{{ $selection->count() }} lieu{{ $selection->count() > 1 ? 'x' : '' }} en attente de parcours</p>
                             <p class="text-xs text-ink-muted line-clamp-1">{{ $selection->pluck('title')->implode(' · ') }}</p>
                         </div>
@@ -135,7 +135,7 @@
         {{-- ============================================================ En direct + événements --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="card p-5">
-                <div class="flex items-center justify-between mb-3"><p class="eyebrow">En direct autour de toi</p><a href="{{ route('map.index') }}" class="text-xs font-semibold hover:text-coral">Carte</a></div>
+                <div class="flex items-center justify-between mb-3"><p class="eyebrow">{{ __('En direct autour de toi') }}</p><a href="{{ route('map.index') }}" class="text-xs font-semibold hover:text-coral">{{ __('Carte') }}</a></div>
                 <div class="space-y-1">
                     @forelse($alerts as $alert)
                         <a href="{{ $alert->place ? route('places.show', $alert->place) : route('map.index', ['lat' => $alert->lat, 'lng' => $alert->lng, 'z' => 16]) }}" class="flex gap-3 p-2.5 rounded-2xl hover:bg-paper">
@@ -148,7 +148,7 @@
                 </div>
             </div>
             <div class="card p-5">
-                <div class="flex items-center justify-between mb-3"><p class="eyebrow">Ce week-end et après</p><a href="{{ route('map.index', ['filtre' => 'evenements']) }}" class="text-xs font-semibold hover:text-coral">Tous</a></div>
+                <div class="flex items-center justify-between mb-3"><p class="eyebrow">{{ __('Ce week-end et après') }}</p><a href="{{ route('map.index', ['filtre' => 'evenements']) }}" class="text-xs font-semibold hover:text-coral">{{ __('Tous') }}</a></div>
                 <div class="space-y-1">
                     @forelse($events as $event)
                         <a href="{{ route('places.show', $event) }}" class="flex gap-3 p-2.5 rounded-2xl hover:bg-paper">
