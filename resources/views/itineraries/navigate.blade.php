@@ -10,12 +10,14 @@
             'lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'cover' => $s['cover'], 'category' => $s['category'],
             'visit' => $s['visit_minutes'], 'arrive' => $s['arrive_at'], 'kind' => $s['kind'] ?? 'visit', 'slug' => $s['category_slug'],
             'url' => route('places.show', $s['place_id']), 'hours' => $s['hours'] ?? null, 'id' => $s['place_id'], 'visitUrl' => route('places.visit', $s['place_id']),
+            'narration' => $narrations[$s['place_id']] ?? null,
         ])->values()->all(),
         'title' => $result['title'],
         'backUrl' => $backUrl,
         'simulate' => max(0, (int) request()->query('simulate', 0)),
         'auth' => auth()->check(),
         'itineraryId' => $result['itinerary_id'] ?? null,
+        'journalUrl' => $journalUrl ?? (! empty($result['itinerary_id']) && auth()->check() ? route('itineraries.journal', $result['itinerary_id']) : null),
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
         'transit' => app(\App\Services\TransitService::class)->enabled(),
         't' => [
@@ -29,6 +31,7 @@
             'nextStopVerbal' => __('Prochain arrêt : :stop. Préparez-vous à descendre.'), 'transitLive' => __('Horaires en temps réel'), 'transitRecalc' => __('Trajet en transports recalculé à l\'heure réelle.'),
             'departureAt' => __('Départ'), 'arrival' => __('Arrivée'), 'walk' => __('Marche'), 'wait' => __('Attente'), 'details' => __('Détail du trajet'), 'searching' => __('Recherche du meilleur trajet…'),
             'then' => __('Ensuite'), 'arriveAt' => __('Arrivée à'),
+            'listen' => __('Écouter la présentation'), 'stopListen' => __('Arrêter'), 'audioguideIntro' => __('Un mot sur ce lieu.'),
         ],
     ];
 @endphp
@@ -100,6 +103,7 @@
                     <button type="button" @click="start()" class="btn btn-lg btn-primary flex-1 min-w-0"><span class="material-symbols-outlined">play_arrow</span><span class="truncate">{{ __('Démarrer le guidage') }}</span></button>
                     <button type="button" @click="toggleMute()" class="btn btn-lg btn-soft !px-4 shrink-0" :aria-label="muted ? @js(__('Activer la voix')) : @js(__('Couper la voix'))"><span class="material-symbols-outlined" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
                 </div>
+                <label class="mt-3 option-row !py-2 text-sm"><span class="material-symbols-outlined text-coral" style="font-size:20px">headphones</span><span class="flex-1"><span class="font-semibold">{{ __('Audioguide') }}</span><span class="block text-[11px] text-ink-muted">{{ __('À chaque arrivée, CAMINO te raconte le lieu à voix haute.') }}</span></span><input type="checkbox" class="switch" x-model="audioguide"></label>
                 <p class="mt-2 text-[11px] text-ink-muted">{{ __('CAMINO utilise ta position uniquement pendant le guidage, rien n\'est enregistré. Garde l\'écran allumé, on s\'en occupe.') }}</p>
                 <a :href="backUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:14px">arrow_back</span>{{ __('Retour') }}</a>
             </div>
@@ -174,6 +178,16 @@
                         <p class="text-xs text-ink-muted mt-0.5 truncate" x-text="target && target.visit ? data.t.plannedVisit + ' ' + target.visit + ' ' + data.t.min + (target.hours && target.hours.status === 'open' ? ' · ' + data.t.open + ' ' + target.hours.opens + '–' + target.hours.closes : '') : ''"></p>
                     </div>
                 </div>
+                {{-- Audioguide : présentation du lieu, lue à voix haute --}}
+                <template x-if="target && target.narration">
+                    <div class="mt-3 rounded-2xl bg-paper px-3 py-2.5" x-data="{ open: false }">
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="toggleNarration()" class="btn btn-sm shrink-0" :class="narrating ? 'btn-ink' : 'btn-soft'"><span class="material-symbols-outlined" style="font-size:16px" x-text="narrating ? 'stop_circle' : 'headphones'"></span><span x-text="narrating ? data.t.stopListen : data.t.listen"></span></button>
+                            <button type="button" @click="open = !open" class="ml-auto text-xs font-semibold text-ink-muted hover:text-ink inline-flex items-center gap-1"><span class="material-symbols-outlined transition-transform" :class="open && 'rotate-180'" style="font-size:16px">expand_more</span>{{ __('Lire') }}</button>
+                        </div>
+                        <p x-show="open" x-cloak class="mt-2 text-xs leading-relaxed text-ink-soft max-h-40 overflow-y-auto" x-text="target.narration"></p>
+                    </div>
+                </template>
                 <div class="mt-3 flex gap-2">
                     <button type="button" @click="continueRoute()" class="btn btn-md btn-primary flex-1 min-w-0"><span class="material-symbols-outlined shrink-0" style="font-size:18px">arrow_forward</span><span class="truncate" x-text="nextLabel"></span></button>
                     <template x-if="target && target.url"><a :href="target.url" class="btn btn-md btn-soft shrink-0"><span class="material-symbols-outlined" style="font-size:18px">info</span>{{ __('Fiche') }}</a></template>
@@ -185,8 +199,9 @@
                 <span class="material-symbols-outlined text-coral" style="font-size:40px">celebration</span>
                 <p class="font-display text-2xl mt-1">{{ __('Parcours terminé !') }}</p>
                 <p class="text-sm text-ink-muted mt-1" x-text="walked > 0 ? data.t.walked.replace(':d', formatDistance(walked)) : data.t.bravo"></p>
-                <div class="mt-3 flex gap-2 justify-center">
-                    <a :href="backUrl" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>{{ __('Retour au parcours') }}</a>
+                <div class="mt-3 flex flex-wrap gap-2 justify-center">
+                    <template x-if="data.journalUrl"><a :href="data.journalUrl" class="btn btn-md btn-primary"><span class="material-symbols-outlined" style="font-size:18px">auto_stories</span>{{ __('Carnet de voyage') }}</a></template>
+                    <a :href="backUrl" class="btn btn-md" :class="data.journalUrl ? 'btn-soft' : 'btn-primary'"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>{{ __('Retour au parcours') }}</a>
                     <a href="{{ route('map.index') }}" class="btn btn-md btn-soft">{{ __('Carte') }}</a>
                 </div>
             </div>
@@ -219,6 +234,7 @@
                 leg: null, segIdx: 0, along: 0, instruction: '', street: '', icon: 'straight', distToManeuver: null, maneuverIdx: -1, spokenIdx: -1, spokenApproach: -1, thenManeuver: null,
                 remaining: 0, offRoute: false, offRouteCount: 0, rerouting: false, walked: 0, lastPos: null,
                 sectionIdx: -1, sheet: false, transitLoading: false, spokenAlight: -1, sheetHeight: 200,
+                audioguide: true, narrating: false,
                 backUrl: data.backUrl,
 
                 get target() { return targets[this.legIndex] || null; },
@@ -417,12 +433,22 @@
                     this.measure();
                     const t = this.target;
                     if (t.kind === 'end') { this.finish(); return; }
-                    this.speak(data.t.arrived + ' ' + t.title + '.' + (t.visit ? ' ' + data.t.visit + ' ' + t.visit + ' ' + data.t.minutes + '.' : ''));
+                    // Annonce d'arrivée, puis l'audioguide raconte le lieu (même énoncé : la synthèse vocale enchaîne sans coupure).
+                    const arrival = data.t.arrived + ' ' + t.title + '.' + (t.visit ? ' ' + data.t.visit + ' ' + t.visit + ' ' + data.t.minutes + '.' : '');
+                    if (this.audioguide && t.narration && !this.muted) { this.narrating = true; this.speak(arrival + ' ' + data.t.audioguideIntro + ' ' + t.narration, () => { this.narrating = false; }); }
+                    else this.speak(arrival);
                     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
                     if (nav && this.pos) { this.overview = true; this.follow = false; nav.fit([this.pos, [t.lat, t.lng]], { padding: 80 }); }
                     this.recordVisit(t);
                 },
                 confirmArrival() { this.onArrival(); },
+                toggleNarration() {
+                    if (this.narrating) { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); this.narrating = false; return; }
+                    const t = this.target; if (!t || !t.narration) return;
+                    const wasMuted = this.muted; this.muted = false;
+                    this.narrating = true;
+                    this.speak(t.title + '. ' + t.narration, () => { this.narrating = false; this.muted = wasMuted; });
+                },
                 async recordVisit(t) {
                     if (!data.auth || this.simulate || !t.visitUrl) return;
                     try {
@@ -471,12 +497,14 @@
                 },
 
                 // ---------------------------------------------------------------- voix
-                speak(text) {
-                    if (this.muted || !('speechSynthesis' in window) || !text) return;
+                speak(text, onEnd = null) {
+                    if (this.narrating && !onEnd) this.narrating = false; // une consigne interrompt la présentation en cours
+                    if (this.muted || !('speechSynthesis' in window) || !text) { if (onEnd) onEnd(); return; }
                     const u = new SpeechSynthesisUtterance(text.replace(/\s+/g, ' '));
                     u.lang = data.lang; u.rate = 1.0;
                     const voice = window.speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(data.lang.slice(0, 2).toLowerCase()));
                     if (voice) u.voice = voice;
+                    if (onEnd) { u.onend = onEnd; u.onerror = onEnd; }
                     window.speechSynthesis.cancel();
                     window.speechSynthesis.speak(u);
                 },

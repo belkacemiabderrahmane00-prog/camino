@@ -30,6 +30,7 @@ Route::post('/parcours/etape/{index}/duree', [ItineraryController::class, 'editD
 Route::get('/p/{token}', [ItineraryController::class, 'shared'])->name('itineraries.shared');
 Route::post('/p/{token}/ouvrir', [ItineraryController::class, 'sharedOpen'])->name('itineraries.shared-open');
 Route::get('/p/{token}/gpx', [ItineraryController::class, 'sharedGpx'])->name('itineraries.shared-gpx');
+Route::get('/p/{token}/carnet', [ItineraryController::class, 'sharedJournal'])->name('itineraries.shared-journal');
 
 Route::get('/lieux/{place}', [PlaceController::class, 'show'])->name('places.show');
 Route::post('/lieux/{place}/signaler', [PlaceController::class, 'report'])->name('places.report');
@@ -51,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/mes-parcours/{itinerary}/suivre', [ItineraryController::class, 'navigateSaved'])->name('itineraries.navigate-saved');
     Route::post('/mes-parcours/{itinerary}/partager', [ItineraryController::class, 'share'])->name('itineraries.share');
     Route::get('/mes-parcours/{itinerary}/gpx', [ItineraryController::class, 'gpx'])->name('itineraries.gpx');
+    Route::get('/mes-parcours/{itinerary}/carnet', [ItineraryController::class, 'journal'])->name('itineraries.journal');
     Route::delete('/mes-parcours/{itinerary}', [ItineraryController::class, 'destroy'])->name('itineraries.destroy');
 
     // Communauté (façon Waze)

@@ -403,7 +403,7 @@ class ItineraryController extends Controller
             return redirect()->route('itineraries.create')->with('status', __('Génère un parcours avant de lancer le guidage.'));
         }
 
-        return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create')]);
+        return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create'), 'narrations' => $this->narrations($result)]);
     }
 
     /** Guidage d'un parcours enregistré. */
@@ -411,7 +411,126 @@ class ItineraryController extends Controller
     {
         abort_unless($itinerary->user_id === Auth::id() || Auth::user()?->is_admin, 403);
 
-        return view('itineraries.navigate', ['result' => $itinerary->result_json, 'backUrl' => route('itineraries.show', $itinerary)]);
+        return view('itineraries.navigate', ['result' => $itinerary->result_json, 'backUrl' => route('itineraries.show', $itinerary), 'narrations' => $this->narrations($itinerary->result_json), 'journalUrl' => route('itineraries.journal', $itinerary)]);
+    }
+
+    /**
+     * Audioguide : texte lu à voix haute à l'arrivée sur chaque lieu (description dans la langue de l'interface, ~700 caractères).
+     *
+     * @return array<int,string>
+     */
+    private function narrations(array $result): array
+    {
+        $ids = array_values(array_filter(array_map(fn ($s) => (int) ($s['place_id'] ?? 0), $result['steps'] ?? [])));
+        if ($ids === []) {
+            return [];
+        }
+        $locale = app()->getLocale();
+        $out = [];
+        foreach (Place::with('translations')->whereIn('id', $ids)->get() as $place) {
+            $text = trim((string) ($place->translatedDescription($locale) ?? $place->description));
+            if ($text === '') {
+                continue;
+            }
+            $text = preg_replace('/\s+/u', ' ', $text);
+            if (mb_strlen($text) > 700) {
+                $cut = mb_substr($text, 0, 700);
+                $pos = max(mb_strrpos($cut, '. ') ?: 0, mb_strrpos($cut, '! ') ?: 0, mb_strrpos($cut, '? ') ?: 0);
+                $text = $pos > 200 ? mb_substr($cut, 0, $pos + 1) : $cut . '…';
+            }
+            $out[$place->id] = $text;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Carnet de voyage : page magazine d'un parcours (couverture, chapitres par lieu, photos, tracé, chiffres).
+     */
+    public function journal(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id(), 403);
+
+        return view('itineraries.journal', $this->journalData($itinerary) + ['shared' => false]);
+    }
+
+    public function sharedJournal(string $token)
+    {
+        $itinerary = Itinerary::where('share_token', $token)->with('user')->firstOrFail();
+
+        return view('itineraries.journal', $this->journalData($itinerary) + ['shared' => true, 'token' => $token]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function journalData(Itinerary $itinerary): array
+    {
+        $result = $itinerary->result_json ?? [];
+        $steps = array_values(array_filter($result['steps'] ?? [], fn ($s) => ! empty($s['place_id'])));
+        $ids = array_map(fn ($s) => (int) $s['place_id'], $steps);
+        $places = Place::with(['category', 'translations'])->whereIn('id', $ids)->get()->keyBy('id');
+        $photos = $itinerary->user_id
+            ? \App\Models\PlacePhoto::where('user_id', $itinerary->user_id)->whereIn('place_id', $ids)->where('status', '!=', 'rejected')->latest()->get()->groupBy('place_id')
+            : collect();
+        $locale = app()->getLocale();
+        $pages = [];
+        foreach ($steps as $i => $step) {
+            /** @var Place|null $place */
+            $place = $places[(int) $step['place_id']] ?? null;
+            $text = $place ? trim((string) ($place->translatedDescription($locale) ?? $place->description)) : '';
+            $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+            $sentences = preg_split('/(?<=[.!?…])\s+/u', $text) ?: [];
+            $excerpt = '';
+            foreach ($sentences as $sentence) {
+                if (mb_strlen($excerpt . ' ' . $sentence) > 320 && $excerpt !== '') {
+                    break;
+                }
+                $excerpt = trim($excerpt . ' ' . $sentence);
+            }
+            $pages[] = [
+                'index' => $i + 1,
+                'place' => $place,
+                'title' => $step['title'] ?? $place?->title,
+                'category' => $place?->category ? __($place->category->name) : ($step['category'] ?? ''),
+                'slug' => $place?->category?->slug ?? ($step['category_slug'] ?? null),
+                'photo' => $place?->coverThumb(1600) ?: ($step['cover'] ?? null),
+                'photo_medium' => $place?->coverThumb(900) ?: ($step['cover'] ?? null),
+                'excerpt' => mb_strlen($excerpt) > 340 ? mb_substr($excerpt, 0, 337) . '…' : $excerpt,
+                'arrive_at' => $step['arrive_at'] ?? null,
+                'leave_at' => $step['leave_at'] ?? null,
+                'visit_minutes' => $step['visit_minutes'] ?? null,
+                'travel_minutes' => $step['travel_minutes'] ?? null,
+                'travel_mode' => $step['travel_mode'] ?? ($result['mode'] ?? 'walk'),
+                'reason' => $step['reason'] ?? null,
+                'is_free' => ! empty($step['is_free']),
+                'kind' => $step['kind'] ?? 'visit',
+                'lat' => $step['lat'] ?? $place?->lat,
+                'lng' => $step['lng'] ?? $place?->lng,
+                'address' => $place?->address ?? ($step['address'] ?? null),
+                'photos' => collect($photos[(int) $step['place_id']] ?? [])->take(6)->values(),
+            ];
+        }
+        $withPhoto = array_values(array_filter($pages, fn ($p) => $p['photo']));
+        $cover = $withPhoto[0] ?? null;
+        $date = ! empty($result['date']) ? \Illuminate\Support\Carbon::parse($result['date']) : $itinerary->created_at;
+        $userPhotoCount = $photos->flatten(1)->count();
+
+        return [
+            'itinerary' => $itinerary,
+            'result' => $result,
+            'pages' => $pages,
+            'cover' => $cover,
+            'date' => $date,
+            'stats' => [
+                'places' => count(array_filter($pages, fn ($p) => $p['kind'] === 'visit')),
+                'km' => (float) ($result['total_distance_km'] ?? 0),
+                'minutes' => (int) ($result['total_minutes'] ?? 0),
+                'cost' => (float) ($result['total_cost_eur'] ?? 0),
+                'photos' => $userPhotoCount,
+                'mode' => $result['mode'] ?? 'walk',
+            ],
+        ];
     }
 
     public function destroy(Itinerary $itinerary)
