@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/alertes', [CommunityController::class, 'storeAlert'])->name('alerts.store');
     Route::delete('/alertes/{alert}', [CommunityController::class, 'destroyAlert'])->name('alerts.destroy');
     Route::post('/lieux/{place}/photos', [CommunityController::class, 'storePhoto'])->name('places.photos.store');
+    Route::post('/lieux/{place}/visite', [\App\Http\Controllers\VisitController::class, 'store'])->name('places.visit');
+    Route::delete('/visites/{visit}', [\App\Http\Controllers\VisitController::class, 'destroy'])->name('visits.destroy');
     Route::get('/proposer-un-lieu', [CommunityController::class, 'createPlace'])->name('community.propose');
     Route::post('/proposer-un-lieu', [CommunityController::class, 'storePlace'])->name('community.propose.store');
 

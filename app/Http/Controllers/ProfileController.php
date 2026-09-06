@@ -27,9 +27,10 @@ class ProfileController extends Controller
             'level' => $statsService->level($stats['points']),
             'badges' => $statsService->badges($stats),
             'profile' => $preferences->profile($user),
-            'categories' => Category::whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art', 'evenement-culturel', 'restauration', 'itineraire'])->orderBy('name')->get(),
+            'categories' => Category::whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art', 'evenement-culturel', 'librairies-bibliotheques', 'ateliers-artisans', 'restauration', 'itineraire'])->orderBy('name')->get(),
             'recentItineraries' => $user->itineraries()->latest()->take(3)->get(),
             'recentPhotos' => $user->photos()->with('place')->latest()->take(6)->get(),
+            'recentVisits' => $user->visits()->with('place.category')->latest('visited_at')->take(8)->get(),
         ]);
     }
 

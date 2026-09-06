@@ -30,13 +30,13 @@ class RoutingService
      * @param array<int,array{lat:float,lng:float}> $points
      * @return array{distance_km:float,duration_min:int,legs:array<int,array{distance_km:float,duration_min:int}>,geometry:array<int,array{0:float,1:float}>,source:string}
      */
-    public function route(array $points, string $mode = self::MODE_WALK): array
+    public function route(array $points, string $mode = self::MODE_WALK, bool $wheelchair = false): array
     {
         if (count($points) < 2) {
             return $this->empty();
         }
 
-        $result = $this->call('/route', $points, $mode);
+        $result = $this->call('/route', $points, $mode, $wheelchair);
 
         return $result ?? $this->fallback($points, $mode);
     }
@@ -48,16 +48,16 @@ class RoutingService
      * @param array<int,array{lat:float,lng:float}> $points
      * @return array{distance_km:float,duration_min:int,legs:array,geometry:array,order:array<int,int>,source:string}
      */
-    public function optimizedRoute(array $points, string $mode = self::MODE_WALK): array
+    public function optimizedRoute(array $points, string $mode = self::MODE_WALK, bool $wheelchair = false): array
     {
         if (count($points) < 3) {
-            $r = $this->route($points, $mode);
+            $r = $this->route($points, $mode, $wheelchair);
             $r['order'] = array_keys($points);
 
             return $r;
         }
 
-        $result = $this->call('/optimized_route', $points, $mode);
+        $result = $this->call('/optimized_route', $points, $mode, $wheelchair);
         if ($result === null) {
             $r = $this->fallback($points, $mode);
             $r['order'] = array_keys($points);
@@ -74,18 +74,19 @@ class RoutingService
      * @param array<int,array{lat:float,lng:float}> $points
      * @return array{minutes:array<int,array<int,int>>, km:array<int,array<int,float>>, source:string}
      */
-    public function matrix(array $points, string $mode = self::MODE_WALK): array
+    public function matrix(array $points, string $mode = self::MODE_WALK, bool $wheelchair = false): array
     {
         $points = array_values($points);
         $n = count($points);
         $costing = self::COSTING[$mode] ?? 'pedestrian';
+        $costingOptions = $this->costingOptions($costing, $wheelchair);
         $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], $points);
-        $cacheKey = 'routing:matrix:v2:' . md5($costing . json_encode($locations));
+        $cacheKey = 'routing:matrix:v2:' . md5($costing . json_encode($costingOptions) . json_encode($locations));
 
         // L'instance publique limite chaque appel à 100 paires : on découpe en blocs 10 × 10 envoyés en parallèle.
         // L'instance publique limite chaque appel à 100 paires source × cible et n'aime pas les rafales :
         // on envoie des blocs « quelques sources × toutes les cibles », par vagues de 3 requêtes.
-        $result = $n >= 2 && $n <= 60 ? Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($locations, $costing, $n) {
+        $result = $n >= 2 && $n <= 60 ? Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($locations, $costing, $costingOptions, $n) {
             $perRequest = max(1, intdiv(100, $n));
             $groups = array_chunk(range(0, $n - 1), $perRequest);
             $base = rtrim(config('camino.routing.base_url'), '/') . '/sources_to_targets';
@@ -94,10 +95,10 @@ class RoutingService
             $km = [];
             foreach (array_chunk($groups, 3, true) as $wave) {
                 try {
-                    $responses = Http::pool(function ($pool) use ($wave, $locations, $costing, $base, $timeout) {
+                    $responses = Http::pool(function ($pool) use ($wave, $locations, $costing, $costingOptions, $base, $timeout) {
                         foreach ($wave as $key => $sources) {
                             $pool->as((string) $key)->timeout($timeout)->withHeaders(['User-Agent' => config('camino.user_agent')])
-                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'units' => 'kilometers']);
+                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'costing_options' => $costingOptions, 'units' => 'kilometers']);
                         }
                     });
                 } catch (\Throwable $e) {
@@ -112,7 +113,7 @@ class RoutingService
                         usleep(400000);
                         try {
                             $response = Http::timeout($timeout)->withHeaders(['User-Agent' => config('camino.user_agent')])
-                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'units' => 'kilometers']);
+                                ->post($base, ['sources' => array_map(fn ($i) => $locations[$i], $sources), 'targets' => $locations, 'costing' => $costing, 'costing_options' => $costingOptions, 'units' => 'kilometers']);
                         } catch (\Throwable $e) {
                             Log::warning('Routing matrix unavailable: ' . $e->getMessage() . " ($n points)");
 
@@ -179,19 +180,27 @@ class RoutingService
     /**
      * @param array<int,array{lat:float,lng:float}> $points
      */
-    private function call(string $endpoint, array $points, string $mode): ?array
+    /** Fauteuil roulant / poussette : profil piéton « wheelchair » de Valhalla (évite escaliers et fortes pentes). */
+    private function costingOptions(string $costing, bool $wheelchair): array
+    {
+        return $wheelchair && $costing === 'pedestrian' ? ['pedestrian' => ['type' => 'wheelchair']] : [];
+    }
+
+    private function call(string $endpoint, array $points, string $mode, bool $wheelchair = false): ?array
     {
         $costing = self::COSTING[$mode] ?? 'pedestrian';
+        $costingOptions = $this->costingOptions($costing, $wheelchair);
         $locations = array_map(fn (array $p) => ['lat' => round((float) $p['lat'], 6), 'lon' => round((float) $p['lng'], 6)], array_values($points));
-        $cacheKey = 'routing:v2:' . md5($endpoint . $costing . json_encode($locations));
+        $cacheKey = 'routing:v2:' . md5($endpoint . $costing . json_encode($costingOptions) . json_encode($locations));
 
-        return Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($endpoint, $locations, $costing) {
+        return Cache::remember($cacheKey, now()->addMinutes(config('camino.routing.cache_minutes', 10080)), function () use ($endpoint, $locations, $costing, $costingOptions) {
             try {
                 $response = Http::timeout(config('camino.routing.timeout', 20))
                     ->withHeaders(['User-Agent' => config('camino.user_agent')])
                     ->post(rtrim(config('camino.routing.base_url'), '/') . $endpoint, [
                         'locations' => $locations,
                         'costing' => $costing,
+                        'costing_options' => $costingOptions,
                         'units' => 'kilometers',
                         'directions_options' => ['language' => 'fr-FR'],
                     ]);

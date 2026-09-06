@@ -197,6 +197,8 @@
                     { key: 'evenements', label: 'Événements', icon: 'celebration', slug: 'evenement-culturel' },
                     { key: 'restauration', label: 'Restauration', icon: 'restaurant', slug: 'restauration' },
                     { key: 'itineraires', label: 'Balades', icon: 'route', slug: 'itineraire' },
+                    { key: 'librairies', label: 'Librairies', icon: 'menu_book', slug: 'librairies-bibliotheques' },
+                    { key: 'ateliers', label: 'Ateliers', icon: 'handyman', slug: 'ateliers-artisans' },
                     { key: 'free', label: 'Gratuit', icon: 'loyalty' },
                 ],
                 init() {

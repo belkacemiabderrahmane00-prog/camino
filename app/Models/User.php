@@ -72,6 +72,11 @@ class User extends Authenticatable
         return $this->hasMany(PlaceAlert::class);
     }
 
+    public function visits()
+    {
+        return $this->hasMany(Visit::class);
+    }
+
     public function photos()
     {
         return $this->hasMany(PlacePhoto::class);

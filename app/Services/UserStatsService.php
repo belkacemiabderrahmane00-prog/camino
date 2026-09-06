@@ -31,8 +31,9 @@ class UserStatsService
             'photos' => $user->photos()->where('status', 'approved')->count(),
             'alerts' => $user->alerts()->count(),
             'places' => $user->submittedPlaces()->where('status', 'approved')->count(),
+            'visits' => $user->visits()->count(),
         ];
-        $counts['points'] = (int) ($counts['itineraries'] * 10 + $counts['reviews'] * 5 + $counts['photos'] * 8 + $counts['alerts'] * 3 + $counts['favorites'] + $counts['places'] * 15 + $km);
+        $counts['points'] = (int) ($counts['itineraries'] * 10 + $counts['reviews'] * 5 + $counts['photos'] * 8 + $counts['alerts'] * 3 + $counts['favorites'] + $counts['places'] * 15 + $counts['visits'] * 4 + $km);
 
         return $counts;
     }
@@ -73,6 +74,7 @@ class UserStatsService
             ['critic', 'Critique', 'rate_review', 'reviews', 3, 'avis publiés'],
             ['reporter', 'Reporter', 'photo_camera', 'photos', 1, 'photo publiée'],
             ['lookout', 'Vigie', 'campaign', 'alerts', 1, 'alerte signalée'],
+            ['explorer', 'Sur le terrain', 'footprint', 'visits', 5, 'lieux visités'],
         ];
         $out = [];
         foreach ($defs as [$key, $name, $icon, $stat, $target, $label]) {

@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
  */
 class ItineraryGenerator
 {
-    private const INDOOR = ['musee', 'lieu-culturel', 'restauration'];
+    private const INDOOR = ['musee', 'lieu-culturel', 'restauration', 'librairies-bibliotheques', 'ateliers-artisans'];
 
     private const OUTDOOR = ['parc-jardin', 'street-art', 'itineraire'];
 
@@ -32,6 +32,8 @@ class ItineraryGenerator
 
     /** Nombre de candidats envoyés à la matrice de temps. */
     private const SHORTLIST = 18;
+
+    private bool $accessibleFlag = false;
 
     public function __construct(
         private readonly RoutingService $routing,
@@ -70,6 +72,7 @@ class ItineraryGenerator
         $scoreAdjust = (array) ($options['score_adjust'] ?? []);
         $jitter = (float) ($options['jitter'] ?? 0);
         $shortlistIds = array_map('intval', (array) ($options['shortlist_ids'] ?? []));
+        $accessible = (bool) ($options['accessible'] ?? false);
 
         $start = $options['start'] ?? null;
         if (! $start || ! isset($start['lat'], $start['lng'])) {
@@ -106,6 +109,9 @@ class ItineraryGenerator
             if (in_array('closure', $alerts[$p->id] ?? [], true)) {
                 $closedCount++;
 
+                continue;
+            }
+            if ($accessible && $p->accessible === false) {
                 continue;
             }
             $hours = $p->hoursFor($date);
@@ -146,6 +152,9 @@ class ItineraryGenerator
             }
             if ($row['hours']['status'] === 'unknown') {
                 $score -= 0.3;
+            }
+            if ($accessible) {
+                $score += $p->accessible === true ? 1.5 : -1.2;
             }
             if (in_array('crowd', $alerts[$p->id] ?? [], true)) {
                 $score -= 1.0;
@@ -219,7 +228,7 @@ class ItineraryGenerator
             $points[] = ['lat' => (float) $end['lat'], 'lng' => (float) $end['lng']];
             $endIdx = count($points) - 1;
         }
-        $matrix = $this->routing->matrix($points, $mode);
+        $matrix = $this->routing->matrix($points, $mode, $accessible);
         $T = $matrix['minutes'];
         $K = $matrix['km'];
 
@@ -272,7 +281,7 @@ class ItineraryGenerator
         if ($endIdx !== null) {
             $routePoints[] = $points[$endIdx];
         }
-        $route = $this->routing->route($routePoints, $mode);
+        $route = $this->routing->route($routePoints, $mode, $accessible);
         $legs = $route['legs'] ?? [];
         // Si le tracé réel diffère de la matrice, on refait les horaires avec ses durées.
         if (count($legs) === count($routePoints) - 1) {
@@ -324,6 +333,8 @@ class ItineraryGenerator
                 'travel_km' => round((float) $leg['distance_km'], 2),
                 'wait_minutes' => $s['wait'],
                 'conflict' => $s['conflict'] ?? false,
+                'accessible' => $place->accessible,
+                'accessibility_note' => $place->accessibility_note,
                 'locked' => $node['required'] ?? false,
                 'arrive_at' => $arrive->format('H:i'),
                 'start_visit_at' => $date->copy()->addMinutes($s['begin'])->format('H:i'),
@@ -369,11 +380,18 @@ class ItineraryGenerator
                 $warnings[] = $st['title'] . ' : la visite finirait après la fermeture (' . $st['hours']['closes'] . ').';
             }
         }
+        if ($accessible) {
+            $unknownAccess = count(array_filter($steps, fn ($s) => $s['accessible'] === null && $s['kind'] === 'visit'));
+            if ($unknownAccess > 0) {
+                $warnings[] = $unknownAccess . ' étape(s) sans information d\'accessibilité vérifiée : le trajet évite les escaliers, mais vérifie l\'entrée.';
+            }
+        }
         $unknown = count(array_filter($steps, fn ($s) => $s['hours']['status'] === 'unknown'));
         if ($unknown > 0) {
             $warnings[] = $unknown . ' étape(s) sans horaires connus : vérifie avant de partir.';
         }
 
+        $this->accessibleFlag = $accessible;
         $out = $this->result($start, $end, $loop, $startsAt, $mode, $steps, $route, $weather, $warnings, round($totalCost, 2), $sim, $finalLeg, $matrix['source'] ?? 'estimate');
         $out['shortlist_ids'] = array_map(fn ($r) => (int) $r['place']->id, $rows);
 
@@ -673,6 +691,7 @@ class ItineraryGenerator
             'planner' => 'insertion+2opt',
             'title' => $this->title($categories, $start['label'] ?? null),
             'mode' => $mode,
+            'accessible' => $this->accessibleFlag,
             'start' => ['lat' => (float) $start['lat'], 'lng' => (float) $start['lng'], 'label' => $start['label'] ?? 'Point de départ'],
             'end' => $end ? ['lat' => (float) $end['lat'], 'lng' => (float) $end['lng'], 'label' => $end['label'] ?? 'Arrivée'] + ($finalLeg ?? []) : null,
             'loop' => $loop,

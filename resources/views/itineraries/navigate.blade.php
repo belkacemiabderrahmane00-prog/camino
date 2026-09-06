@@ -9,11 +9,13 @@
         'steps' => collect($steps)->map(fn ($s) => [
             'lat' => $s['lat'], 'lng' => $s['lng'], 'title' => $s['title'], 'cover' => $s['cover'], 'category' => $s['category'],
             'visit' => $s['visit_minutes'], 'arrive' => $s['arrive_at'], 'kind' => $s['kind'] ?? 'visit', 'slug' => $s['category_slug'],
-            'url' => route('places.show', $s['place_id']), 'hours' => $s['hours'] ?? null,
+            'url' => route('places.show', $s['place_id']), 'hours' => $s['hours'] ?? null, 'id' => $s['place_id'], 'visitUrl' => route('places.visit', $s['place_id']),
         ])->values()->all(),
         'title' => $result['title'],
         'backUrl' => $backUrl,
         'simulate' => max(0, (int) request()->query('simulate', 0)),
+        'auth' => auth()->check(),
+        'itineraryId' => $result['itinerary_id'] ?? null,
     ];
 @endphp
 <x-app-layout :title="'Guidage · ' . $result['title']" :fullscreen="true" :bottom-nav="false">
@@ -268,8 +270,17 @@
                     if (t.kind === 'end') { this.finish(); return; }
                     this.speak('Vous êtes arrivé à ' + t.title + '.' + (t.visit ? ' Visite prévue : ' + t.visit + ' minutes.' : ''));
                     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+                    this.recordVisit(t);
                 },
                 confirmArrival() { this.onArrival(); },
+                // Journal des visites : enregistré côté serveur pour les utilisateurs connectés (hors simulation).
+                async recordVisit(t) {
+                    if (!data.auth || this.simulate || !t.visitUrl) return;
+                    try {
+                        const token = document.querySelector('meta[name=csrf-token]')?.content;
+                        await fetch(t.visitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': token }, body: JSON.stringify({ source: 'guidage', minutes: t.visit || null, itinerary_id: data.itineraryId }) });
+                    } catch (e) {}
+                },
                 async continueRoute() {
                     const next = this.legIndex + 1;
                     this.arrived = false;

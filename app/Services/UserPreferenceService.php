@@ -18,7 +18,7 @@ class UserPreferenceService
     public function profile(?User $user): array
     {
         if (! $user) {
-            return ['weights' => [], 'top' => [], 'signals' => ['favorites' => 0, 'reviews' => 0, 'itineraries' => 0]];
+            return ['weights' => [], 'top' => [], 'signals' => ['favorites' => 0, 'reviews' => 0, 'itineraries' => 0, 'visits' => 0]];
         }
 
         $scores = [];
@@ -58,6 +58,18 @@ class UserPreferenceService
             }
         }
 
+        // Visites réelles (guidage ou déclarées) : le signal le plus fiable.
+        $visits = DB::table('visits')
+            ->join('places', 'places.id', '=', 'visits.place_id')
+            ->join('categories', 'categories.id', '=', 'places.category_id')
+            ->where('visits.user_id', $user->id)
+            ->selectRaw('categories.slug, count(*) as c')
+            ->groupBy('categories.slug')
+            ->pluck('c', 'slug');
+        foreach ($visits as $slug => $c) {
+            $scores[$slug] = ($scores[$slug] ?? 0) + 2.5 * $c;
+        }
+
         // Centres d'intérêt déclarés dans le profil : signal explicite.
         foreach ((array) ($user->interests ?? []) as $slug) {
             $scores[$slug] = ($scores[$slug] ?? 0) + 4;
@@ -85,6 +97,7 @@ class UserPreferenceService
                 'favorites' => (int) $favorites->sum(),
                 'reviews' => (int) $reviews->sum('c'),
                 'itineraries' => $itineraries->count(),
+                'visits' => (int) $visits->sum(),
             ],
         ];
     }

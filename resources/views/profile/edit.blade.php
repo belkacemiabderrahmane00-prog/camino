@@ -3,6 +3,7 @@
         'musee' => ['palette', '#7C3AED'], 'monument' => ['account_balance', '#B45309'], 'parc-jardin' => ['park', '#15803D'],
         'lieu-culturel' => ['theater_comedy', '#0369A1'], 'restauration' => ['restaurant', '#DB2777'], 'evenement-culturel' => ['celebration', '#F59E0B'],
         'street-art' => ['brush', '#E11D48'], 'itineraire' => ['route', '#0F766E'],
+        'librairies-bibliotheques' => ['menu_book', '#1D4ED8'], 'ateliers-artisans' => ['handyman', '#9A3412'],
     ];
     $personas = [
         'musee' => ['Âme de muséophile', 'Les salles feutrées, les grandes collections et les expos du moment : ton terrain de jeu.', 'palette'],
@@ -11,6 +12,8 @@
         'lieu-culturel' => ['Noctambule culturel·le', 'Scènes, galeries, cinémas d\'art et d\'essai : tu es là où ça vibre.', 'theater_comedy'],
         'street-art' => ['Chasseur·se de street art', 'Un mur peint, une ruelle cachée : tu vois la ville comme une galerie à ciel ouvert.', 'brush'],
         'evenement-culturel' => ['Toujours à l\'affût', 'Festivals, concerts, journées spéciales : tu ne rates jamais ce qui se passe.', 'celebration'],
+        'librairies-bibliotheques' => ['Rat de bibliothèque', 'Rayonnages, médiathèques et petites librairies : tu voyages aussi en lisant.', 'menu_book'],
+        'ateliers-artisans' => ['Main à la pâte', 'Ateliers, savoir-faire et artisans d\'art : tu aimes voir comment c\'est fait.', 'handyman'],
     ];
     $topSlug = $profile['top'][0]['slug'] ?? null;
     $persona = $personas[$topSlug] ?? ['Curieux·se de tout', 'Ton profil se dessine à chaque favori, avis et parcours. Continue d\'explorer.', 'explore'];
@@ -77,7 +80,7 @@
                 <div class="mt-5 flex sm:grid grid-cols-1 sm:grid-cols-6 gap-2 overflow-x-auto hide-scrollbar -mx-5 px-5 sm:mx-0 sm:px-0 text-center">
                     @foreach([
                         ['itineraries', 'Parcours', 'route'], ['km', 'km', 'directions_walk'], ['favorites', 'Favoris', 'favorite'],
-                        ['reviews', 'Avis', 'rate_review'], ['photos', 'Photos', 'photo_camera'], ['alerts', 'Alertes', 'campaign'],
+                        ['visits', 'Visites', 'footprint'], ['reviews', 'Avis', 'rate_review'], ['photos', 'Photos', 'photo_camera'],
                     ] as [$k, $l, $i])
                         <div class="shrink-0 w-24 sm:w-auto rounded-2xl bg-white/10 p-3">
                             <span class="material-symbols-outlined text-sun" style="font-size:18px">{{ $i }}</span>
@@ -190,7 +193,7 @@
                                     </div>
                                 @endforeach
                             </div>
-                            <p class="mt-3 text-xs text-ink-muted">Calculé à partir de {{ $profile['signals']['favorites'] }} favoris, {{ $profile['signals']['reviews'] }} avis et {{ $profile['signals']['itineraries'] }} parcours, plus tes centres d'intérêt.</p>
+                            <p class="mt-3 text-xs text-ink-muted">Calculé à partir de {{ $profile['signals']['visits'] ?? 0 }} visites, {{ $profile['signals']['favorites'] }} favoris, {{ $profile['signals']['reviews'] }} avis et {{ $profile['signals']['itineraries'] }} parcours, plus tes centres d'intérêt.</p>
                         @else
                             <div class="mt-4 rounded-2xl bg-paper p-4 text-sm text-ink-muted">Pas encore assez de signaux. Ajoute des favoris, laisse des avis, génère des parcours : le profil s'affine tout seul.</div>
                         @endif
@@ -260,6 +263,22 @@
                             <p class="text-sm text-ink-muted">Aucun parcours pour l'instant. <a href="{{ route('itineraries.create') }}" class="underline font-semibold text-ink">Générer le premier</a>.</p>
                         @endforelse
                     </div>
+                </div>
+                <div class="card p-5 sm:p-6">
+                    <p class="eyebrow mb-3">Journal des visites</p>
+                    @if($recentVisits->isNotEmpty())
+                        <ol class="space-y-1.5">
+                            @foreach($recentVisits as $v)
+                                <li class="flex items-center gap-3 rounded-2xl p-2 hover:bg-paper">
+                                    <div class="h-10 w-10 rounded-xl overflow-hidden shrink-0 placeholder-cover flex items-center justify-center">@if($v->place?->coverThumb(250))<img src="{{ $v->place->coverThumb(250) }}" alt="" class="h-full w-full object-cover">@else<span class="material-symbols-outlined text-white/80" style="font-size:18px">place</span>@endif</div>
+                                    <div class="min-w-0 flex-1"><a href="{{ $v->place ? route('places.show', $v->place) : '#' }}" class="text-sm font-semibold truncate block">{{ $v->place?->title ?? 'Lieu supprimé' }}</a><p class="text-[11px] text-ink-muted">{{ $v->visited_at->translatedFormat('j F') }}{{ $v->minutes ? ' · ' . $v->minutes . ' min' : '' }} · {{ $v->source === 'guidage' ? 'via le guidage' : 'ajouté à la main' }}</p></div>
+                                    <form method="POST" action="{{ route('visits.destroy', $v) }}">@csrf @method('DELETE')<button class="btn btn-icon btn-ghost !h-8 !w-8" title="Retirer"><span class="material-symbols-outlined" style="font-size:16px">close</span></button></form>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @else
+                        <p class="text-sm text-ink-muted">Tes arrivées pendant le guidage s'inscrivent ici. Tu peux aussi noter une visite depuis la fiche d'un lieu avec « J'y suis allé ».</p>
+                    @endif
                 </div>
                 <div class="card p-5 sm:p-6">
                     <p class="eyebrow mb-3">Mes photos</p>

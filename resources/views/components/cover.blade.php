@@ -7,7 +7,7 @@
         'street-art' => ['#E11D48', '#4C0519'], 'itineraire' => ['#0F766E', '#042F2E'],
     ];
     [$c1, $c2] = $palette[$slug] ?? ['#0F8B8D', '#12161C'];
-    $icons = ['musee' => 'palette', 'monument' => 'account_balance', 'parc-jardin' => 'park', 'lieu-culturel' => 'theater_comedy', 'restauration' => 'restaurant', 'evenement-culturel' => 'celebration', 'street-art' => 'brush', 'itineraire' => 'route'];
+    $icons = ['musee' => 'palette', 'monument' => 'account_balance', 'parc-jardin' => 'park', 'lieu-culturel' => 'theater_comedy', 'restauration' => 'restaurant', 'evenement-culturel' => 'celebration', 'street-art' => 'brush', 'itineraire' => 'route', 'librairies-bibliotheques' => 'menu_book', 'ateliers-artisans' => 'handyman'];
 @endphp
 @if($place->cover_image_url)
     <img src="{{ $place->coverThumb($class === 'h-full' ? 1200 : 800) }}" alt="{{ $place->title }}" loading="{{ $eager ? 'eager' : 'lazy' }}" {{ $attributes->merge(['class' => 'w-full object-cover ' . $class]) }}>

@@ -39,6 +39,7 @@
                     <x-category-pill :category="$place->category" />
                     @if($place->is_free)<span class="badge badge-free">Gratuit</span>@elseif($place->price_level)<span class="badge badge-paid">{{ str_repeat('€', (int) $place->price_level) }} · dès {{ [1 => 5, 2 => 15, 3 => 30][$place->price_level] }} €</span>@endif
                     <span class="badge badge-paid"><span class="material-symbols-outlined" style="font-size:14px">schedule</span>≈ {{ $place->visit_duration_min ?? 60 }} min</span>
+                    @if($place->accessible === true)<span class="badge badge-free" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accessible PMR</span>@elseif($place->accessible === false)<span class="badge badge-alert" title="{{ $place->accessibility_note }}"><span class="material-symbols-outlined" style="font-size:14px">accessible</span>Accès difficile</span>@endif
                     @if($place->event_end_at)
                         <span class="badge badge-event"><span class="material-symbols-outlined" style="font-size:14px">event</span>
                             @if($place->event_start_at && !$place->event_start_at->isSameDay($place->event_end_at)) Du {{ $place->event_start_at->translatedFormat('j M') }} au {{ $place->event_end_at->translatedFormat('j M Y') }} @else Le {{ ($place->event_start_at ?? $place->event_end_at)->translatedFormat('j F Y') }} @endif
@@ -89,6 +90,11 @@
                             <button class="btn btn-md btn-ink"><span class="material-symbols-outlined" style="font-size:18px">add_location_alt</span>Ajouter au parcours</button>
                         </form>
                     @endif
+                    @auth
+                        <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
+                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>J'y suis allé</button>
+                        </form>
+                    @endauth
                     @if($gmUrl)
                         <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-md btn-soft"><span class="material-symbols-outlined" style="font-size:18px">navigation</span>Y aller</a>
                     @endif
@@ -205,6 +211,11 @@
                 <div id="place-map" class="h-56"></div>
                 <div class="p-4 text-sm space-y-2">
                     <p class="flex items-start gap-2 text-ink-soft"><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">location_on</span>{{ $place->address ?? 'Adresse non renseignée' }}</p>
+                    @auth
+                        <form method="POST" action="{{ route('places.visit', $place) }}">@csrf<input type="hidden" name="source" value="manuel">
+                            <button class="btn btn-md btn-soft" title="Ajouter à mon journal de visites"><span class="material-symbols-outlined" style="font-size:18px">footprint</span>J'y suis allé</button>
+                        </form>
+                    @endauth
                     @if($gmUrl)
                         <div class="flex gap-2 pt-1">
                             <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-soft flex-1">Google Maps</a>

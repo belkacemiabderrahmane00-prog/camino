@@ -5,6 +5,7 @@
         'musee' => ['palette', '#7C3AED'], 'monument' => ['account_balance', '#B45309'], 'parc-jardin' => ['park', '#15803D'],
         'lieu-culturel' => ['theater_comedy', '#0369A1'], 'restauration' => ['restaurant', '#DB2777'], 'evenement-culturel' => ['celebration', '#F59E0B'],
         'street-art' => ['brush', '#E11D48'], 'itineraire' => ['route', '#0F766E'],
+        'librairies-bibliotheques' => ['menu_book', '#1D4ED8'], 'ateliers-artisans' => ['handyman', '#9A3412'],
     ];
     [$icon, $color] = $style[$slug] ?? ['place', '#0F8B8D'];
 @endphp

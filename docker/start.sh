@@ -3,6 +3,9 @@ set -e
 
 php artisan migrate --force
 php artisan db:seed --class=CategorySeeder --force
+# Données calculées hors ligne (dump DATAtourisme + Acceslibre) : reclassement et accessibilité, idempotents.
+php artisan camino:reclassify-categories --apply=database/data/categories.json || true
+php artisan camino:import-accessibility --apply=database/data/accessibility.json || true
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

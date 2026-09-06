@@ -24,6 +24,9 @@ class Place extends Model
         'price_level',
         'visit_duration_min',
         'opening_hours',
+        'accessible',
+        'accessibility_source',
+        'accessibility_note',
         'tags',
         'cover_image_url',
         'cover_image_source',
@@ -45,6 +48,7 @@ class Place extends Model
     protected $casts = [
         'is_free' => 'boolean',
         'opening_hours' => 'array',
+        'accessible' => 'boolean',
         'tags' => 'array',
         'gallery' => 'array',
         'sources' => 'array',
@@ -192,6 +196,11 @@ class Place extends Model
      *
      * @return array{status:string, opens:?int, closes:?int, note:?string}
      */
+    public function visits()
+    {
+        return $this->hasMany(Visit::class);
+    }
+
     public function hoursFor(\Illuminate\Support\Carbon $date): array
     {
         return app(\App\Services\OpeningHoursParser::class)->windowFor($this->opening_hours, $date);

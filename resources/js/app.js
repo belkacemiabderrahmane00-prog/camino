@@ -19,6 +19,8 @@ export const CATEGORY_STYLE = {
     'evenement-culturel': { icon: 'celebration', color: '#F59E0B', label: 'Événement' },
     'street-art': { icon: 'brush', color: '#E11D48', label: 'Street art' },
     itineraire: { icon: 'route', color: '#0F766E', label: 'Itinéraire' },
+    'librairies-bibliotheques': { icon: 'menu_book', color: '#1D4ED8', label: 'Librairie / bibliothèque' },
+    'ateliers-artisans': { icon: 'handyman', color: '#9A3412', label: 'Atelier / artisan' },
     default: { icon: 'place', color: '#0F8B8D', label: 'Lieu' },
 };
 

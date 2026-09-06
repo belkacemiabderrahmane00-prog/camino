@@ -42,8 +42,8 @@ class ItineraryController extends Controller
 
     public function create()
     {
-        $categories = Category::whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art', 'evenement-culturel', 'restauration', 'itineraire'])
-            ->orderByRaw("case slug when 'musee' then 1 when 'monument' then 2 when 'parc-jardin' then 3 when 'lieu-culturel' then 4 when 'evenement-culturel' then 5 when 'street-art' then 6 when 'restauration' then 7 else 8 end")
+        $categories = Category::whereIn('slug', ['musee', 'monument', 'parc-jardin', 'lieu-culturel', 'street-art', 'evenement-culturel', 'librairies-bibliotheques', 'ateliers-artisans', 'restauration', 'itineraire'])
+            ->orderByRaw("case slug when 'musee' then 1 when 'monument' then 2 when 'parc-jardin' then 3 when 'lieu-culturel' then 4 when 'evenement-culturel' then 5 when 'street-art' then 6 when 'librairies-bibliotheques' then 7 when 'ateliers-artisans' then 8 when 'restauration' then 9 else 10 end")
             ->get();
 
         $placeIds = session(self::SESSION_KEY, []);
@@ -141,6 +141,7 @@ class ItineraryController extends Controller
             'required' => $fromSession ? [] : $locked,
             'score_adjust' => self::VARIANTS[$preset]['adjust'],
             'jitter' => $surprise ? 1.6 : 0,
+            'accessible' => ! empty($data['accessible']),
         ];
 
         $result = $this->generator->generate($candidates, $options);
@@ -161,6 +162,7 @@ class ItineraryController extends Controller
             'starts_at' => $startsAt->format('H:i'),
             'with_lunch' => $withLunch,
             'use_weather' => $useWeather,
+            'accessible' => ! empty($data['accessible']),
             'start_source' => $data['start_label'] ?? null,
         ];
 
@@ -473,6 +475,7 @@ class ItineraryController extends Controller
             'visit_overrides' => $overrides,
             'required' => array_map('intval', session(self::LOCKED_KEY, [])),
             'alerts' => $this->activeAlerts($ordered),
+            'accessible' => (bool) ($params['accessible'] ?? false),
         ]);
         $new['params'] = $params;
         $new['edited'] = true;
