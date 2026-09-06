@@ -741,5 +741,11 @@
     "choisis un point de départ": "choose a starting point",
     "min de trajet": "min travel",
     "pause déjeuner": "lunch break",
-    "La photo n'a pas pu être reçue par le serveur. Réessaie dans un instant.": "The server could not receive the photo. Try again in a moment."
+    "La photo n'a pas pu être reçue par le serveur. Réessaie dans un instant.": "The server could not receive the photo. Try again in a moment.",
+    "Écouter": "Listen",
+    "Arrêter la lecture": "Stop reading",
+    "Traduit automatiquement du français.": "Automatically translated from French.",
+    "Voir la traduction": "See the translation",
+    "Voir l'original": "See the original",
+    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "French description: automatic translation is not available right now."
 }

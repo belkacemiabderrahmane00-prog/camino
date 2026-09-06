@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('place_translations')) {
+            return;
+        }
+        Schema::create('place_translations', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('place_id')->constrained()->cascadeOnDelete();
+            $table->string('locale', 5);
+            $table->string('field', 32)->default('description');
+            $table->text('text');
+            $table->string('provider', 32)->nullable();
+            $table->timestamps();
+            $table->unique(['place_id', 'locale', 'field']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('place_translations');
+    }
+};

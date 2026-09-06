@@ -114,6 +114,36 @@ export function placePinHtml(slug, size = 30) {
     return `<div class="camino-pin" style="background:${style.color};width:${size}px;height:${size}px"><span class="material-symbols-outlined">${style.icon}</span></div>`;
 }
 
+/**
+ * Lecture à voix haute d'un texte (fiche lieu) avec la synthèse vocale du navigateur, dans la langue de l'interface.
+ * Usage Alpine : x-data="placeReader({ lang, title, text, listen, stop })"
+ */
+window.placeReader = function (data) {
+    return {
+        data,
+        speaking: false,
+        supported: typeof window !== 'undefined' && 'speechSynthesis' in window && !!data.text,
+        init() {
+            if (this.supported) window.speechSynthesis.getVoices();
+            window.addEventListener('beforeunload', () => { if (this.speaking) window.speechSynthesis.cancel(); });
+        },
+        toggle() {
+            if (!this.supported) return;
+            if (this.speaking) { window.speechSynthesis.cancel(); this.speaking = false; return; }
+            const text = (data.title ? data.title + '. ' : '') + String(data.text).replace(/\s+/g, ' ').trim();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = data.lang; u.rate = 1.0;
+            const voice = window.speechSynthesis.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith(String(data.lang).slice(0, 2).toLowerCase()));
+            if (voice) u.voice = voice;
+            u.onend = () => { this.speaking = false; };
+            u.onerror = () => { this.speaking = false; };
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
+            this.speaking = true;
+        },
+    };
+};
+
 /** Carte de navigation (MapLibre), chargée uniquement sur la page de guidage. */
 export function loadNavMap() {
     return import('./nav-map.js').then((m) => m.NavMap);

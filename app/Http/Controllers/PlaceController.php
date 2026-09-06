@@ -45,8 +45,13 @@ class PlaceController extends Controller
         $itineraryPlaceIds = session('itinerary_place_ids', []);
         $isInItinerary = in_array($place->id, $itineraryPlaceIds);
 
+        // Description dans la langue de l'interface (traduction automatique mise en cache), français d'origine sinon.
+        $place->load('translations');
+        $translatedDescription = app()->getLocale() === 'fr' ? null : $place->translatedDescription(app()->getLocale());
+
         return view('places.show', [
             'place' => $place,
+            'translatedDescription' => $translatedDescription,
             'isFavorite' => $isFavorite,
             'isInItinerary' => $isInItinerary,
             'reviews' => $reviews,

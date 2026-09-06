@@ -741,5 +741,11 @@
     "choisis un point de départ": "请选择出发点",
     "min de trajet": "分钟路程",
     "pause déjeuner": "午餐时间",
-    "La photo n'a pas pu être reçue par le serveur. Réessaie dans un instant.": "服务器未能接收照片。请稍后再试。"
+    "La photo n'a pas pu être reçue par le serveur. Réessaie dans un instant.": "服务器未能接收照片。请稍后再试。",
+    "Écouter": "朗读",
+    "Arrêter la lecture": "停止朗读",
+    "Traduit automatiquement du français.": "由法语自动翻译。",
+    "Voir la traduction": "查看译文",
+    "Voir l'original": "查看原文",
+    "Description en français : la traduction automatique n'est pas disponible pour le moment.": "法语描述：自动翻译暂时不可用。"
 }

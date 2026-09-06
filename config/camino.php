@@ -40,6 +40,15 @@ return [
     /*
      * Transports en commun : API PRIM d'Île-de-France Mobilités (calculateur Navitia). Clé gratuite sur prim.iledefrance-mobilites.fr.
      */
+    // Traduction automatique des descriptions de lieux (anglais, chinois) : DeepL si clé, sinon MyMemory (gratuit, sans clé).
+    'translation' => [
+        'enabled' => (bool) env('CAMINO_TRANSLATE_PLACES', true),
+        'deepl_key' => env('CAMINO_DEEPL_KEY', ''),
+        'email' => env('CAMINO_TRANSLATION_EMAIL', env('MAIL_FROM_ADDRESS', '')),
+        'timeout' => (int) env('CAMINO_TRANSLATION_TIMEOUT', 8),
+        'max_chars' => 4000,
+    ],
+
     'transit' => [
         'api_key' => env('CAMINO_PRIM_API_KEY', ''),
         'base_url' => env('CAMINO_PRIM_URL', 'https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia'),

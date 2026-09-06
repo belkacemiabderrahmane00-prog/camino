@@ -205,4 +205,41 @@ class Place extends Model
     {
         return app(\App\Services\OpeningHoursParser::class)->windowFor($this->opening_hours, $date);
     }
+
+    public function translations()
+    {
+        return $this->hasMany(PlaceTranslation::class);
+    }
+
+    /**
+     * Description dans la langue demandée : la version française d'origine pour « fr »,
+     * sinon la traduction en cache, ou une traduction à la volée (mise en cache) si $fetch.
+     * Retourne null si aucune traduction n'est disponible (la vue affiche alors le français).
+     */
+    public function translatedDescription(string $locale, ?\App\Services\TranslationService $translator = null, bool $fetch = true): ?string
+    {
+        $original = trim((string) $this->description);
+        if ($original === '') {
+            return null;
+        }
+        if ($locale === 'fr' || ! in_array($locale, ['en', 'zh'], true)) {
+            return $original;
+        }
+        $cached = $this->translations->firstWhere(fn ($t) => $t->locale === $locale && $t->field === 'description');
+        if ($cached) {
+            return $cached->text;
+        }
+        if (! $fetch) {
+            return null;
+        }
+        $translator ??= app(\App\Services\TranslationService::class);
+        $text = $translator->translate($original, $locale);
+        if ($text === null) {
+            return null;
+        }
+        $row = PlaceTranslation::updateOrCreate(['place_id' => $this->id, 'locale' => $locale, 'field' => 'description'], ['text' => $text, 'provider' => $translator->provider()]);
+        $this->translations->push($row);
+
+        return $text;
+    }
 }

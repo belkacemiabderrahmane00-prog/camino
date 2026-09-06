@@ -109,10 +109,30 @@
     <section class="max-w-5xl mx-auto px-4 sm:px-6 mt-8 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
         <div class="space-y-6 min-w-0">
             {{-- Description --}}
-            <div class="card p-6 sm:p-8">
-                <p class="eyebrow mb-2">{{ __('À propos') }}</p>
+            <div class="card p-6 sm:p-8" x-data="placeReader(@js(['lang' => \App\Http\Middleware\SetLocale::speechLanguage(), 'title' => $place->title, 'text' => $translatedDescription ?? $place->description ?? '', 'stop' => __('Arrêter la lecture'), 'listen' => __('Écouter')]))">
+                <div class="flex items-start justify-between gap-3 mb-2">
+                    <p class="eyebrow !mb-0">{{ __('À propos') }}</p>
+                    @if($place->description)
+                        <button type="button" @click="toggle()" x-show="supported" x-cloak class="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink/30 transition" :class="speaking && 'border-coral text-coral'" :aria-label="speaking ? data.stop : data.listen">
+                            <span class="material-symbols-outlined" style="font-size:18px" x-text="speaking ? 'stop_circle' : 'headphones'"></span><span x-text="speaking ? data.stop : data.listen"></span>
+                        </button>
+                    @endif
+                </div>
                 @if($place->description)
-                    <p class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $place->description }}</p>
+                    @if(app()->getLocale() !== 'fr')
+                        <div x-data="{ original: false }">
+                            @if($translatedDescription)
+                                <p x-show="!original" class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $translatedDescription }}</p>
+                                <p x-show="original" x-cloak class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $place->description }}</p>
+                                <p class="mt-3 text-[11px] text-ink-muted flex flex-wrap items-center gap-x-2"><span class="material-symbols-outlined" style="font-size:14px">translate</span>{{ __('Traduit automatiquement du français.') }}<button type="button" @click="original = !original" class="font-semibold underline" x-text="original ? @js(__('Voir la traduction')) : @js(__('Voir l\'original'))"></button></p>
+                            @else
+                                <p class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $place->description }}</p>
+                                <p class="mt-3 text-[11px] text-ink-muted flex items-center gap-1.5"><span class="material-symbols-outlined" style="font-size:14px">translate</span>{{ __('Description en français : la traduction automatique n\'est pas disponible pour le moment.') }}</p>
+                            @endif
+                        </div>
+                    @else
+                        <p class="text-[15px] leading-relaxed text-ink-soft whitespace-pre-line">{{ $place->description }}</p>
+                    @endif
                 @else
                     <p class="text-sm text-ink-muted">{{ __('Pas encore de description. Tu connais ce lieu ? Laisse un avis ou une photo ci-dessous.') }}</p>
                 @endif
