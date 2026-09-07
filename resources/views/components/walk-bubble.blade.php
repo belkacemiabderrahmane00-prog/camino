@@ -34,7 +34,7 @@
                     const j = await r.json(); const skip = this.dismissed();
                     const mine = (j.mine || []).find(w => !skip.includes(w.code));
                     const comp = (j.companions || []).find(w => !skip.includes(w.code));
-                    if (mine) this.item = { code: mine.code, url: mine.url, headline: cfg.t.inProgress + ' · ' + mine.online + ' ' + cfg.t.online, sub: mine.title, cta: cfg.t.open };
+                    if (mine) this.item = { code: mine.code, url: mine.url, headline: cfg.t.inProgress, sub: mine.online + ' ' + cfg.t.online + ' · ' + mine.title, cta: cfg.t.open };
                     else if (comp) this.item = { code: comp.code, url: comp.url, headline: cfg.t.launched.replace(':name', comp.by), sub: comp.title, cta: cfg.t.join };
                     else this.item = null;
                 } catch (e) {}
