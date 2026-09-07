@@ -139,7 +139,8 @@ class AiService
             $ids = collect($response->json('data') ?? [])->map(fn ($m) => (string) ($m['id'] ?? ''))->all();
             if ($provider['name'] === 'groq') {
                 return $this->pickModel($ids, ['llama'], ['guard', 'whisper', 'tts', 'vision', 'prompt', 'safeguard', '8b', '1b', '3b'])
-                    ?? $this->pickModel($ids, ['llama', 'qwen', 'gpt', 'kimi', 'mixtral', 'gemma'], ['guard', 'whisper', 'tts', 'prompt']);
+                    ?? $this->pickModel($ids, ['llama'], ['guard', 'whisper', 'tts', 'prompt', 'safeguard'])
+                    ?? $this->pickModel($ids, ['kimi', 'mixtral', 'gemma', 'qwen', 'gpt', 'compound'], ['guard', 'whisper', 'tts', 'prompt']);
             }
 
             return $this->pickModel($ids, ['small', 'medium', 'large'], ['embed', 'ocr', 'moderation', 'codestral']) ?? ($ids[0] ?? null);
@@ -187,7 +188,7 @@ class AiService
     private function gemini(array $provider, string $system, array $messages, array $options): ?string
     {
         $contents = array_map(fn ($m) => ['role' => $m['role'] === 'assistant' ? 'model' : 'user', 'parts' => [['text' => (string) $m['content']]]], $messages);
-        $generation = ['temperature' => $options['temperature'] ?? 0.7, 'maxOutputTokens' => $options['max_tokens'] ?? 700];
+        $generation = ['temperature' => $options['temperature'] ?? 0.7, 'maxOutputTokens' => max(2048, (int) ($options['max_tokens'] ?? 700) * 4)];
         if (! empty($options['json'])) {
             $generation['responseMimeType'] = 'application/json';
         }
@@ -205,9 +206,13 @@ class AiService
         if (! $response->successful()) {
             $this->throwFor($response);
         }
-        $parts = $response->json('candidates.0.content.parts') ?? [];
+        $parts = array_filter($response->json('candidates.0.content.parts') ?? [], fn ($p) => empty($p['thought']));
+        $text = implode('', array_map(fn ($p) => (string) ($p['text'] ?? ''), $parts));
+        if (trim($text) === '') {
+            throw new \RuntimeException('empty answer, finishReason=' . ($response->json('candidates.0.finishReason') ?? '?') . ' promptFeedback=' . json_encode($response->json('promptFeedback')));
+        }
 
-        return implode('', array_map(fn ($p) => (string) ($p['text'] ?? ''), $parts)) ?: null;
+        return $text;
     }
 
     private function openAiCompatible(array $provider, string $system, array $messages, array $options): ?string
@@ -216,8 +221,11 @@ class AiService
             'model' => $provider['model'],
             'messages' => array_merge([['role' => 'system', 'content' => $system]], array_map(fn ($m) => ['role' => $m['role'] === 'assistant' ? 'assistant' : 'user', 'content' => (string) $m['content']], $messages)),
             'temperature' => $options['temperature'] ?? 0.7,
-            'max_tokens' => $options['max_tokens'] ?? 700,
+            'max_tokens' => max(2048, (int) ($options['max_tokens'] ?? 700) * 4),
         ];
+        if (str_contains($provider['model'], 'gpt-oss') || str_contains($provider['model'], 'qwen') || str_contains($provider['model'], 'deepseek')) {
+            $payload['reasoning_effort'] = 'low';
+        }
         if (! empty($options['json'])) {
             $payload['response_format'] = ['type' => 'json_object'];
         }
@@ -226,7 +234,12 @@ class AiService
             $this->throwFor($response);
         }
 
-        return $response->json('choices.0.message.content');
+        $text = (string) $response->json('choices.0.message.content');
+        if (trim($text) === '') {
+            throw new \RuntimeException('empty answer, finish_reason=' . ($response->json('choices.0.finish_reason') ?? '?'));
+        }
+
+        return $text;
     }
 
     private function throwFor(\Illuminate\Http\Client\Response $response): never
@@ -249,14 +262,34 @@ class AiService
         $out = [];
         foreach ($this->providers() as $provider) {
             try {
-                $text = $this->call($provider, 'Réponds par le mot OK.', [['role' => 'user', 'content' => 'OK ?']], ['max_tokens' => 32]);
-                $out[$provider['name']] = ['ok' => $text !== null && trim($text) !== '', 'model' => Cache::get('ai_model_' . $provider['name'], $provider['model']), 'error' => $text === null ? 'empty' : null];
+                $text = $this->call($provider, 'Réponds par le mot OK.', [['role' => 'user', 'content' => 'OK ?']], ['max_tokens' => 64]);
+                $out[$provider['name']] = ['ok' => $text !== null && trim($text) !== '', 'model' => Cache::get('ai_model_' . $provider['name'], $provider['model']), 'error' => $text === null ? 'empty' : null, 'answer' => mb_substr((string) $text, 0, 40)];
             } catch (\Throwable $e) {
                 $out[$provider['name']] = ['ok' => false, 'model' => $provider['model'], 'error' => mb_substr(str_replace($provider['key'], '***', $e->getMessage()), 0, 300)];
+            }
+            if (request()->boolean('models')) {
+                $out[$provider['name']]['models'] = $this->listModels($provider);
             }
         }
 
         return $out;
+    }
+
+    /** @return array<int, string> identifiants des modèles publiés par le fournisseur (diagnostic) */
+    private function listModels(array $provider): array
+    {
+        try {
+            if ($provider['name'] === 'gemini') {
+                $response = Http::timeout(15)->withHeaders(['x-goog-api-key' => $provider['key']])->get($provider['url'] . '?pageSize=200');
+
+                return collect($response->json('models') ?? [])->filter(fn ($m) => in_array('generateContent', $m['supportedGenerationMethods'] ?? [], true))->map(fn ($m) => (string) preg_replace('/^models\//', '', $m['name'] ?? ''))->values()->all();
+            }
+            $response = Http::timeout(15)->withToken($provider['key'])->get(str_replace('/chat/completions', '/models', $provider['url']));
+
+            return collect($response->json('data') ?? [])->map(fn ($m) => (string) ($m['id'] ?? ''))->values()->all();
+        } catch (\Throwable $e) {
+            return ['error: ' . mb_substr($e->getMessage(), 0, 120)];
+        }
     }
 
     /** Nom de la langue de l'interface, pour les consignes. */
