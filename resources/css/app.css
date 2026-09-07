@@ -484,3 +484,12 @@
 .camino-logo-loop .camino-logo-path, .camino-logo-loop .camino-logo-dot { animation-iteration-count: infinite; animation-duration: 2.6s; }
 .camino-logo-hover:hover .camino-logo-drop { animation: logo-drop .8s cubic-bezier(.34,1.56,.64,1) both; transform-origin: 32px 60px; }
 @media (prefers-reduced-motion: reduce) { .camino-logo * { animation: none !important; } }
+
+/* Balade à plusieurs : marqueurs des membres ------------------------------------------ */
+.walk-me { width: 26px; height: 26px; border-radius: 50%; background: var(--c, #0F8B8D); border: 3px solid #fff; box-shadow: 0 0 0 6px color-mix(in srgb, var(--c, #0F8B8D) 25%, transparent), 0 2px 8px rgba(0,0,0,.35); position: relative; }
+.walk-member { position: relative; width: 40px; height: 40px; }
+.walk-member b, .walk-member img { position: absolute; inset: 2px; border-radius: 50%; background: var(--c); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 3px solid #fff; box-shadow: 0 6px 16px -4px rgba(18,22,28,.5); object-fit: cover; }
+.walk-member i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin-left: -6px; margin-top: -26px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 9px solid var(--c); transform-origin: 6px 26px; }
+.walk-member span { position: absolute; top: 42px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; color: #12161C; background: rgba(255,255,255,.92); padding: 1px 7px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.walk-member-off { opacity: .55; filter: grayscale(.6); }
+.dark .walk-member span { background: rgba(23,27,34,.92); color: #F3EFE7; }

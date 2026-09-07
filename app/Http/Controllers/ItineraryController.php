@@ -403,7 +403,7 @@ class ItineraryController extends Controller
             return redirect()->route('itineraries.create')->with('status', __('Génère un parcours avant de lancer le guidage.'));
         }
 
-        return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create'), 'narrations' => $this->narrations($result)]);
+        return view('itineraries.navigate', ['result' => $result, 'backUrl' => route('itineraries.create'), 'narrations' => $this->narrations($result), 'walk' => \App\Models\Walk::fromRequest(request())]);
     }
 
     /** Guidage d'un parcours enregistré. */
@@ -411,7 +411,7 @@ class ItineraryController extends Controller
     {
         abort_unless($itinerary->user_id === Auth::id() || Auth::user()?->is_admin, 403);
 
-        return view('itineraries.navigate', ['result' => $itinerary->result_json, 'backUrl' => route('itineraries.show', $itinerary), 'narrations' => $this->narrations($itinerary->result_json), 'journalUrl' => route('itineraries.journal', $itinerary)]);
+        return view('itineraries.navigate', ['result' => $itinerary->result_json, 'backUrl' => route('itineraries.show', $itinerary), 'narrations' => $this->narrations($itinerary->result_json), 'journalUrl' => route('itineraries.journal', $itinerary), 'walk' => \App\Models\Walk::fromRequest(request()), 'savedItineraryId' => $itinerary->id]);
     }
 
     /**

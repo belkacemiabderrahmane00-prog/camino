@@ -151,12 +151,17 @@ export function loadNavMap() {
     return import('./nav-map.js').then((m) => m.NavMap);
 }
 
+/** QR code (invitation à une balade), chargé à la demande. */
+export function loadQr() {
+    return import('qrcode');
+}
+
 /** Export d'un élément en image PNG (carnet de voyage), chargé à la demande. */
 export function loadHtmlToImage() {
     return import('html-to-image');
 }
 
-window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap, loadHtmlToImage };
+window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap, loadHtmlToImage, loadQr };
 
 /**
  * Thème clair / sombre / système : mémorisé dans le navigateur, appliqué avant le premier rendu par le script de <head>.

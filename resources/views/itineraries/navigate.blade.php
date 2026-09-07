@@ -20,6 +20,8 @@
         'journalUrl' => $journalUrl ?? (! empty($result['itinerary_id']) && auth()->check() ? route('itineraries.journal', $result['itinerary_id']) : null),
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
         'transit' => app(\App\Services\TransitService::class)->enabled(),
+        'walk' => isset($walk) && $walk ? ['code' => $walk->code, 'title' => $walk->title, 'url' => route('walks.show', $walk->code), 'stateUrl' => route('walks.state', $walk->code), 'positionUrl' => route('walks.position', $walk->code), 'csrf' => csrf_token()] : null,
+        'savedItineraryId' => $savedItineraryId ?? null,
         't' => [
             'started' => __('Guidage lancé.'), 'follow' => __('Suivez le tracé.'), 'in' => __('Dans'), 'meters' => __('mètres'), 'arrived' => __('Vous êtes arrivé à'), 'visit' => __('Visite prévue :'), 'minutes' => __('minutes'),
             'direction' => __('Direction'), 'lastStep' => __('Dernière étape : retour au point de départ.'), 'rerouted' => __('Itinéraire recalculé.'), 'done' => __('Parcours terminé. Bravo !'), 'voiceOn' => __('Guidage vocal activé.'),
@@ -32,6 +34,8 @@
             'departureAt' => __('Départ'), 'arrival' => __('Arrivée'), 'walk' => __('Marche'), 'wait' => __('Attente'), 'details' => __('Détail du trajet'), 'searching' => __('Recherche du meilleur trajet…'),
             'then' => __('Ensuite'), 'arriveAt' => __('Arrivée à'),
             'listen' => __('Écouter la présentation'), 'stopListen' => __('Arrêter'), 'audioguideIntro' => __('Un mot sur ce lieu.'),
+            'isAt' => __(':name est à :d'), 'closeTo' => __('tout près'), 'arrivedMeet' => __(':name est arrivé au rendez-vous'), 'meetingSet' => __('Nouveau rendez-vous : :label'), 'here' => __('ici'),
+            'joined' => __(':name a rejoint la balade'), 'friends' => __('amis'), 'friend' => __('ami'), 'noFriendPos' => __('en attente de position'),
         ],
     ];
 @endphp
@@ -41,6 +45,14 @@
 
         {{-- Bandeau instruction (haut) --}}
         <div class="absolute top-[4.6rem] inset-x-3 z-[600] pointer-events-none">
+            {{-- Balade à plusieurs : amis les plus proches, lien vers le groupe --}}
+            <div x-show="walk && started && friends.length" x-cloak class="mb-2 flex justify-center pointer-events-auto">
+                <a :href="walk ? walk.url : '#'" class="card inline-flex items-center gap-2 rounded-full px-2.5 py-1.5 text-xs font-semibold text-ink max-w-full">
+                    <span class="flex -space-x-1.5 shrink-0"><template x-for="f in friends.slice(0, 4)" :key="'f' + f.id"><span class="h-6 w-6 rounded-full border-2 border-surface text-[9px] text-white font-bold flex items-center justify-center" :style="'background:' + f.color" x-text="f.initials"></span></template></span>
+                    <span class="truncate" x-text="friendsLine"></span>
+                    <span class="material-symbols-outlined text-ink-muted shrink-0" style="font-size:16px">chat</span>
+                </a>
+            </div>
             {{-- Consigne de rue --}}
             <div :class="{ hidden: !started || onboard }" class="hidden nav-card rounded-3xl bg-ink text-white p-3.5 pointer-events-auto">
                 <div class="flex items-center gap-3">
@@ -104,6 +116,11 @@
                     <button type="button" @click="toggleMute()" class="btn btn-lg btn-soft !px-4 shrink-0" :aria-label="muted ? @js(__('Activer la voix')) : @js(__('Couper la voix'))"><span class="material-symbols-outlined" x-text="muted ? 'volume_off' : 'volume_up'"></span></button>
                 </div>
                 <label class="mt-3 option-row !py-2 text-sm"><span class="material-symbols-outlined text-coral" style="font-size:20px">headphones</span><span class="flex-1"><span class="font-semibold">{{ __('Audioguide') }}</span><span class="block text-[11px] text-ink-muted">{{ __('À chaque arrivée, CAMINO te raconte le lieu à voix haute.') }}</span></span><input type="checkbox" class="switch" x-model="audioguide"></label>
+                @if(isset($walk) && $walk)
+                    <a href="{{ route('walks.show', $walk->code) }}" class="mt-2 option-row !py-2 text-sm"><span class="material-symbols-outlined text-coral" style="font-size:20px">groups</span><span class="flex-1"><span class="font-semibold">{{ __('Balade à plusieurs') }}</span><span class="block text-[11px] text-ink-muted" x-text="friends.length ? friendsLine : @js(__('Tes amis apparaîtront sur la carte pendant le guidage.'))"></span></span><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">chevron_right</span></a>
+                @else
+                    <form method="POST" action="{{ route('walks.store') }}" class="mt-2">@csrf @if(!empty($savedItineraryId))<input type="hidden" name="itinerary_id" value="{{ $savedItineraryId }}">@endif<button class="option-row !py-2 text-sm w-full text-left"><span class="material-symbols-outlined text-coral" style="font-size:20px">groups</span><span class="flex-1"><span class="font-semibold">{{ __('À plusieurs') }}</span><span class="block text-[11px] text-ink-muted">{{ __('Positions des amis en direct, point de rendez-vous, messages et photos') }}</span></span><span class="material-symbols-outlined text-ink-muted" style="font-size:18px">chevron_right</span></button></form>
+                @endif
                 <p class="mt-2 text-[11px] text-ink-muted">{{ __('CAMINO utilise ta position uniquement pendant le guidage, rien n\'est enregistré. Garde l\'écran allumé, on s\'en occupe.') }}</p>
                 <a :href="backUrl" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink"><span class="material-symbols-outlined" style="font-size:14px">arrow_back</span>{{ __('Retour') }}</a>
             </div>
@@ -212,6 +229,7 @@
     <script>
         function caminoNav(data) {
             const C = window.Camino;
+            let walkTimer = null, walkMarkers = {}, walkMeetMarker = null, walkLastSent = 0, walkSince = 0; const walkAnnounced = {};
             const R = 6371000;
             const toRad = d => d * Math.PI / 180;
             const dist = (a, b) => { const x = toRad(b[1] - a[1]) * Math.cos(toRad((a[0] + b[0]) / 2)); const y = toRad(b[0] - a[0]); return Math.sqrt(x * x + y * y) * R; };
@@ -229,7 +247,7 @@
 
             return {
                 data,
-                started: false, done: false, arrived: false, muted: false, follow: true, overview: false, bearing: 0, simulate: data.simulate > 0, simSpeed: Math.max(1, data.simulate || 1),
+                walk: data.walk, friends: [], walkMeeting: null, started: false, done: false, arrived: false, muted: false, follow: true, overview: false, bearing: 0, simulate: data.simulate > 0, simSpeed: Math.max(1, data.simulate || 1),
                 legIndex: 0, pos: null, heading: 0, accuracy: null, gpsError: null,
                 leg: null, segIdx: 0, along: 0, instruction: '', street: '', icon: 'straight', distToManeuver: null, maneuverIdx: -1, spokenIdx: -1, spokenApproach: -1, thenManeuver: null,
                 remaining: 0, offRoute: false, offRouteCount: 0, rerouting: false, walked: 0, lastPos: null,
@@ -273,6 +291,7 @@
                     this.$nextTick(() => this.measure());
                     window.addEventListener('resize', () => this.measure());
                     this.loadLeg(0, null);
+                    if (data.walk) { this.walkRefresh(); walkTimer = setInterval(() => this.walkRefresh(), 5000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.walkRefresh(); }); }
                     nav.whenReady(() => { if (!this.started) this.fitAll(); else this.recenter(); });
                     if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
                 },
@@ -375,6 +394,7 @@
                     }
                     lastFix = now;
                     this.lastPos = latlng; this.pos = latlng; this.accuracy = accuracy;
+                    if (data.walk && now - walkLastSent > 6000) { walkLastSent = now; this.walkSendPosition(accuracy); }
                     if (this.arrived || this.done) { if (nav) nav.setUser(latlng, this.heading, accuracy); return; }
                     // Projection sur le tronçon courant
                     const shape = this.leg.shape;
@@ -494,6 +514,65 @@
                         else this.loadLeg(this.legIndex, this.pos);
                     } catch (e) { this.loadLeg(this.legIndex, this.pos); }
                     this.rerouting = false; this.offRoute = false; this.offRouteCount = 0;
+                },
+
+                // ---------------------------------------------------------------- balade à plusieurs
+                get friendsLine() {
+                    if (!this.friends.length) return '';
+                    const near = this.friends.filter(f => f.d !== null).sort((a, b) => a.d - b.d)[0];
+                    if (!near) return (this.friends.length === 1 ? this.friends[0].name : this.friends.length + ' ' + data.t.friends) + ' · ' + data.t.noFriendPos;
+                    return near.name + ' · ' + this.formatDistance(near.d) + (this.friends.length > 1 ? ' · +' + (this.friends.length - 1) : '');
+                },
+                async walkRefresh() {
+                    try {
+                        const r = await fetch(data.walk.stateUrl + '?since=' + walkSince, { headers: { Accept: 'application/json' } });
+                        if (!r.ok) { if (r.status === 403 || r.status === 404) { clearInterval(walkTimer); this.walk = null; } return; }
+                        const j = await r.json();
+                        if (j.walk.status !== 'active') { clearInterval(walkTimer); this.walk = null; this.friends = []; return; }
+                        const first = walkSince === 0;
+                        this.friends = j.members.filter(m => m.id !== j.me).map(m => ({ ...m, d: m.lat && this.pos ? dist(this.pos, [m.lat, m.lng]) : null }));
+                        this.walkDraw(j.meeting, first);
+                        const fresh = j.messages.filter(m => m.id > walkSince);
+                        if (fresh.length) walkSince = fresh[fresh.length - 1].id;
+                        if (!first && this.started) {
+                            fresh.forEach(m => { if (m.member === j.me) return; if (m.type === 'arrive') this.speak(data.t.arrivedMeet.replace(':name', m.name || '')); else if (m.type === 'join') this.speak(data.t.joined.replace(':name', m.name || '')); });
+                            this.walkAnnounce();
+                        }
+                    } catch (e) {}
+                },
+                async walkSendPosition(accuracy) {
+                    if (!this.pos || !data.walk) return;
+                    try { await fetch(data.walk.positionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': data.walk.csrf }, body: JSON.stringify({ lat: this.pos[0], lng: this.pos[1], heading: this.heading, accuracy }) }); } catch (e) {}
+                },
+                walkDraw(meeting, first) {
+                    if (!nav) return;
+                    const ids = new Set();
+                    this.friends.forEach(f => {
+                        if (!f.lat) return;
+                        ids.add(f.id);
+                        const html = `<div class="walk-member ${f.online ? '' : 'walk-member-off'}" style="--c:${f.color}"><b>${C.escapeHtml(f.initials)}</b><i style="transform: rotate(${f.heading || 0}deg)"></i><span>${C.escapeHtml(f.name)}</span></div>`;
+                        if (walkMarkers[f.id]) { walkMarkers[f.id].setLngLat([f.lng, f.lat]); walkMarkers[f.id].getElement().innerHTML = html; }
+                        else walkMarkers[f.id] = nav.addMarker([f.lat, f.lng], html, { size: 40 });
+                    });
+                    Object.keys(walkMarkers).forEach(k => { if (!ids.has(Number(k))) { walkMarkers[k].remove(); delete walkMarkers[k]; } });
+                    const changed = JSON.stringify(meeting) !== JSON.stringify(this.walkMeeting);
+                    this.walkMeeting = meeting;
+                    if (changed) {
+                        if (walkMeetMarker) { walkMeetMarker.remove(); walkMeetMarker = null; }
+                        if (meeting) walkMeetMarker = nav.addMarker([meeting.lat, meeting.lng], '<div class="camino-pin camino-pin-start" style="width:34px;height:34px"><span class="material-symbols-outlined filled" style="font-size:18px">flag</span></div>', { size: 34 });
+                        if (!first && meeting && this.started) this.speak(data.t.meetingSet.replace(':label', meeting.label || data.t.here));
+                    }
+                },
+                walkAnnounce() {
+                    if (!this.pos) return;
+                    const steps = [500, 200, 50];
+                    this.friends.forEach(f => {
+                        if (f.d === null || !f.online) return;
+                        const before = walkAnnounced[f.id] ?? Infinity;
+                        const crossed = steps.find(s => f.d <= s && before > s);
+                        if (crossed) { walkAnnounced[f.id] = crossed; this.speak(data.t.isAt.replace(':name', f.name).replace(':d', crossed === 50 ? data.t.closeTo : this.formatDistance(crossed))); }
+                        else if (f.d > 600) walkAnnounced[f.id] = Infinity;
+                    });
                 },
 
                 // ---------------------------------------------------------------- voix

@@ -306,6 +306,7 @@
 
                             <div class="mt-5 flex flex-wrap gap-2">
                                 <a href="{{ route('itineraries.navigate') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">navigation</span>{{ __('Suivre le parcours') }}</a>
+                                <form method="POST" action="{{ route('walks.store') }}">@csrf<button class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20" title="{{ __('Positions des amis en direct, point de rendez-vous, messages et photos') }}"><span class="material-symbols-outlined" style="font-size:20px">groups</span>{{ __('À plusieurs') }}</button></form>
                                 <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">open_in_new</span>Google Maps</a>
                                 <button type="button" @click="navigator.clipboard.writeText(@js($gmUrl)); $dispatch('toast', @js(__('Lien copié')))" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">share</span>{{ __('Partager') }}</button>
                                 @auth
@@ -469,6 +470,7 @@
                     {{-- Barre d'action mobile --}}
                     <div class="lg:hidden fixed inset-x-3 bottom-[4.6rem] z-[900] flex gap-2 pointer-events-none">
                         <a href="{{ route('itineraries.navigate') }}" class="pointer-events-auto btn btn-lg btn-primary flex-1 shadow-float"><span class="material-symbols-outlined">navigation</span>{{ __('Suivre le parcours') }}</a>
+                        <form method="POST" action="{{ route('walks.store') }}" class="pointer-events-auto">@csrf<button class="btn btn-lg btn-ink !px-4 shadow-float" aria-label="{{ __('À plusieurs') }}"><span class="material-symbols-outlined">groups</span></button></form>
                     </div>
                     <div class="lg:hidden h-16"></div>
                 @elseif($result)

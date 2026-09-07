@@ -35,6 +35,19 @@ Route::get('/p/{token}/gpx', [ItineraryController::class, 'sharedGpx'])->name('i
 Route::get('/p/{token}/carnet', [ItineraryController::class, 'sharedJournal'])->name('itineraries.shared-journal');
 Route::get('/p/{token}/carnet.pdf', [ItineraryController::class, 'sharedJournalPdf'])->name('itineraries.shared-journal-pdf');
 
+// Balade à plusieurs (invités sans compte : pseudo + jeton en session)
+Route::post('/balades', [\App\Http\Controllers\WalkController::class, 'store'])->name('walks.store');
+Route::get('/b/{code}', [\App\Http\Controllers\WalkController::class, 'show'])->name('walks.show');
+Route::post('/b/{code}/rejoindre', [\App\Http\Controllers\WalkController::class, 'joinRequest'])->name('walks.join');
+Route::get('/b/{code}/etat', [\App\Http\Controllers\WalkController::class, 'state'])->name('walks.state')->middleware('throttle:120,1');
+Route::post('/b/{code}/position', [\App\Http\Controllers\WalkController::class, 'position'])->name('walks.position')->middleware('throttle:120,1');
+Route::post('/b/{code}/message', [\App\Http\Controllers\WalkController::class, 'message'])->name('walks.message')->middleware('throttle:60,1');
+Route::post('/b/{code}/photo', [\App\Http\Controllers\WalkController::class, 'photo'])->name('walks.photo.store')->middleware('throttle:20,1');
+Route::get('/b/{code}/photo/{message}', [\App\Http\Controllers\WalkController::class, 'showPhoto'])->name('walks.photo');
+Route::match(['post', 'delete'], '/b/{code}/rendez-vous', [\App\Http\Controllers\WalkController::class, 'meeting'])->name('walks.meeting');
+Route::post('/b/{code}/quitter', [\App\Http\Controllers\WalkController::class, 'leave'])->name('walks.leave');
+Route::post('/b/{code}/terminer', [\App\Http\Controllers\WalkController::class, 'end'])->name('walks.end');
+
 Route::get('/lieux/{place}', [PlaceController::class, 'show'])->name('places.show');
 Route::post('/lieux/{place}/signaler', [PlaceController::class, 'report'])->name('places.report');
 
