@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class AiController extends Controller
 {
-    private const NARRATION_VERSION = 1;
+    private const NARRATION_VERSION = 2;
 
     public function status(AiService $ai)
     {
@@ -139,7 +139,7 @@ class AiController extends Controller
         $text = Cache::get($key);
         if ($text === null) {
             $description = trim((string) $place->description);
-            $system = "Tu es la voix de l'audioguide CAMINO. Écris le texte qui sera lu à voix haute à un visiteur qui vient d'arriver devant ce lieu. Langue : " . AiService::languageName($locale) . ". 110 à 150 mots, phrases courtes et orales, un fait marquant, une anecdote ou un détail à regarder sur place, une chute chaleureuse. Pas de titre, pas de liste, pas d'emoji, pas de chiffres inventés : si une date n'est pas dans la fiche et que tu n'es pas sûr, n'en donne pas.";
+            $system = "Tu es la voix de l'audioguide CAMINO. Écris le texte qui sera lu à voix haute à un visiteur qui vient d'arriver devant ce lieu. Langue : " . AiService::languageName($locale) . ". 110 à 150 mots, phrases courtes et orales, un fait marquant, une chute chaleureuse. Pas de titre, pas de liste, pas d'emoji. Règles strictes : recopie le nom du lieu exactement comme il est donné ; n'invente aucun détail matériel (plaque, blason, couleur, inscription, objet) ni aucune date ou chiffre absents de la fiche ou dont tu n'es pas certain ; si la fiche est courte, reste général et honnête plutôt que précis et faux ; ne parle d'une fermeture ou de travaux que si la fiche le dit et sans citer d'année.";
             $user = 'Lieu : ' . $place->title . "\n" . ($place->category?->name ? 'Catégorie : ' . $place->category->name . "\n" : '') . ($place->address ? 'Adresse : ' . $place->address . "\n" : '') . ($description !== '' ? "Fiche :\n" . mb_substr($description, 0, 2500) : 'Fiche : (aucune description, appuie-toi sur ce que tu sais de ce lieu, prudemment)');
             $text = $ai->chat($system, [['role' => 'user', 'content' => $user]], ['max_tokens' => 400, 'temperature' => 0.7]);
             if ($text !== null && mb_strlen($text) > 80) {

@@ -54,7 +54,7 @@ class AiTest extends TestCase
         $ai = app(AiService::class);
         $this->assertSame(['gemini', 'groq'], $ai->status());
         $this->assertSame('Réponse Gemini', $ai->chat('sys', [['role' => 'user', 'content' => 'salut']]));
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'gemini-3.6-flash:generateContent') && $request->hasHeader('x-goog-api-key', 'g-test') && $request['system_instruction']['parts'][0]['text'] === 'sys');
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'gemini-flash-latest:generateContent') && $request->hasHeader('x-goog-api-key', 'g-test') && $request['system_instruction']['parts'][0]['text'] === 'sys');
 
         // Gemini répond 429 : Groq prend le relais.
         $this->assertSame('Réponse Groq', $ai->chat('sys', [['role' => 'user', 'content' => 'salut']]));
@@ -137,7 +137,7 @@ class AiTest extends TestCase
         config(['camino.ai.gemini_key' => 'g-test', 'camino.ai.groq_key' => 'q-test', 'camino.ai.mistral_key' => '']);
         // Gemini : le message d'erreur suggère le nouveau modèle. Groq : on lit la liste des modèles publiés.
         Http::fake([
-            'generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent' => Http::response(['error' => ['code' => 404, 'message' => 'This model models/gemini-3.6-flash is no longer available to new users. Please update your code to use models/gemini-4.1-flash for the latest features.']], 404),
+            'generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent' => Http::response(['error' => ['code' => 404, 'message' => 'This model models/gemini-flash-latest is no longer available to new users. Please update your code to use models/gemini-4.1-flash for the latest features.']], 404),
             'generativelanguage.googleapis.com/v1beta/models/gemini-4.1-flash:generateContent' => $this->gemini('Nouveau Gemini'),
             'api.groq.com/openai/v1/chat/completions' => Http::sequence()->push(['error' => ['message' => 'The model `llama-3.3-70b-versatile` does not exist', 'code' => 'model_not_found']], 404)->push(['choices' => [['message' => ['content' => 'Nouveau Groq']]]]),
             'api.groq.com/openai/v1/models' => Http::response(['data' => [['id' => 'whisper-large-v3'], ['id' => 'llama-guard-4-12b'], ['id' => 'llama-3.1-8b-instant'], ['id' => 'meta-llama/llama-4-maverick-17b-128e-instruct'], ['id' => 'llama-3.3-70b-versatile-0225']]]),

@@ -24,7 +24,7 @@ class AiService
     {
         $cfg = config('camino.ai');
         $all = [
-            'gemini' => ['name' => 'gemini', 'key' => (string) ($cfg['gemini_key'] ?? ''), 'model' => (string) ($cfg['gemini_model'] ?: 'gemini-3.6-flash'), 'url' => 'https://generativelanguage.googleapis.com/v1beta/models/'],
+            'gemini' => ['name' => 'gemini', 'key' => (string) ($cfg['gemini_key'] ?? ''), 'model' => (string) ($cfg['gemini_model'] ?: 'gemini-flash-latest'), 'url' => 'https://generativelanguage.googleapis.com/v1beta/models/'],
             'groq' => ['name' => 'groq', 'key' => (string) ($cfg['groq_key'] ?? ''), 'model' => (string) ($cfg['groq_model'] ?: 'llama-3.3-70b-versatile'), 'url' => 'https://api.groq.com/openai/v1/chat/completions'],
             'mistral' => ['name' => 'mistral', 'key' => (string) ($cfg['mistral_key'] ?? ''), 'model' => (string) ($cfg['mistral_model'] ?: 'mistral-small-latest'), 'url' => 'https://api.mistral.ai/v1/chat/completions'],
         ];
