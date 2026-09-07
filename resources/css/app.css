@@ -493,3 +493,10 @@
 .walk-member span { position: absolute; top: 42px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; color: #12161C; background: rgba(255,255,255,.92); padding: 1px 7px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .walk-member-off { opacity: .55; filter: grayscale(.6); }
 .dark .walk-member span { background: rgba(23,27,34,.92); color: #F3EFE7; }
+
+/* Assistant CAMINO ------------------------------------------------------------------ */
+.h-13 { height: 3.25rem; } .w-13 { width: 3.25rem; }
+.ai-fab { box-shadow: 0 10px 30px -8px rgba(255, 90, 60, .7), 0 0 0 0 rgba(255, 90, 60, .35); animation: ai-fab-pulse 2.8s ease-out infinite; }
+@keyframes ai-fab-pulse { 0% { box-shadow: 0 10px 30px -8px rgba(255,90,60,.7), 0 0 0 0 rgba(255,90,60,.35); } 70% { box-shadow: 0 10px 30px -8px rgba(255,90,60,.7), 0 0 0 14px rgba(255,90,60,0); } 100% { box-shadow: 0 10px 30px -8px rgba(255,90,60,.7), 0 0 0 0 rgba(255,90,60,0); } }
+.camino-pick-ring { animation: pick-ring 1.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes pick-ring { 0% { opacity: .9; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.35); } }.camino-pick-ring { width: 52px; height: 52px; border-radius: 50%; border: 3px solid #FF5A3C; box-shadow: 0 0 0 4px rgba(255,90,60,.18); animation: pick-ring 1.6s ease-out infinite; }

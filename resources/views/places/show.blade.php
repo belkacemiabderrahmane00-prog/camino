@@ -284,6 +284,7 @@
 
     @push('scripts')
     <script>
+        window.caminoAssistantContext = () => ({ page: 'place', place_id: {{ (int) $place->id }}, title: @js($place->title), lat: @js($place->lat), lng: @js($place->lng), radius: 1200 });
         document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById('place-map');
             if (!el || !window.L || !{{ $place->lat && $place->lng ? 'true' : 'false' }}) return;

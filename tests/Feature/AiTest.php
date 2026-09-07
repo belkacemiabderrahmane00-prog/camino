@@ -40,8 +40,7 @@ class AiTest extends TestCase
         $this->getJson('/api/v1/ai/status')->assertOk()->assertJson(['enabled' => false, 'providers' => []]);
         $this->getJson('/api/v1/ai/intent?q=musée gratuit ouvert maintenant')->assertOk()->assertJson(['ok' => false]);
         $this->getJson('/api/v1/ai/narration/' . $place->id)->assertOk()->assertJson(['ok' => true, 'source' => 'description', 'text' => 'Un musée de test avec une belle collection.']);
-        $this->postJson('/api/v1/ai/compagnon', ['messages' => [['role' => 'user', 'content' => 'Un café ?']]])->assertStatus(503);
-        $this->get('/carte')->assertOk()->assertSee('apiIntent\u0022:null', false);
+        $this->get('/carte')->assertOk()->assertSee('\u0022ai\u0022:false', false);
     }
 
     public function test_gemini_answers_first_and_groq_takes_over_when_gemini_fails(): void
@@ -77,27 +76,43 @@ class AiTest extends TestCase
         // Mis en cache : la deuxième demande n'appelle plus l'IA.
         $this->getJson('/api/v1/ai/intent?q=un musée gratuit ouvert maintenant dans le Marais')->assertOk()->assertJson(['ok' => true]);
         Http::assertSentCount(1);
-        $this->get('/carte')->assertOk()->assertSee('apiIntent\u0022:\u0022http', false);
+        $this->get('/carte')->assertOk()->assertSee('\u0022ai\u0022:true', false);
     }
 
-    public function test_companion_uses_nearby_places_as_context(): void
+    public function test_assistant_answers_short_with_real_places_filters_and_actions(): void
     {
         config(['camino.ai.gemini_key' => 'g-test']);
-        $category = Category::create(['name' => 'Restauration', 'slug' => 'restauration']);
-        Place::create(['title' => 'Café des Arts', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'is_free' => false, 'status' => 'approved', 'address' => '1 rue des Arts']);
-        Place::create(['title' => 'Bar caché', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'status' => 'pending']);
-        Http::fake(['generativelanguage.googleapis.com/*' => $this->gemini('Le Café des Arts est à 60 m, parfait pour une pause.')]);
+        $museums = Category::create(['name' => 'Musée', 'slug' => 'musee']);
+        $food = Category::create(['name' => 'Restauration', 'slug' => 'restauration']);
+        $cafe = Place::create(['title' => 'Café des Arts', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $food->id, 'is_free' => false, 'status' => 'approved', 'address' => '1 rue des Arts']);
+        Place::create(['title' => 'Bar caché', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $food->id, 'status' => 'pending']);
+        Http::fake(['generativelanguage.googleapis.com/*' => $this->gemini(json_encode([
+            'say' => 'Le Café des Arts est à 60 m, parfait pour une pause.',
+            'places' => [['id' => $cafe->id, 'reason' => 'Terrasse au calme'], ['id' => 999999, 'reason' => 'inventé']],
+            'filter' => ['category_slugs' => ['restauration', 'inconnu'], 'free' => false, 'open_now' => true, 'near' => true, 'events' => false, 'terms' => ''],
+            'actions' => [['type' => 'add_place', 'id' => $cafe->id], ['type' => 'add_place', 'id' => 999999]],
+            'suggestions' => ['Et un musée ?', 'Plus loin', 'Gratuit'],
+        ]))]);
 
-        $this->postJson('/api/v1/ai/compagnon', [
+        $response = $this->postJson('/api/v1/ai/assistant', [
             'messages' => [['role' => 'user', 'content' => 'Un café près d\'ici ?']],
-            'context' => ['title' => 'Balade test', 'steps' => [['title' => 'Musée test', 'arrive' => '10:20']], 'current' => 0, 'lat' => 48.86, 'lng' => 2.34, 'time' => '10:05'],
-        ])->assertOk()->assertJson(['ok' => true, 'answer' => 'Le Café des Arts est à 60 m, parfait pour une pause.']);
+            'context' => ['page' => 'map', 'lat' => 48.86, 'lng' => 2.34, 'radius' => 800, 'time' => '10:05', 'cart' => []],
+        ])->assertOk()->assertJson(['ok' => true, 'say' => 'Le Café des Arts est à 60 m, parfait pour une pause.', 'filter' => ['category_slugs' => ['restauration'], 'open_now' => true, 'near' => true]]);
+        $this->assertCount(1, $response->json('places'));
+        $this->assertSame('Café des Arts', $response->json('places.0.title'));
+        $this->assertSame('Terrasse au calme', $response->json('places.0.reason'));
+        $this->assertSame([['type' => 'add_place', 'id' => $cafe->id, 'title' => 'Café des Arts']], $response->json('actions'));
+        $this->assertSame(['Et un musée ?', 'Plus loin', 'Gratuit'], $response->json('suggestions'));
         Http::assertSent(function ($request) {
             $system = $request['system_instruction']['parts'][0]['text'];
 
-            return str_contains($system, 'Café des Arts') && ! str_contains($system, 'Bar caché') && str_contains($system, 'Musée test') && str_contains($system, 'étape en cours');
+            return str_contains($system, 'Café des Arts') && ! str_contains($system, 'Bar caché') && str_contains($system, 'regarde la carte');
         });
-        $this->postJson('/api/v1/ai/compagnon', ['messages' => []])->assertStatus(422);
+        $this->postJson('/api/v1/ai/assistant', ['messages' => []])->assertStatus(422);
+
+        // Sans clé : indisponible, proprement.
+        config(['camino.ai.gemini_key' => '']);
+        $this->postJson('/api/v1/ai/assistant', ['messages' => [['role' => 'user', 'content' => 'Un café ?']]])->assertStatus(503);
     }
 
     public function test_generated_narration_is_cached_per_locale_and_falls_back_on_failure(): void
@@ -117,7 +132,7 @@ class AiTest extends TestCase
         $this->getJson('/api/v1/ai/narration/999999')->assertStatus(404);
     }
 
-    public function test_guidance_and_result_pages_expose_the_companion_only_when_ai_is_enabled(): void
+    public function test_guidance_page_exposes_the_assistant_only_when_ai_is_enabled(): void
     {
         $result = [
             'version' => 3, 'title' => 'Balade test', 'mode' => 'walk', 'start' => ['lat' => 48.8566, 'lng' => 2.3522, 'label' => 'Départ'], 'end' => null,
@@ -126,10 +141,10 @@ class AiTest extends TestCase
             'geometry' => [[48.8566, 2.3522], [48.86, 2.34]], 'legs' => [], 'warnings' => [],
         ];
         config(['camino.ai.gemini_key' => '', 'camino.ai.groq_key' => '']);
-        $this->withSession(['itinerary_result' => $result])->get('/parcours/suivre')->assertOk()->assertDontSee('aiCompanion')->assertSee('\u0022ai\u0022:null', false);
+        $this->withSession(['itinerary_result' => $result])->get('/parcours/suivre')->assertOk()->assertDontSee('aiAssistant')->assertSee('\u0022ai\u0022:null', false);
 
         config(['camino.ai.gemini_key' => 'g-test']);
-        $this->withSession(['itinerary_result' => $result])->get('/parcours/suivre')->assertOk()->assertSee('aiCompanion')->assertSee('\u0022ai\u0022:\u0022http', false);
+        $this->withSession(['itinerary_result' => $result])->get('/parcours/suivre')->assertOk()->assertSee('aiAssistant')->assertSee('\u0022ai\u0022:\u0022http', false);
     }
 
     public function test_a_retired_model_is_replaced_automatically(): void

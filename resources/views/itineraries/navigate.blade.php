@@ -96,7 +96,7 @@
         {{-- Boutons carte --}}
         <div class="absolute right-3 z-[600] flex flex-col gap-2" :style="'bottom:' + (sheetHeight + 20) + 'px'">
             <button type="button" x-show="started && !follow" x-cloak @click="recenter()" class="h-11 w-11 rounded-full bg-ink text-white shadow-card flex items-center justify-center" aria-label="{{ __('Recentrer') }}"><span class="material-symbols-outlined filled">navigation</span></button>
-            @if(app(\App\Services\AiService::class)->enabled())<button type="button" x-show="started && !done" x-cloak @click="window.caminoCompanionContext = () => ({ current: legIndex, lat: pos ? pos[0] : null, lng: pos ? pos[1] : null }); $dispatch('open-companion')" class="h-11 w-11 rounded-full bg-coral text-white shadow-card flex items-center justify-center" aria-label="{{ __('Demander à CAMINO') }}"><span class="material-symbols-outlined">auto_awesome</span></button>@endif
+            @if(app(\App\Services\AiService::class)->enabled())<button type="button" x-show="started && !done" x-cloak @click="window.caminoAssistantContext = () => ({ page: 'guidance', title: data.title, steps: data.steps.map(s => ({ title: s.title, arrive: s.arrive })), current: legIndex, lat: pos ? pos[0] : (target ? target.lat : data.start.lat), lng: pos ? pos[1] : (target ? target.lng : data.start.lng), radius: 1200, speak: true }); $dispatch('open-assistant')" class="h-11 w-11 rounded-full bg-coral text-white shadow-card flex items-center justify-center" aria-label="{{ __('Demander à CAMINO') }}"><span class="material-symbols-outlined">auto_awesome</span></button>@endif
             <button type="button" @click="toggleOverview()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Voir tout le parcours') }}"><span class="material-symbols-outlined" x-text="overview ? 'my_location' : 'zoom_out_map'"></span></button>
             <button type="button" x-show="Math.abs(bearing) > 2" x-cloak @click="northUp()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Nord en haut') }}"><span class="material-symbols-outlined" :style="'transform: rotate(' + (-bearing) + 'deg)'">explore</span></button>
         </div>
@@ -227,7 +227,6 @@
         </div>
     </div>
 
-    <x-ai-companion :title="$result['title']" :steps="$steps" :lat="$result['start']['lat']" :lng="$result['start']['lng']" :speak="true" :floating="false" />
     @push('scripts')
     <script>
         function caminoNav(data) {

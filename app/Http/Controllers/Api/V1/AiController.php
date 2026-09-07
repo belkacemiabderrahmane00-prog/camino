@@ -69,61 +69,137 @@ class AiController extends Controller
         return response()->json(['ok' => true] + $result);
     }
 
-    /** Compagnon de balade : répond aux questions pendant le parcours, avec les lieux CAMINO autour comme seule source de recommandations. */
-    public function companion(Request $request, AiService $ai)
+    /**
+     * Assistant CAMINO : une seule conversation, partout dans l'app, qui répond court et agit
+     * (filtres de carte, lieux mis en avant, ajout au parcours, retrait d'une étape).
+     * Les lieux recommandés viennent uniquement des candidats CAMINO autour du contexte.
+     */
+    public function assistant(Request $request, AiService $ai)
     {
         $data = $request->validate([
             'messages' => ['required', 'array', 'min:1', 'max:12'],
             'messages.*.role' => ['required', 'in:user,assistant'],
             'messages.*.content' => ['required', 'string', 'max:1000'],
             'context' => ['nullable', 'array'],
+            'context.page' => ['nullable', 'in:map,result,guidance,place,other'],
             'context.title' => ['nullable', 'string', 'max:200'],
             'context.steps' => ['nullable', 'array', 'max:20'],
             'context.current' => ['nullable', 'integer'],
             'context.lat' => ['nullable', 'numeric'],
             'context.lng' => ['nullable', 'numeric'],
+            'context.radius' => ['nullable', 'numeric'],
+            'context.place_id' => ['nullable', 'integer'],
             'context.time' => ['nullable', 'string', 'max:40'],
             'context.weather' => ['nullable', 'string', 'max:80'],
+            'context.cart' => ['nullable', 'array', 'max:30'],
         ]);
         if (! $ai->enabled()) {
-            return response()->json(['ok' => false, 'answer' => __('Le compagnon IA n\'est pas disponible pour le moment.')], 503);
+            return response()->json(['ok' => false, 'say' => __('Je ne suis pas disponible pour le moment.')], 503);
         }
         $ctx = $data['context'] ?? [];
+        $page = $ctx['page'] ?? 'other';
         $locale = app()->getLocale();
-        $stepsText = '';
-        foreach (array_values((array) ($ctx['steps'] ?? [])) as $i => $s) {
-            if (! is_array($s)) {
-                continue;
-            }
-            $stepsText .= ($i + 1) . '. ' . mb_substr((string) ($s['title'] ?? ''), 0, 80) . (isset($s['arrive']) ? ' (' . __('arrivée') . ' ' . $s['arrive'] . ')' : '') . (isset($s['category']) ? ' — ' . $s['category'] : '') . ((int) ($ctx['current'] ?? -1) === $i ? ' ← ' . __('étape en cours') : '') . "\n";
-        }
         $lat = isset($ctx['lat']) ? (float) $ctx['lat'] : null;
         $lng = isset($ctx['lng']) ? (float) $ctx['lng'] : null;
-        $nearby = '';
+        $radius = min(6000, max(400, (float) ($ctx['radius'] ?? 1500)));
+
+        // Candidats : les lieux CAMINO autour du contexte (ou le lieu consulté), avec ce qu'il faut pour choisir.
+        $candidates = collect();
         if ($lat !== null && $lng !== null) {
-            $dlat = 0.012; $dlng = 0.018;
-            $places = Place::query()->approved()->with('category')
+            $dlat = $radius / 111320; $dlng = $radius / (111320 * max(0.2, cos(deg2rad($lat))));
+            $candidates = Place::query()->approved()->with('category')
                 ->whereBetween('lat', [$lat - $dlat, $lat + $dlat])->whereBetween('lng', [$lng - $dlng, $lng + $dlng])
-                ->get(['id', 'title', 'lat', 'lng', 'category_id', 'is_free', 'address', 'opening_hours', 'price_level'])
+                ->get(['id', 'title', 'lat', 'lng', 'category_id', 'is_free', 'address', 'opening_hours', 'price_level', 'description', 'cover_image_url', 'tags'])
                 ->sortBy(fn (Place $p) => ($p->lat - $lat) ** 2 + (($p->lng - $lng) * cos(deg2rad($lat))) ** 2)
-                ->take(10);
-            foreach ($places as $p) {
-                $window = $p->hoursFor(now());
-                $d = (int) round(sqrt((($p->lat - $lat) * 111320) ** 2 + (($p->lng - $lng) * 111320 * cos(deg2rad($lat))) ** 2));
-                $nearby .= '- ' . $p->title . ' (' . ($p->category?->name ?? __('Lieu')) . ', ' . $d . ' m' . ($p->is_free ? ', ' . __('gratuit') : '') . (($window['status'] ?? '') === 'open' ? ', ' . __('ouvert') . ' ' . ($window['opens'] ?? '') . '–' . ($window['closes'] ?? '') : (($window['status'] ?? '') === 'closed' ? ', ' . __('fermé aujourd\'hui') : '')) . ($p->address ? ', ' . mb_substr($p->address, 0, 60) : '') . ")\n";
+                ->take(30)->values();
+        }
+        if (! empty($ctx['place_id'])) {
+            $place = Place::query()->approved()->with('category')->find((int) $ctx['place_id']);
+            if ($place) {
+                $candidates = collect([$place])->merge($candidates->reject(fn ($p) => $p->id === $place->id))->take(30);
             }
         }
-        $system = "Tu es CAMINO, compagnon de balade culturelle en Île-de-France. Tu accompagnes une personne pendant son parcours. Réponds en " . AiService::languageName($locale) . ", en 2 à 4 phrases (80 mots max), utile et concret, sans emoji, sans liste à puces.\n"
-            . "Parcours « " . mb_substr((string) ($ctx['title'] ?? ''), 0, 120) . " » :\n" . ($stepsText ?: "(inconnu)\n")
-            . (isset($ctx['time']) ? 'Heure actuelle : ' . $ctx['time'] . "\n" : '') . (isset($ctx['weather']) ? 'Météo : ' . $ctx['weather'] . "\n" : '')
-            . ($nearby !== '' ? "Lieux CAMINO autour de la position actuelle (seule source autorisée pour recommander un lieu ; cite-les par leur nom exact) :\n" . $nearby : "Aucun lieu connu autour : ne recommande pas d'adresse précise.\n")
-            . "Si on te demande l'histoire d'un lieu, raconte-la avec des faits sûrs, sans inventer de dates. Si tu ne sais pas, dis-le simplement.";
-        $answer = $ai->chat($system, array_map(fn ($m) => ['role' => $m['role'], 'content' => $m['content']], $data['messages']), ['max_tokens' => 350, 'temperature' => 0.6]);
-        if ($answer === null) {
-            return response()->json(['ok' => false, 'answer' => __('Le compagnon IA n\'est pas disponible pour le moment.')], 503);
+        $lines = '';
+        foreach ($candidates as $p) {
+            $window = $p->hoursFor(now());
+            $d = $lat !== null ? (int) round(sqrt((($p->lat - $lat) * 111320) ** 2 + (($p->lng - $lng) * 111320 * cos(deg2rad($lat))) ** 2)) : null;
+            $lines .= '#' . $p->id . ' ' . $p->title . ' | ' . ($p->category?->name ?? __('Lieu')) . ($d !== null ? ' | ' . $d . ' m' : '') . ($p->is_free ? ' | ' . __('gratuit') : '')
+                . (($window['status'] ?? '') === 'open' ? ' | ' . __('ouvert') . ' ' . ($window['opens'] ?? '') . '–' . ($window['closes'] ?? '') : (($window['status'] ?? '') === 'closed' ? ' | ' . __('fermé aujourd\'hui') : ''))
+                . ($p->tags ? ' | ' . implode(', ', array_slice((array) $p->tags, 0, 4)) : '')
+                . ($p->description ? ' | ' . mb_substr(preg_replace('/\s+/u', ' ', strip_tags((string) $p->description)), 0, 90) : '') . "\n";
         }
+        $stepsText = '';
+        foreach (array_values((array) ($ctx['steps'] ?? [])) as $i => $s) {
+            if (is_array($s)) {
+                $stepsText .= ($i + 1) . '. ' . mb_substr((string) ($s['title'] ?? ''), 0, 80) . (isset($s['arrive']) ? ' (' . $s['arrive'] . ')' : '') . ((int) ($ctx['current'] ?? -1) === $i ? ' ← ' . __('étape en cours') : '') . "\n";
+            }
+        }
+        $categories = Category::query()->orderBy('name')->get(['name', 'slug'])->map(fn ($c) => $c->slug . ' = ' . $c->name)->implode(', ');
+        $pageRules = match ($page) {
+            'map' => "L'utilisateur regarde la carte. Quand il cherche quelque chose, remplis \"filter\" (la carte l'appliquera) ET choisis jusqu'à 4 candidats dans \"places\". Si aucun candidat ne convient, laisse \"places\" vide et dis-le en une phrase.",
+            'result' => "L'utilisateur regarde son parcours généré (étapes ci-dessous). Il peut demander d'ajouter un lieu (action add_place avec un id de candidat) ou de retirer une étape (action remove_step avec l'index à partir de 0). Explique en une phrase ce que tu fais.",
+            'guidance' => "L'utilisateur est en train de suivre son parcours à pied (étape en cours ci-dessous). Réponds comme un compagnon de route : court, concret, rassurant. Recommande uniquement des candidats.",
+            'place' => "L'utilisateur consulte la fiche du premier candidat. Réponds sur ce lieu ; pour « à côté », propose d'autres candidats.",
+            default => "Réponds sur CAMINO (GPS culturel d'Île-de-France : carte, parcours générés, balades à plusieurs, audioguide) et propose des candidats s'il y en a.",
+        };
+        $system = "Tu es CAMINO, l'assistant d'un GPS culturel pour l'Île-de-France. Tu réponds en " . AiService::languageName($locale) . ".\n"
+            . "Réponds UNIQUEMENT avec un objet JSON : {\"say\": \"1 ou 2 phrases courtes (40 mots max), sans liste ni emoji\", \"places\": [{\"id\": id du candidat, \"reason\": \"pourquoi, 8 mots max\"}], \"filter\": null ou {\"category_slugs\": [slugs], \"free\": bool, \"open_now\": bool, \"near\": bool, \"events\": bool, \"terms\": \"nom propre ou quartier, sinon vide\"}, \"actions\": [] ou [{\"type\": \"add_place\", \"id\": id} | {\"type\": \"remove_step\", \"index\": n}], \"suggestions\": [\"3 questions de suite courtes (5 mots max) que l'utilisateur pourrait poser ensuite\"]}.\n"
+            . "Règles : ne recommande jamais un lieu absent des candidats ; ne cite pas d'adresse ou d'horaire que tu n'as pas ; si tu ne sais pas, dis-le. Catégories pour filter : {$categories}.\n"
+            . $pageRules . "\n"
+            . (($ctx['title'] ?? '') !== '' ? 'Parcours « ' . mb_substr((string) $ctx['title'], 0, 120) . " » :\n" . $stepsText : '')
+            . (isset($ctx['time']) ? 'Heure : ' . $ctx['time'] . "\n" : '') . (isset($ctx['weather']) ? 'Météo : ' . $ctx['weather'] . "\n" : '')
+            . (! empty($ctx['cart']) ? 'Déjà dans la sélection de l\'utilisateur : ids ' . implode(', ', array_map('intval', (array) $ctx['cart'])) . "\n" : '')
+            . ($lines !== '' ? "Candidats (id | nom | catégorie | distance | infos) :\n" . $lines : "Aucun candidat autour : ne recommande pas de lieu précis.\n");
+        $messages = array_map(fn ($m) => ['role' => $m['role'], 'content' => $m['content']], $data['messages']);
+        $out = $ai->json($system, implode("\n", array_map(fn ($m) => ($m['role'] === 'user' ? 'Utilisateur : ' : 'CAMINO : ') . $m['content'], $messages)), ['max_tokens' => 600, 'temperature' => 0.5]);
+        if (! is_array($out) || trim((string) ($out['say'] ?? '')) === '') {
+            return response()->json(['ok' => false, 'say' => __('Je ne suis pas disponible pour le moment.')], 503);
+        }
+        $byId = $candidates->keyBy('id');
+        $places = [];
+        foreach (array_slice((array) ($out['places'] ?? []), 0, 4) as $pick) {
+            $p = $byId->get((int) ($pick['id'] ?? 0));
+            if (! $p) {
+                continue;
+            }
+            $window = $p->hoursFor(now());
+            $places[] = [
+                'id' => $p->id, 'title' => $p->title, 'category' => $p->category?->name, 'slug' => $p->category?->slug, 'lat' => $p->lat, 'lng' => $p->lng,
+                'cover' => $p->coverThumb(320), 'url' => route('places.show', $p), 'free' => (bool) $p->is_free, 'open' => ($window['status'] ?? '') === 'open',
+                'distance_m' => $lat !== null ? (int) round(sqrt((($p->lat - $lat) * 111320) ** 2 + (($p->lng - $lng) * 111320 * cos(deg2rad($lat))) ** 2)) : null,
+                'reason' => mb_substr(trim((string) ($pick['reason'] ?? '')), 0, 80),
+            ];
+        }
+        $filter = null;
+        if (is_array($out['filter'] ?? null)) {
+            $slugs = array_values(array_filter(array_map(fn ($s) => is_string($s) ? trim($s) : '', (array) ($out['filter']['category_slugs'] ?? [])), fn ($s) => $s !== ''));
+            $knownCats = $slugs !== [] ? Category::query()->whereIn('slug', $slugs)->pluck('name', 'slug')->all() : [];
+            $known = array_keys($knownCats);
+            $filter = [
+                'category_slugs' => array_values(array_intersect($slugs, $known)),
+                'labels' => array_values(array_map(fn ($s) => $knownCats[$s], array_intersect($slugs, $known))),
+                'free' => (bool) ($out['filter']['free'] ?? false), 'open_now' => (bool) ($out['filter']['open_now'] ?? false),
+                'near' => (bool) ($out['filter']['near'] ?? false), 'events' => (bool) ($out['filter']['events'] ?? false),
+                'terms' => trim(mb_substr((string) ($out['filter']['terms'] ?? ''), 0, 80)),
+            ];
+            if ($filter['category_slugs'] === [] && ! $filter['free'] && ! $filter['open_now'] && ! $filter['near'] && ! $filter['events'] && $filter['terms'] === '') {
+                $filter = null;
+            }
+        }
+        $actions = [];
+        foreach (array_slice((array) ($out['actions'] ?? []), 0, 4) as $a) {
+            if (! is_array($a)) {
+                continue;
+            }
+            if (($a['type'] ?? '') === 'add_place' && $byId->has((int) ($a['id'] ?? 0))) {
+                $actions[] = ['type' => 'add_place', 'id' => (int) $a['id'], 'title' => $byId->get((int) $a['id'])->title];
+            } elseif (($a['type'] ?? '') === 'remove_step' && isset($a['index']) && $page === 'result') {
+                $actions[] = ['type' => 'remove_step', 'index' => max(0, (int) $a['index'])];
+            }
+        }
+        $suggestions = array_values(array_filter(array_map(fn ($s) => is_string($s) ? mb_substr(trim($s), 0, 40) : '', array_slice((array) ($out['suggestions'] ?? []), 0, 3)), fn ($s) => $s !== ''));
 
-        return response()->json(['ok' => true, 'answer' => $answer]);
+        return response()->json(['ok' => true, 'say' => trim((string) $out['say']), 'places' => $places, 'filter' => $filter, 'actions' => $actions, 'suggestions' => $suggestions]);
     }
 
     /** Audioguide génératif : récit d'un lieu (≈ 1 min à voix haute) dans la langue de l'interface, en cache 30 jours. */

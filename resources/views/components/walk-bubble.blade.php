@@ -6,7 +6,7 @@
 @if($watch)
 <div x-data="walkBubble({ url: @js(route('walks.live')), t: { online: @js(__('en ligne')), inProgress: @js(__('Balade en cours')), launched: @js(__(':name a lancé une balade')), join: @js(__('Rejoindre')), open: @js(__('Ouvrir')) } })"
      x-show="item" x-cloak x-transition
-     class="fixed z-[1050] left-3 right-3 sm:right-auto sm:max-w-sm bottom-24 md:bottom-6">
+     class="fixed z-[1050] left-3 right-[4.5rem] sm:right-auto sm:max-w-sm bottom-24 md:bottom-6 md:left-6">
     <div class="card flex items-center gap-3 pl-3 pr-2 py-2 shadow-float border-l-4 border-l-coral">
         <span class="relative h-10 w-10 rounded-2xl bg-coral-soft text-coral flex items-center justify-center shrink-0"><span class="material-symbols-outlined">groups</span><span class="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span></span>
         <a :href="item ? item.url : '#'" class="min-w-0 flex-1">

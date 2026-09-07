@@ -2,7 +2,7 @@
     $freeSunday = app(\App\Services\FreeSundayService::class);
     $isFirstSunday = $freeSunday->isFirstSunday(\Illuminate\Support\Carbon::now(config('app.timezone')));
     $mapData = [
-        'apiPois' => url('/api/v1/pois'), 'apiIntent' => app(\App\Services\AiService::class)->enabled() ? url('/api/v1/ai/intent') : null, 'apiAlerts' => url('/api/v1/alerts'), 'apiHistory' => url('/api/v1/history'),
+        'apiPois' => url('/api/v1/pois'), 'apiPoi' => url('/api/v1/poi'), 'ai' => app(\App\Services\AiService::class)->enabled(), 'apiAlerts' => url('/api/v1/alerts'), 'apiHistory' => url('/api/v1/history'),
         'placeUrl' => url('/lieux'), 'addUrl' => url('/parcours/ajouter-lieu'), 'removeUrl' => url('/parcours/retirer-lieu'), 'generateUrl' => route('itineraries.create'),
         'cart' => array_values(session('itinerary_place_ids', [])),
         'query' => request('q', ''), 'filter' => request('filtre', 'all'),
@@ -10,7 +10,7 @@
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
         'csrf' => csrf_token(),
         't' => [
-            'nothingHere' => __('rien ici, élargis la carte'),
+            'askCamino' => __('Demander à CAMINO'), 'aiFilters' => __('Filtres CAMINO'),
             'loading' => __('Chargement…'), 'none' => __('Aucun lieu ici'), 'places' => __('lieux'), 'place' => __('lieu'), 'more' => __('120+ lieux (zoome pour affiner)'),
             'free' => __('Gratuit'), 'noPrice' => __('Tarif non renseigné'), 'openNow' => __('Ouvert'), 'closed' => __('Fermé'), 'opensAt' => __('Ouvre à'), 'closesAt' => __('ferme à'), 'hoursUnknown' => __('Horaires inconnus'),
             'openAt' => __('Ouvert à'), 'closedAt' => __('Fermé à'), 'walk' => __('à pied'), 'noPos' => __('Impossible de récupérer ta position.'), 'added' => __('Ajouté au parcours'), 'removed' => __('Retiré du parcours'),
@@ -29,14 +29,17 @@
             <div class="max-w-7xl mx-auto px-3 sm:px-6">
                 <div class="md:max-w-2xl space-y-2 pointer-events-auto">
                     <div class="card flex items-center gap-1.5 pl-4 pr-1.5 py-1">
-                        <span class="material-symbols-outlined" :class="aiHint ? 'text-coral' : 'text-ink-muted'" x-text="aiHint ? 'auto_awesome' : 'search'"></span>
-                        <input x-model.debounce.400ms="query" @input="load()" type="search" placeholder="{{ __('Musée gratuit Marais, une adresse, un lieu…') }}" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70 !bg-transparent" aria-label="{{ __('Rechercher') }}">
+                        <span class="material-symbols-outlined text-ink-muted">search</span>
+                        <input x-model.debounce.400ms="query" @input="load()" @keydown.enter.prevent="isSentence ? askCamino() : load()" type="search" placeholder="{{ __('Musée gratuit Marais, une adresse, un lieu…') }}" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70 !bg-transparent" aria-label="{{ __('Rechercher') }}">
                         <span x-show="loading" class="material-symbols-outlined text-ink-muted animate-spin" style="font-size:18px">progress_activity</span>
+                        <button x-show="data.ai" @click="query.trim() ? askCamino() : window.dispatchEvent(new CustomEvent('open-assistant'))" class="btn btn-icon !h-9 !w-9 bg-coral text-white hover:bg-coral-dark" title="{{ __('Demander à CAMINO') }}"><span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span></button>
                         <button @click="toggleTime()" class="btn btn-icon btn-ghost !h-9 !w-9" :class="time.enabled && '!bg-ink !text-white'" title="{{ __('À quelle heure ?') }}"><span class="material-symbols-outlined" style="font-size:20px">schedule</span></button>
                         <button @click="locate(true)" class="btn btn-icon btn-ghost !h-9 !w-9" :class="user && '!text-teal'" title="{{ __('Autour de moi') }}"><span class="material-symbols-outlined" style="font-size:20px">my_location</span></button>
                     </div>
 
-                    <div x-show="aiHint" x-cloak x-transition class="card px-3 py-1.5 text-xs flex items-center gap-2"><span class="material-symbols-outlined text-coral" style="font-size:16px">auto_awesome</span><span class="truncate" x-text="aiHint"></span></div>
+                    {{-- Une phrase dans la recherche : on la confie à l'assistant. Les filtres qu'il pose restent visibles et se retirent d'un geste. --}}
+                    <button x-show="isSentence" x-cloak x-transition type="button" @click="askCamino()" class="card w-full text-left px-3 py-2.5 flex items-center gap-2.5 border-l-4 border-l-coral"><span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shrink-0"><span class="material-symbols-outlined" style="font-size:18px">auto_awesome</span></span><span class="min-w-0 flex-1"><span class="block text-[11px] font-bold uppercase tracking-wider text-coral" x-text="data.t.askCamino"></span><span class="block text-sm leading-snug" x-text="'« ' + query.trim() + ' »'"></span></span><span class="material-symbols-outlined text-ink-muted">arrow_forward</span></button>
+                    <div x-show="aiFilter" x-cloak x-transition class="card px-3 py-1.5 text-xs flex items-center gap-2"><span class="material-symbols-outlined text-coral" style="font-size:16px">tune</span><span class="min-w-0 flex-1 leading-snug"><span class="font-semibold" x-text="data.t.aiFilters"></span> · <span x-text="aiFilterLabel"></span></span><button type="button" @click="clearAiFilter()" class="h-7 w-7 rounded-full hover:bg-paper flex items-center justify-center text-ink-muted"><span class="material-symbols-outlined" style="font-size:16px">close</span></button></div>
 
                     {{-- Curseur d'heure --}}
                     <div x-show="time.enabled" x-cloak x-transition class="card px-4 py-2.5 flex items-center gap-3">
@@ -267,11 +270,11 @@
     <script>
         function caminoMap(data) {
             const C = window.Camino;
-            let map = null, cluster = null, alertLayer = null, historyLayer = null, userMarker = null; // objets Leaflet hors du proxy réactif d'Alpine
+            let map = null, cluster = null, alertLayer = null, historyLayer = null, userMarker = null, pickLayer = null; // objets Leaflet hors du proxy réactif d'Alpine
             const markers = {};
             const distance = (a, b) => { const x = (b[1] - a[1]) * Math.PI / 180 * Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); const y = (b[0] - a[0]) * Math.PI / 180; return Math.sqrt(x * x + y * y) * 6371000; };
             return {
-                data, places: [], alerts: [], history: [], loading: false, loadSeq: 0, aiHint: '', intents: {}, selected: null, selectedAlert: null, selectedHistory: null, active: null,
+                data, places: [], alerts: [], history: [], loading: false, loadSeq: 0, aiFilter: null, aiPicks: [], selected: null, selectedAlert: null, selectedHistory: null, active: null,
                 query: data.query, filter: data.filter, collection: 'all', listMode: 'places', user: null,
                 time: { enabled: false, hour: (() => { const d = new Date(); return Math.min(23, Math.max(8, d.getHours() + (d.getMinutes() >= 30 ? 0.5 : 0))); })() },
                 layers: { open: false, alerts: true, history: false },
@@ -314,6 +317,9 @@
                         cluster = L.markerClusterGroup({ maxClusterRadius: 44, disableClusteringAtZoom: 16, spiderfyOnMaxZoom: true, showCoverageOnHover: false, iconCreateFunction: (c) => L.divIcon({ className: 'camino-marker', html: `<div class="camino-cluster">${c.getChildCount()}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] }) });
                         map.addLayer(cluster);
                         alertLayer = L.layerGroup().addTo(map);
+                        pickLayer = L.layerGroup().addTo(map);
+                        window.addEventListener('camino-assistant', (e) => this.onAssistant(e.detail));
+                        window.caminoAssistantContext = () => { const c = map.getCenter(); const b = map.getBounds(); return { page: 'map', lat: c.lat, lng: c.lng, radius: Math.min(6000, Math.max(400, Math.round(b.getNorthEast().distanceTo(b.getSouthWest()) / 2))), cart: this.cart }; };
                         historyLayer = L.layerGroup().addTo(map);
                         map.on('moveend', C.debounce(() => { this.load(); if (this.layers.history) this.loadHistory(); }, 250));
                         const fix = () => { map.invalidateSize(); this.load(); };
@@ -371,10 +377,27 @@
                         this.load();
                     } catch (e) { if (recenter) alert(data.t.noPos); if (this.collection === 'near') this.collection = 'all'; }
                 },
-                async intent(q) {
-                    if (this.intents[q] !== undefined) return this.intents[q];
-                    try { const r = await fetch(`${data.apiIntent}?lang=${data.locale}&q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } }); const j = await r.json(); this.intents[q] = j.ok ? j : null; } catch (e) { this.intents[q] = null; }
-                    return this.intents[q];
+                // ---------------------------------------------------------------- assistant CAMINO
+                get isSentence() { return !!(data.ai && this.query && this.query.trim().split(/\s+/).length >= 3); },
+                askCamino() { const q = this.query.trim(); if (!q) return; window.dispatchEvent(new CustomEvent('open-assistant', { detail: { ask: q } })); },
+                onAssistant(d) {
+                    if (d.type === 'filter') { this.aiFilter = d.filter; this.query = ''; this.load(); }
+                    else if (d.type === 'places') { this.aiPicks = d.places; this.drawPicks(); if (d.places.length) map.fitBounds(L.latLngBounds(d.places.map(p => [p.lat, p.lng])), { padding: [80, 80], maxZoom: 16 }); }
+                    else if (d.type === 'focus') { this.focusPlace(d.place); }
+                    else if (d.type === 'cart') { if (!this.cart.includes(d.id)) this.cart.push(d.id); }
+                },
+                clearAiFilter() { this.aiFilter = null; this.aiPicks = []; this.drawPicks(); this.load(); },
+                get aiFilterLabel() { const f = this.aiFilter; if (!f) return ''; const parts = [...(f.labels || f.category_slugs)]; if (f.free) parts.push(data.t.free.toLowerCase()); if (f.open_now) parts.push(data.t.openNow.toLowerCase()); if (f.terms) parts.push(f.terms); return parts.join(' · '); },
+                drawPicks() {
+                    pickLayer.clearLayers();
+                    this.aiPicks.forEach(p => { if (p.lat && p.lng) pickLayer.addLayer(L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'camino-marker', html: '<div class="camino-pick-ring"></div>', iconSize: [52, 52], iconAnchor: [26, 26] }), interactive: false, zIndexOffset: 400 })); });
+                },
+                async focusPlace(p) {
+                    let full = this.places.find(x => x.id === p.id);
+                    if (!full) { try { const r = await fetch(`${data.apiPoi}/${p.id}?lang=${data.locale}`); const j = await r.json(); full = j.data || j; } catch (e) { full = null; } }
+                    if (!full) return;
+                    map.setView([full.lat, full.lng], Math.max(map.getZoom(), 16));
+                    this.openPlace(full);
                 },
                 async load() {
                     if (!map || map.getSize().x < 50 || map.getSize().y < 50) return;
@@ -392,21 +415,16 @@
                     if (this.collection === 'rated') { params.set('rated', '1'); params.set('sort', 'rating'); }
                     if (this.time.enabled) params.set('at', this.timeLabel.replace('h', ':'));
                     if (this.user) { params.set('lat', this.user[0]); params.set('lng', this.user[1]); if (this.collection === 'near') { params.set('near_m', '800'); params.set('sort', 'distance'); } }
-                    let q = this.query;
-                    // Recherche par envie : une phrase (3 mots et plus) est comprise par l'IA et traduite en filtres ; sinon la recherche par mots-clés habituelle.
-                    this.aiHint = '';
-                    if (data.apiIntent && q && q.trim().split(/\s+/).length >= 3) {
-                        const it = await this.intent(q.trim());
-                        if (seq !== this.loadSeq) return;
-                        if (it) {
-                            if (it.category_slugs.length) params.set('category_slugs', it.category_slugs.join(','));
-                            if (it.free) params.set('free', '1');
-                            if (it.open_now) params.set('open_now', '1');
-                            if (it.events) params.set('events', '1');
-                            if (it.near && this.user) { params.set('near_m', '1200'); params.set('sort', 'distance'); }
-                            q = it.terms || '';
-                            this.aiHint = it.answer || '';
-                        }
+                    // Filtres posés par l'assistant CAMINO (une phrase tapée dans la recherche passe par lui, pas par la recherche par mots-clés).
+                    let q = this.isSentence ? '' : this.query;
+                    if (this.aiFilter) {
+                        const f = this.aiFilter;
+                        if (f.category_slugs.length) params.set('category_slugs', f.category_slugs.join(','));
+                        if (f.free) params.set('free', '1');
+                        if (f.open_now) params.set('open_now', '1');
+                        if (f.events) params.set('events', '1');
+                        if (f.near && this.user) { params.set('near_m', '1200'); params.set('sort', 'distance'); }
+                        if (f.terms) q = f.terms;
                     }
                     if (q) params.set('q', q);
                     this.loading = true;
@@ -415,7 +433,6 @@
                         const jp = await rp.json(); const ja = await ra.json();
                         if (seq !== this.loadSeq) return;
                         this.places = jp.data || []; this.alerts = ja.data || [];
-                        if (this.aiHint && !this.places.length) this.aiHint += ' · ' + data.t.nothingHere;
                         if (jp.meta) { data.firstSunday = !!jp.meta.first_sunday; data.freeSundayLabel = jp.meta.next_first_sunday_label || data.freeSundayLabel; }
                         this.render();
                     } catch (e) { console.error(e); } finally { this.loading = false; }
