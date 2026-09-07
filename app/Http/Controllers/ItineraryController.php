@@ -461,6 +461,31 @@ class ItineraryController extends Controller
         return view('itineraries.journal', $this->journalData($itinerary) + ['shared' => true, 'token' => $token]);
     }
 
+    /** Carnet de voyage en PDF (A4), à télécharger. */
+    public function journalPdf(Itinerary $itinerary)
+    {
+        abort_unless($itinerary->user_id === Auth::id(), 403);
+
+        return $this->renderJournalPdf($itinerary);
+    }
+
+    public function sharedJournalPdf(string $token)
+    {
+        return $this->renderJournalPdf(Itinerary::where('share_token', $token)->firstOrFail());
+    }
+
+    private function renderJournalPdf(Itinerary $itinerary)
+    {
+        $data = $this->journalData($itinerary);
+        // chroot explicite : sans lui, dompdf refuse de lire les polices dans public/fonts.
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'defaultMediaType' => 'print', 'dpi' => 96, 'chroot' => base_path()])
+            ->loadView('itineraries.journal-pdf', $data)
+            ->setPaper('a4', 'portrait');
+        $name = 'carnet-' . \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($itinerary->name, 40, '')) . '.pdf';
+
+        return $pdf->download($name);
+    }
+
     /**
      * @return array<string,mixed>
      */

@@ -14,14 +14,15 @@
     {{-- Thème sombre appliqué avant le premier rendu (pas de flash) : choix mémorisé, sinon réglage du système --}}
     <script>(function(){try{var t=localStorage.getItem('camino-theme');var d=t==='dark'||((!t||t==='system')&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.querySelector('meta[name=theme-color]').setAttribute('content','#171B22');}}catch(e){}})();</script>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/apple-touch-icon.png') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="CAMINO">
     <meta name="description" content="{{ $description ?? __('CAMINO, le GPS culturel intelligent : carte vivante, parcours sur mesure et bons plans culturels en Île-de-France.') }}">
     <title>{{ $title ? $title . ' · CAMINO' : __('CAMINO — GPS culturel intelligent') }}</title>
     @stack('meta')
 
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23FF5A3C'/%3E%3Cpath d='M32 12c-8.3 0-15 6.6-15 14.8C17 38.4 32 52 32 52s15-13.6 15-25.2C47 18.6 40.3 12 32 12zm0 20a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('logo.svg') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/icon-192.png') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,9 +41,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-3">
                 <div class="glass rounded-full pl-3 sm:pl-4 pr-2 py-2 flex items-center gap-2 sm:gap-3 pointer-events-auto">
                     <a href="{{ auth()->check() ? route('dashboard') : route('home') }}" class="flex items-center gap-2 shrink-0 group" aria-label="{{ __('CAMINO — accueil') }}">
-                        <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card group-hover:rotate-6 transition-transform">
-                            <span class="material-symbols-outlined filled" style="font-size:18px">location_on</span>
-                        </span>
+                        <x-logo :size="34" animate="once" class="camino-logo-hover" />
                         <span class="font-display text-[20px] sm:text-[22px] font-semibold tracking-tight leading-none">CAMINO</span>
                     </a>
 

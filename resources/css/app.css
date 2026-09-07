@@ -468,3 +468,19 @@
 .camino-pin-history { width: 40px; height: 40px; background-size: cover; background-position: center; border-color: #FBBF24; filter: sepia(.35); }
 .camino-pin-history span { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: #FBBF24; color: #12161C; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; }
 .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; }
+
+/* Logo animé ---------------------------------------------------------------------- */
+.camino-logo-mark { overflow: visible; }
+.camino-logo-path { stroke-dasharray: 100; stroke-dashoffset: 0; }
+.camino-logo-dot { offset-distance: 100%; offset-rotate: 0deg; }
+@keyframes logo-drop { 0% { transform: translateY(-14px) scale(.96); opacity: 0; } 55% { transform: translateY(2px) scale(1.02); opacity: 1; } 75% { transform: translateY(-2px) scale(.99); } 100% { transform: none; opacity: 1; } }
+@keyframes logo-shadow { 0% { transform: scaleX(.4); opacity: 0; } 55% { transform: scaleX(1.15); opacity: .18; } 100% { transform: none; opacity: .18; } }
+@keyframes logo-draw { 0%, 25% { stroke-dashoffset: 100; } 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes logo-walk { 0%, 25% { offset-distance: 0%; opacity: 0; } 30% { opacity: 1; } 75% { offset-distance: 100%; transform: scale(1); } 82% { transform: scale(1.35); } 100% { offset-distance: 100%; transform: scale(1); opacity: 1; } }
+.camino-logo-once .camino-logo-drop { animation: logo-drop .8s cubic-bezier(.34,1.56,.64,1) both; transform-origin: 32px 60px; }
+.camino-logo-once .camino-logo-shadow { animation: logo-shadow .8s ease-out both; transform-origin: 32px 60px; }
+.camino-logo-once .camino-logo-path, .camino-logo-loop .camino-logo-path, .camino-logo-hover:hover .camino-logo-path { animation: logo-draw 1.9s cubic-bezier(.4,0,.2,1) both; }
+.camino-logo-once .camino-logo-dot, .camino-logo-loop .camino-logo-dot, .camino-logo-hover:hover .camino-logo-dot { animation: logo-walk 1.9s cubic-bezier(.4,0,.2,1) both; }
+.camino-logo-loop .camino-logo-path, .camino-logo-loop .camino-logo-dot { animation-iteration-count: infinite; animation-duration: 2.6s; }
+.camino-logo-hover:hover .camino-logo-drop { animation: logo-drop .8s cubic-bezier(.34,1.56,.64,1) both; transform-origin: 32px 60px; }
+@media (prefers-reduced-motion: reduce) { .camino-logo * { animation: none !important; } }

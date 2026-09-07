@@ -151,7 +151,12 @@ export function loadNavMap() {
     return import('./nav-map.js').then((m) => m.NavMap);
 }
 
-window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap };
+/** Export d'un élément en image PNG (carnet de voyage), chargé à la demande. */
+export function loadHtmlToImage() {
+    return import('html-to-image');
+}
+
+window.Camino = { CATEGORY_STYLE, categoryStyle, placeIcon, alertIcon, stepIcon, stepPinHtml, placePinHtml, tileLayer, escapeHtml, debounce, locate, loadNavMap, loadHtmlToImage };
 
 /**
  * Thème clair / sombre / système : mémorisé dans le navigateur, appliqué avant le premier rendu par le script de <head>.

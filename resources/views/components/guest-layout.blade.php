@@ -19,7 +19,7 @@
             <img src="{{ asset('images/photo_paris.avif') }}" alt="" class="absolute inset-0 h-full w-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-ink/10"></div>
             <a href="{{ route('home') }}" class="relative flex items-center gap-2">
-                <span class="h-9 w-9 rounded-xl bg-coral flex items-center justify-center"><span class="material-symbols-outlined filled" style="font-size:20px">location_on</span></span>
+                <x-logo :size="40" animate="once" />
                 <span class="font-display text-2xl font-semibold">CAMINO</span>
             </a>
             <div class="relative max-w-md">
@@ -35,7 +35,7 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-paper via-ink/40 to-ink/30"></div>
                 <div class="relative h-full flex flex-col justify-between p-5">
                     <a href="{{ route('home') }}" class="inline-flex items-center gap-2 w-fit">
-                        <span class="h-8 w-8 rounded-xl bg-coral text-white flex items-center justify-center shadow-card"><span class="material-symbols-outlined filled" style="font-size:18px">location_on</span></span>
+                        <x-logo :size="36" animate="once" />
                         <span class="font-display text-xl font-semibold drop-shadow">CAMINO</span>
                     </a>
                     <p class="display text-2xl text-white drop-shadow pb-4">{{ __('La ville a plus à raconter que ses monuments.') }}</p>

@@ -16,6 +16,7 @@
         "vite": "^5.0"
     },
     "dependencies": {
+        "html-to-image": "^1.11.13",
         "leaflet": "^1.9.4",
         "leaflet.markercluster": "^1.5.3",
         "maplibre-gl": "^4.7.1"

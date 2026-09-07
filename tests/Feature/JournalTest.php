@@ -41,7 +41,9 @@ class JournalTest extends TestCase
             ->assertSee('Musée Carnavalet')
             ->assertSee('deux hôtels particuliers')
             ->assertSee('En chiffres')
-            ->assertSee('journal-map');
+            ->assertSee('id="souvenir"', false)
+            ->assertSee('Le résumé')
+            ->assertSee('/carnet.pdf', false);
     }
 
     public function test_journal_is_private_to_its_owner_but_public_via_share_token(): void
@@ -54,6 +56,20 @@ class JournalTest extends TestCase
         $this->actingAs($other)->get('/mes-parcours/' . $itinerary->id . '/carnet')->assertForbidden();
         $this->get('/p/abcdefabcdefabcdef12/carnet')->assertOk()->assertSee('Refaire ce parcours')->assertSee('Musée Carnavalet');
         $this->get('/p/inconnu/carnet')->assertNotFound();
+    }
+
+    public function test_journal_pdf_is_generated(): void
+    {
+        Http::fake(['*' => Http::response(null, 503)]);
+        $owner = User::factory()->create();
+        $itinerary = $this->itinerary($owner);
+        $itinerary->update(['result_json' => array_merge($itinerary->result_json, ['steps' => [array_merge($itinerary->result_json['steps'][0], ['cover' => null])]])]);
+        \App\Models\Place::query()->update(['cover_image_url' => null]);
+
+        $response = $this->get('/p/abcdefabcdefabcdef12/carnet.pdf');
+
+        $response->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
     }
 
     public function test_guidance_page_carries_the_audioguide_narration(): void

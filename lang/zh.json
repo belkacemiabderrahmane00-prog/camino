@@ -824,5 +824,21 @@
     "Copier le lien": "复制链接",
     "Créer le lien de partage": "创建分享链接",
     "Imprimer / PDF": "打印 / PDF",
-    "Refaire ce parcours": "再走一次这条路线"
+    "Refaire ce parcours": "再走一次这条路线",
+    "Mon parcours": "我的路线",
+    "Ton souvenir": "你的纪念",
+    "Une journée, une image.": "一天，一张图。",
+    "La carte de ta balade, prête à partager : tes étapes, ton tracé, tes chiffres. Le carnet complet est en dessous, et en PDF.": "你的漫步卡片，随时分享：站点、轨迹、数据。完整手记在下方，也可保存为 PDF。",
+    "Partager l'image": "分享图片",
+    "Télécharger l'image": "下载图片",
+    "Télécharger le PDF": "下载 PDF",
+    "Image 1080 × 1350, idéale pour Instagram, WhatsApp et les stories.": "1080 × 1350 图片，适合 Instagram、WhatsApp 和限时动态。",
+    "Préparation de l'image…": "正在生成图片…",
+    "L'image n'a pas pu être créée. Essaie le PDF.": "图片生成失败，请试试 PDF。",
+    "Le résumé": "行程摘要",
+    "retour vers": "约于以下时间返回",
+    "Les lieux": "这些地点",
+    ":n halte|:n haltes": ":n 站|:n 站",
+    "Créer le mien": "创建我的路线",
+    "Fait avec CAMINO, le GPS culturel intelligent.": "由智能文化 GPS CAMINO 制作。"
 }
