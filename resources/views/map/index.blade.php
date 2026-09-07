@@ -2,7 +2,7 @@
     $freeSunday = app(\App\Services\FreeSundayService::class);
     $isFirstSunday = $freeSunday->isFirstSunday(\Illuminate\Support\Carbon::now(config('app.timezone')));
     $mapData = [
-        'apiPois' => url('/api/v1/pois'), 'apiAlerts' => url('/api/v1/alerts'), 'apiHistory' => url('/api/v1/history'),
+        'apiPois' => url('/api/v1/pois'), 'apiIntent' => app(\App\Services\AiService::class)->enabled() ? url('/api/v1/ai/intent') : null, 'apiAlerts' => url('/api/v1/alerts'), 'apiHistory' => url('/api/v1/history'),
         'placeUrl' => url('/lieux'), 'addUrl' => url('/parcours/ajouter-lieu'), 'removeUrl' => url('/parcours/retirer-lieu'), 'generateUrl' => route('itineraries.create'),
         'cart' => array_values(session('itinerary_place_ids', [])),
         'query' => request('q', ''), 'filter' => request('filtre', 'all'),
@@ -10,6 +10,7 @@
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
         'csrf' => csrf_token(),
         't' => [
+            'nothingHere' => __('rien ici, élargis la carte'),
             'loading' => __('Chargement…'), 'none' => __('Aucun lieu ici'), 'places' => __('lieux'), 'place' => __('lieu'), 'more' => __('120+ lieux (zoome pour affiner)'),
             'free' => __('Gratuit'), 'noPrice' => __('Tarif non renseigné'), 'openNow' => __('Ouvert'), 'closed' => __('Fermé'), 'opensAt' => __('Ouvre à'), 'closesAt' => __('ferme à'), 'hoursUnknown' => __('Horaires inconnus'),
             'openAt' => __('Ouvert à'), 'closedAt' => __('Fermé à'), 'walk' => __('à pied'), 'noPos' => __('Impossible de récupérer ta position.'), 'added' => __('Ajouté au parcours'), 'removed' => __('Retiré du parcours'),
@@ -28,12 +29,14 @@
             <div class="max-w-7xl mx-auto px-3 sm:px-6">
                 <div class="md:max-w-2xl space-y-2 pointer-events-auto">
                     <div class="card flex items-center gap-1.5 pl-4 pr-1.5 py-1">
-                        <span class="material-symbols-outlined text-ink-muted">search</span>
+                        <span class="material-symbols-outlined" :class="aiHint ? 'text-coral' : 'text-ink-muted'" x-text="aiHint ? 'auto_awesome' : 'search'"></span>
                         <input x-model.debounce.400ms="query" @input="load()" type="search" placeholder="{{ __('Musée gratuit Marais, une adresse, un lieu…') }}" class="flex-1 min-w-0 border-0 bg-transparent focus:ring-0 text-sm placeholder:text-ink-muted/70 !bg-transparent" aria-label="{{ __('Rechercher') }}">
                         <span x-show="loading" class="material-symbols-outlined text-ink-muted animate-spin" style="font-size:18px">progress_activity</span>
                         <button @click="toggleTime()" class="btn btn-icon btn-ghost !h-9 !w-9" :class="time.enabled && '!bg-ink !text-white'" title="{{ __('À quelle heure ?') }}"><span class="material-symbols-outlined" style="font-size:20px">schedule</span></button>
                         <button @click="locate(true)" class="btn btn-icon btn-ghost !h-9 !w-9" :class="user && '!text-teal'" title="{{ __('Autour de moi') }}"><span class="material-symbols-outlined" style="font-size:20px">my_location</span></button>
                     </div>
+
+                    <div x-show="aiHint" x-cloak x-transition class="card px-3 py-1.5 text-xs flex items-center gap-2"><span class="material-symbols-outlined text-coral" style="font-size:16px">auto_awesome</span><span class="truncate" x-text="aiHint"></span></div>
 
                     {{-- Curseur d'heure --}}
                     <div x-show="time.enabled" x-cloak x-transition class="card px-4 py-2.5 flex items-center gap-3">
@@ -268,7 +271,7 @@
             const markers = {};
             const distance = (a, b) => { const x = (b[1] - a[1]) * Math.PI / 180 * Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); const y = (b[0] - a[0]) * Math.PI / 180; return Math.sqrt(x * x + y * y) * 6371000; };
             return {
-                data, places: [], alerts: [], history: [], loading: false, loadSeq: 0, selected: null, selectedAlert: null, selectedHistory: null, active: null,
+                data, places: [], alerts: [], history: [], loading: false, loadSeq: 0, aiHint: '', intents: {}, selected: null, selectedAlert: null, selectedHistory: null, active: null,
                 query: data.query, filter: data.filter, collection: 'all', listMode: 'places', user: null,
                 time: { enabled: false, hour: (() => { const d = new Date(); return Math.min(23, Math.max(8, d.getHours() + (d.getMinutes() >= 30 ? 0.5 : 0))); })() },
                 layers: { open: false, alerts: true, history: false },
@@ -368,13 +371,18 @@
                         this.load();
                     } catch (e) { if (recenter) alert(data.t.noPos); if (this.collection === 'near') this.collection = 'all'; }
                 },
+                async intent(q) {
+                    if (this.intents[q] !== undefined) return this.intents[q];
+                    try { const r = await fetch(`${data.apiIntent}?lang=${data.locale}&q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } }); const j = await r.json(); this.intents[q] = j.ok ? j : null; } catch (e) { this.intents[q] = null; }
+                    return this.intents[q];
+                },
                 async load() {
                     if (!map || map.getSize().x < 50 || map.getSize().y < 50) return;
                     // Plusieurs chargements peuvent se chevaucher (redimensionnement, déplacement) : seule la dernière réponse compte.
                     const seq = ++this.loadSeq;
                     const b = map.getBounds();
                     const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
-                    const params = new URLSearchParams({ bbox, limit: '120' });
+                    const params = new URLSearchParams({ bbox, limit: '120', lang: data.locale });
                     const f = this.filters.find(x => x.key === this.filter);
                     if (f && f.slug) params.set('category_slugs', f.slug);
                     if (this.filter === 'evenements' || this.collection === 'events') params.set('events', '1');
@@ -384,13 +392,30 @@
                     if (this.collection === 'rated') { params.set('rated', '1'); params.set('sort', 'rating'); }
                     if (this.time.enabled) params.set('at', this.timeLabel.replace('h', ':'));
                     if (this.user) { params.set('lat', this.user[0]); params.set('lng', this.user[1]); if (this.collection === 'near') { params.set('near_m', '800'); params.set('sort', 'distance'); } }
-                    if (this.query) params.set('q', this.query);
+                    let q = this.query;
+                    // Recherche par envie : une phrase (3 mots et plus) est comprise par l'IA et traduite en filtres ; sinon la recherche par mots-clés habituelle.
+                    this.aiHint = '';
+                    if (data.apiIntent && q && q.trim().split(/\s+/).length >= 3) {
+                        const it = await this.intent(q.trim());
+                        if (seq !== this.loadSeq) return;
+                        if (it) {
+                            if (it.category_slugs.length) params.set('category_slugs', it.category_slugs.join(','));
+                            if (it.free) params.set('free', '1');
+                            if (it.open_now) params.set('open_now', '1');
+                            if (it.events) params.set('events', '1');
+                            if (it.near && this.user) { params.set('near_m', '1200'); params.set('sort', 'distance'); }
+                            q = it.terms || '';
+                            this.aiHint = it.answer || '';
+                        }
+                    }
+                    if (q) params.set('q', q);
                     this.loading = true;
                     try {
                         const [rp, ra] = await Promise.all([fetch(`${data.apiPois}?${params}`), fetch(`${data.apiAlerts}?bbox=${bbox}`)]);
                         const jp = await rp.json(); const ja = await ra.json();
                         if (seq !== this.loadSeq) return;
                         this.places = jp.data || []; this.alerts = ja.data || [];
+                        if (this.aiHint && !this.places.length) this.aiHint += ' · ' + data.t.nothingHere;
                         if (jp.meta) { data.firstSunday = !!jp.meta.first_sunday; data.freeSundayLabel = jp.meta.next_first_sunday_label || data.freeSundayLabel; }
                         this.render();
                     } catch (e) { console.error(e); } finally { this.loading = false; }

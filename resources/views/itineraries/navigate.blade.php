@@ -16,6 +16,7 @@
         'backUrl' => $backUrl,
         'simulate' => max(0, (int) request()->query('simulate', 0)),
         'auth' => auth()->check(),
+        'ai' => app(\App\Services\AiService::class)->enabled() ? url('/api/v1/ai/narration') : null, 'locale' => app()->getLocale(),
         'itineraryId' => $result['itinerary_id'] ?? null,
         'journalUrl' => $journalUrl ?? (! empty($result['itinerary_id']) && auth()->check() ? route('itineraries.journal', $result['itinerary_id']) : null),
         'lang' => \App\Http\Middleware\SetLocale::speechLanguage(),
@@ -95,6 +96,7 @@
         {{-- Boutons carte --}}
         <div class="absolute right-3 z-[600] flex flex-col gap-2" :style="'bottom:' + (sheetHeight + 20) + 'px'">
             <button type="button" x-show="started && !follow" x-cloak @click="recenter()" class="h-11 w-11 rounded-full bg-ink text-white shadow-card flex items-center justify-center" aria-label="{{ __('Recentrer') }}"><span class="material-symbols-outlined filled">navigation</span></button>
+            @if(app(\App\Services\AiService::class)->enabled())<button type="button" x-show="started && !done" x-cloak @click="window.caminoCompanionContext = () => ({ current: legIndex, lat: pos ? pos[0] : null, lng: pos ? pos[1] : null }); $dispatch('open-companion')" class="h-11 w-11 rounded-full bg-coral text-white shadow-card flex items-center justify-center" aria-label="{{ __('Demander à CAMINO') }}"><span class="material-symbols-outlined">auto_awesome</span></button>@endif
             <button type="button" @click="toggleOverview()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Voir tout le parcours') }}"><span class="material-symbols-outlined" x-text="overview ? 'my_location' : 'zoom_out_map'"></span></button>
             <button type="button" x-show="Math.abs(bearing) > 2" x-cloak @click="northUp()" class="h-11 w-11 rounded-full bg-white shadow-card flex items-center justify-center text-ink" aria-label="{{ __('Nord en haut') }}"><span class="material-symbols-outlined" :style="'transform: rotate(' + (-bearing) + 'deg)'">explore</span></button>
         </div>
@@ -196,13 +198,13 @@
                     </div>
                 </div>
                 {{-- Audioguide : présentation du lieu, lue à voix haute --}}
-                <template x-if="target && target.narration">
+                <template x-if="target && narrationFor(target)">
                     <div class="mt-3 rounded-2xl bg-paper px-3 py-2.5" x-data="{ open: false }">
                         <div class="flex items-center gap-2">
                             <button type="button" @click="toggleNarration()" class="btn btn-sm shrink-0" :class="narrating ? 'btn-ink' : 'btn-soft'"><span class="material-symbols-outlined" style="font-size:16px" x-text="narrating ? 'stop_circle' : 'headphones'"></span><span x-text="narrating ? data.t.stopListen : data.t.listen"></span></button>
                             <button type="button" @click="open = !open" class="ml-auto text-xs font-semibold text-ink-muted hover:text-ink inline-flex items-center gap-1"><span class="material-symbols-outlined transition-transform" :class="open && 'rotate-180'" style="font-size:16px">expand_more</span>{{ __('Lire') }}</button>
                         </div>
-                        <p x-show="open" x-cloak class="mt-2 text-xs leading-relaxed text-ink-soft max-h-40 overflow-y-auto" x-text="target.narration"></p>
+                        <p x-show="open" x-cloak class="mt-2 text-xs leading-relaxed text-ink-soft max-h-40 overflow-y-auto" x-text="narrationFor(target)"></p>
                     </div>
                 </template>
                 <div class="mt-3 flex gap-2">
@@ -225,6 +227,7 @@
         </div>
     </div>
 
+    <x-ai-companion :title="$result['title']" :steps="$steps" :lat="$result['start']['lat']" :lng="$result['start']['lng']" :speak="true" :floating="false" />
     @push('scripts')
     <script>
         function caminoNav(data) {
@@ -252,7 +255,7 @@
                 leg: null, segIdx: 0, along: 0, instruction: '', street: '', icon: 'straight', distToManeuver: null, maneuverIdx: -1, spokenIdx: -1, spokenApproach: -1, thenManeuver: null,
                 remaining: 0, offRoute: false, offRouteCount: 0, rerouting: false, walked: 0, lastPos: null,
                 sectionIdx: -1, sheet: false, transitLoading: false, spokenAlight: -1, sheetHeight: 200,
-                audioguide: true, narrating: false,
+                audioguide: true, narrating: false, aiNarration: {},
                 backUrl: data.backUrl,
 
                 get target() { return targets[this.legIndex] || null; },
@@ -308,9 +311,16 @@
                 formatDistance(m) { if (m === null || m === undefined) return ''; if (m >= 1000) return (m / 1000).toFixed(1).replace('.', ',') + ' km'; return Math.max(0, Math.round(m / 10) * 10) + ' m'; },
 
                 // ---------------------------------------------------------------- tronçon courant
+                narrationFor(t) { return t ? (this.aiNarration[t.id] || t.narration || null) : null; },
+                async prefetchNarration(t) {
+                    if (!data.ai || !t || !t.id || t.kind === 'end' || this.aiNarration[t.id] !== undefined) return;
+                    this.aiNarration[t.id] = t.narration || null;
+                    try { const r = await fetch(data.ai + '/' + t.id + '?lang=' + data.locale, { headers: { Accept: 'application/json' } }); const j = await r.json(); if (j.ok && j.text) this.aiNarration[t.id] = j.text; } catch (e) {}
+                },
                 loadLeg(index, fromPos) {
                     const t = targets[index];
                     if (!t) { this.finish(); return; }
+                    this.prefetchNarration(t); if (targets[index + 1]) this.prefetchNarration(targets[index + 1]);
                     const stored = data.legs[index];
                     let shape = stored && stored.shape && stored.shape.length > 1 ? stored.shape : null;
                     let maneuvers = stored && stored.maneuvers ? stored.maneuvers : [];
@@ -455,7 +465,7 @@
                     if (t.kind === 'end') { this.finish(); return; }
                     // Annonce d'arrivée, puis l'audioguide raconte le lieu (même énoncé : la synthèse vocale enchaîne sans coupure).
                     const arrival = data.t.arrived + ' ' + t.title + '.' + (t.visit ? ' ' + data.t.visit + ' ' + t.visit + ' ' + data.t.minutes + '.' : '');
-                    if (this.audioguide && t.narration && !this.muted) { this.narrating = true; this.speak(arrival + ' ' + data.t.audioguideIntro + ' ' + t.narration, () => { this.narrating = false; }); }
+                    if (this.audioguide && this.narrationFor(t) && !this.muted) { this.narrating = true; this.speak(arrival + ' ' + data.t.audioguideIntro + ' ' + this.narrationFor(t), () => { this.narrating = false; }); }
                     else this.speak(arrival);
                     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
                     if (nav && this.pos) { this.overview = true; this.follow = false; nav.fit([this.pos, [t.lat, t.lng]], { padding: 80 }); }
@@ -464,10 +474,10 @@
                 confirmArrival() { this.onArrival(); },
                 toggleNarration() {
                     if (this.narrating) { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); this.narrating = false; return; }
-                    const t = this.target; if (!t || !t.narration) return;
+                    const t = this.target; if (!t || !this.narrationFor(t)) return;
                     const wasMuted = this.muted; this.muted = false;
                     this.narrating = true;
-                    this.speak(t.title + '. ' + t.narration, () => { this.narrating = false; this.muted = wasMuted; });
+                    this.speak(t.title + '. ' + this.narrationFor(t), () => { this.narrating = false; this.muted = wasMuted; });
                 },
                 async recordVisit(t) {
                     if (!data.auth || this.simulate || !t.visitUrl) return;

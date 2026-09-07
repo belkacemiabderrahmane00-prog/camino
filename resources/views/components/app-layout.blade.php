@@ -222,6 +222,9 @@
         </footer>
     @endunless
 
+    {{-- Bulle balade en cours / compagnon qui lance une balade : partout sauf sur la balade elle-même et le guidage (qui a sa propre pastille) --}}
+    @unless(request()->routeIs('walks.*') || request()->routeIs('itineraries.navigate*'))<x-walk-bubble />@endunless
+
     {{-- Toast générique : $dispatch('toast', 'message') --}}
     <div x-data="{ msg: null, t: null }" x-on:toast.window="msg = $event.detail; clearTimeout(t); t = setTimeout(() => msg = null, 3500)" x-cloak x-show="msg" x-transition class="fixed bottom-24 md:bottom-6 inset-x-0 z-[1100] flex justify-center px-4 pointer-events-none"><div class="card px-4 py-3 text-sm shadow-float bg-ink text-white" x-text="msg"></div></div>
 

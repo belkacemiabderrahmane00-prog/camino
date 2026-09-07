@@ -37,6 +37,7 @@ Route::get('/p/{token}/carnet.pdf', [ItineraryController::class, 'sharedJournalP
 
 // Balade à plusieurs (invités sans compte : pseudo + jeton en session)
 Route::post('/balades', [\App\Http\Controllers\WalkController::class, 'store'])->name('walks.store');
+Route::get('/balades/en-cours', [\App\Http\Controllers\WalkController::class, 'live'])->name('walks.live')->middleware('throttle:60,1');
 Route::get('/b/{code}', [\App\Http\Controllers\WalkController::class, 'show'])->name('walks.show');
 Route::post('/b/{code}/rejoindre', [\App\Http\Controllers\WalkController::class, 'joinRequest'])->name('walks.join');
 Route::get('/b/{code}/etat', [\App\Http\Controllers\WalkController::class, 'state'])->name('walks.state')->middleware('throttle:120,1');

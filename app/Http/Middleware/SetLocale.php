@@ -20,16 +20,19 @@ class SetLocale
     {
         $locale = null;
         $asked = (string) $request->query('lang', '');
+        $stateful = $request->hasSession(); // les routes API n'ont pas de session : la langue vient de ?lang= ou du navigateur
         if (in_array($asked, self::SUPPORTED, true)) {
             $locale = $asked;
-            $request->session()->put('locale', $asked);
-            if (Auth::check() && Auth::user()->locale !== $asked) {
-                Auth::user()->forceFill(['locale' => $asked])->save();
+            if ($stateful) {
+                $request->session()->put('locale', $asked);
+                if (Auth::check() && Auth::user()->locale !== $asked) {
+                    Auth::user()->forceFill(['locale' => $asked])->save();
+                }
             }
         }
         $locale = $locale
-            ?? (Auth::check() && in_array(Auth::user()->locale, self::SUPPORTED, true) ? Auth::user()->locale : null)
-            ?? $request->session()->get('locale')
+            ?? ($stateful && Auth::check() && in_array(Auth::user()->locale, self::SUPPORTED, true) ? Auth::user()->locale : null)
+            ?? ($stateful ? $request->session()->get('locale') : null)
             ?? $this->fromBrowser($request)
             ?? 'fr';
 

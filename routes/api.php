@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::get('pois', [PoiController::class, 'index']);
+    // IA : recherche par envie, compagnon de balade, audioguide génératif (repli sans IA dans chaque cas).
+    Route::get('ai/status', [\App\Http\Controllers\Api\V1\AiController::class, 'status']);
+    Route::get('ai/intent', [\App\Http\Controllers\Api\V1\AiController::class, 'intent'])->middleware('throttle:30,1');
+    Route::post('ai/compagnon', [\App\Http\Controllers\Api\V1\AiController::class, 'companion'])->middleware('throttle:20,1');
+    Route::get('ai/narration/{place}', [\App\Http\Controllers\Api\V1\AiController::class, 'narration'])->middleware('throttle:60,1');
     Route::get('poi/{id}', [PoiController::class, 'show']);
     Route::get('alerts', [CommunityController::class, 'alertsApi']);
     Route::get('weather', [WeatherController::class, 'show']);

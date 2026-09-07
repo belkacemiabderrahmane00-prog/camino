@@ -243,6 +243,58 @@ class WalkController extends Controller
         return redirect()->route('walks.show', $walk->code)->with('status', __('Balade terminée. Merci à tous !'));
     }
 
+    /**
+     * Balades à signaler au visiteur, où qu'il soit dans l'app : celles dont il est membre (en cours),
+     * et celles lancées par un compagnon de route (quelqu'un avec qui il a déjà marché, comptes connectés).
+     */
+    public function live(Request $request)
+    {
+        $mine = [];
+        $tokens = [];
+        foreach ($request->session()->all() as $key => $value) {
+            if (str_starts_with((string) $key, 'walk_member_') && is_string($value)) {
+                $tokens[] = $value;
+            }
+        }
+        $memberWalkIds = [];
+        $query = WalkMember::query()->whereNull('left_at')->where(function ($q) use ($tokens) {
+            if ($tokens !== []) {
+                $q->whereIn('token', $tokens);
+            }
+            if (Auth::check()) {
+                $q->orWhere('user_id', Auth::id());
+            }
+            if ($tokens === [] && ! Auth::check()) {
+                $q->whereRaw('1 = 0');
+            }
+        });
+        foreach ($query->with('walk')->get() as $member) {
+            $walk = $member->walk;
+            if (! $walk || ! $walk->isActive() || isset($memberWalkIds[$walk->id])) {
+                continue;
+            }
+            $memberWalkIds[$walk->id] = true;
+            $online = $walk->members()->whereNull('left_at')->where('seen_at', '>=', now()->subSeconds(75))->count();
+            $mine[] = ['code' => $walk->code, 'title' => $walk->title, 'url' => $walk->url(), 'online' => $online, 'members' => $walk->members()->whereNull('left_at')->count()];
+        }
+
+        $companions = [];
+        if (Auth::check()) {
+            // Compagnons : comptes ayant partagé une balade avec moi (hors balades en cours listées ci-dessus).
+            $myWalkIds = WalkMember::query()->where('user_id', Auth::id())->pluck('walk_id');
+            $companionIds = WalkMember::query()->whereIn('walk_id', $myWalkIds)->whereNotNull('user_id')->where('user_id', '!=', Auth::id())->distinct()->pluck('user_id');
+            if ($companionIds->isNotEmpty()) {
+                $hosts = WalkMember::query()->whereIn('user_id', $companionIds)->whereNull('left_at')->where('created_at', '>=', now()->subHours(12))
+                    ->with('walk')->get()->filter(fn (WalkMember $m) => $m->walk && $m->walk->isActive() && $m->walk->host_member_id === $m->id && ! isset($memberWalkIds[$m->walk_id]));
+                foreach ($hosts->unique('walk_id') as $m) {
+                    $companions[] = ['code' => $m->walk->code, 'title' => $m->walk->title, 'url' => $m->walk->url(), 'by' => $m->name, 'members' => $m->walk->members()->whereNull('left_at')->count()];
+                }
+            }
+        }
+
+        return response()->json(['mine' => $mine, 'companions' => $companions]);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private function member(Walk $walk, Request $request): ?WalkMember

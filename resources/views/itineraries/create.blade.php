@@ -306,6 +306,7 @@
 
                             <div class="mt-5 flex flex-wrap gap-2">
                                 <a href="{{ route('itineraries.navigate') }}" class="btn btn-lg btn-primary"><span class="material-symbols-outlined">navigation</span>{{ __('Suivre le parcours') }}</a>
+                                @if(app(\App\Services\AiService::class)->enabled())<button type="button" @click="$dispatch('open-companion')" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20" title="{{ __('Un café, l\'histoire d\'un lieu, le temps qu\'il reste : demande à CAMINO') }}"><span class="material-symbols-outlined text-sun" style="font-size:20px">auto_awesome</span>{{ __('Demander à CAMINO') }}</button>@endif
                                 <form method="POST" action="{{ route('walks.store') }}">@csrf<button class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20" title="{{ __('Positions des amis en direct, point de rendez-vous, messages et photos') }}"><span class="material-symbols-outlined" style="font-size:20px">groups</span>{{ __('À plusieurs') }}</button></form>
                                 <a href="{{ $gmUrl }}" target="_blank" rel="noopener" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">open_in_new</span>Google Maps</a>
                                 <button type="button" @click="navigator.clipboard.writeText(@js($gmUrl)); $dispatch('toast', @js(__('Lien copié')))" class="btn btn-lg bg-white/10 text-white border border-white/15 hover:bg-white/20"><span class="material-symbols-outlined" style="font-size:20px">share</span>{{ __('Partager') }}</button>
@@ -516,6 +517,7 @@
         </div>
     </section>
 
+    @if($hasResult && !empty($result['steps']))<x-ai-companion :title="$result['title']" :steps="$result['steps']" :lat="$result['start']['lat'] ?? null" :lng="$result['start']['lng'] ?? null" :floating="false" />@endif
     @push('scripts')
     <script>
         function addressSearch(target) {

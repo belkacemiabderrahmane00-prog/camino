@@ -60,5 +60,18 @@ return [
         'cache_minutes' => (int) env('CAMINO_PRIM_CACHE', 60),
     ],
 
+    // IA générative gratuite : Gemini (AI Studio) d'abord, Groq en relève, Mistral en option. Clés uniquement dans l'environnement.
+    'ai' => [
+        'enabled' => (bool) env('CAMINO_AI_ENABLED', true),
+        'order' => env('CAMINO_AI_ORDER', 'gemini,groq,mistral'),
+        'gemini_key' => env('GEMINI_API_KEY', ''),
+        'gemini_model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'groq_key' => env('GROQ_API_KEY', ''),
+        'groq_model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'mistral_key' => env('MISTRAL_API_KEY', ''),
+        'mistral_model' => env('MISTRAL_MODEL', 'mistral-small-latest'),
+        'timeout' => (int) env('CAMINO_AI_TIMEOUT', 25),
+    ],
+
     'user_agent' => 'CAMINO/2.0 (+https://camino-u0eo.onrender.com)',
 ];
