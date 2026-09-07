@@ -139,7 +139,7 @@ class AiController extends Controller
             'map' => "L'utilisateur regarde la carte. Quand il cherche quelque chose, remplis \"filter\" (la carte l'appliquera) ET choisis jusqu'à 4 candidats dans \"places\". Si aucun candidat ne convient, laisse \"places\" vide et dis-le en une phrase.",
             'result' => "L'utilisateur regarde son parcours généré (étapes ci-dessous). Il peut demander d'ajouter un lieu (action add_place avec un id de candidat) ou de retirer une étape (action remove_step avec l'index à partir de 0). Explique en une phrase ce que tu fais.",
             'guidance' => "L'utilisateur est en train de suivre son parcours à pied (étape en cours ci-dessous). Réponds comme un compagnon de route : court, concret, rassurant. Recommande uniquement des candidats.",
-            'place' => "L'utilisateur consulte la fiche du premier candidat. Réponds sur ce lieu ; pour « à côté », propose d'autres candidats.",
+            'place' => "L'utilisateur consulte la fiche du lieu « " . mb_substr((string) ($ctx['title'] ?? ''), 0, 120) . " » (premier candidat). Toute question sans objet explicite (« en trois points ? », « c'est bien pour des enfants ? ») porte sur CE lieu : réponds directement, sans demander de précision. Pour « à côté », propose d'autres candidats.",
             default => "Réponds sur CAMINO (GPS culturel d'Île-de-France : carte, parcours générés, balades à plusieurs, audioguide) et propose des candidats s'il y en a.",
         };
         $system = "Tu es CAMINO, l'assistant d'un GPS culturel pour l'Île-de-France. Tu réponds en " . AiService::languageName($locale) . ".\n"
