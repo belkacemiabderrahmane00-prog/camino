@@ -840,5 +840,19 @@
     "Les lieux": "这些地点",
     ":n halte|:n haltes": ":n 站|:n 站",
     "Créer le mien": "创建我的路线",
-    "Fait avec CAMINO, le GPS culturel intelligent.": "由智能文化 GPS CAMINO 制作。"
+    "Fait avec CAMINO, le GPS culturel intelligent.": "由智能文化 GPS CAMINO 制作。",
+    "Récap": "回顾",
+    "Lancer le récap": "播放回顾",
+    "Partager cette carte": "分享这张卡片",
+    "Ta journée": "你的一天",
+    "La carte de ta balade, prête à partager : tes étapes, ton tracé, tes chiffres. Lance le récap pour la revivre en diapositives, ou garde tout en PDF.": "你的漫步卡片，随时分享：站点、轨迹、数据。播放回顾，一页页重温，或保存为 PDF。",
+    "Les moments forts": "精彩时刻",
+    "Le plus long arrêt": "停留最久",
+    "Le plus grand saut": "最长一段路",
+    "Sans dépenser": "零花费",
+    ":n lieu gratuit|:n lieux gratuits": ":n 个免费地点|:n 个免费地点",
+    "sur :n": "共 :n 个",
+    "La couleur du jour": "今日主题",
+    "de marche dans la journée": "全天步行",
+    "Génère ton propre parcours selon ton temps, ton budget et la météo.": "根据你的时间、预算和天气生成自己的路线。"
 }

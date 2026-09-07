@@ -477,13 +477,29 @@ class ItineraryController extends Controller
     private function renderJournalPdf(Itinerary $itinerary)
     {
         $data = $this->journalData($itinerary);
-        // chroot explicite : sans lui, dompdf refuse de lire les polices dans public/fonts.
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'defaultMediaType' => 'print', 'dpi' => 96, 'chroot' => base_path()])
-            ->loadView('itineraries.journal-pdf', $data)
-            ->setPaper('a4', 'portrait');
-        $name = 'carnet-' . \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($itinerary->name, 40, '')) . '.pdf';
+        // Le cache des polices de dompdf doit exister et être accessible en écriture (le dossier n'est pas versionné).
+        \Illuminate\Support\Facades\File::ensureDirectoryExists(storage_path('fonts'));
+        \Illuminate\Support\Facades\File::ensureDirectoryExists(storage_path('app/tmp'));
+        @set_time_limit(120);
+        try {
+            // chroot explicite : sans lui, dompdf refuse de lire les polices dans public/fonts.
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true, 'defaultMediaType' => 'print', 'dpi' => 96, 'chroot' => base_path(), 'fontDir' => storage_path('fonts'), 'fontCache' => storage_path('fonts'), 'tempDir' => storage_path('app/tmp')])
+                ->loadView('itineraries.journal-pdf', $data)
+                ->setPaper('a4', 'portrait');
+            $name = 'carnet-' . \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($itinerary->name, 40, '')) . '.pdf';
 
-        return $pdf->download($name);
+            return $pdf->download($name);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Journal PDF failed: ' . $e->getMessage(), ['itinerary' => $itinerary->id, 'trace' => substr($e->getTraceAsString(), 0, 1500)]);
+            // Second essai sans les images distantes (réseau ou mémoire), plutôt qu'une erreur.
+            $data['pages'] = array_map(fn ($p) => ['photo' => null, 'photo_medium' => null] + $p, $data['pages']);
+            $data['cover'] = null;
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions(['isRemoteEnabled' => false, 'isHtml5ParserEnabled' => true, 'chroot' => base_path(), 'fontDir' => storage_path('fonts'), 'fontCache' => storage_path('fonts'), 'tempDir' => storage_path('app/tmp')])
+                ->loadView('itineraries.journal-pdf', $data)
+                ->setPaper('a4', 'portrait');
+
+            return $pdf->download('carnet.pdf');
+        }
     }
 
     /**
@@ -541,11 +557,42 @@ class ItineraryController extends Controller
         $date = ! empty($result['date']) ? \Illuminate\Support\Carbon::parse($result['date']) : $itinerary->created_at;
         $userPhotoCount = $photos->flatten(1)->count();
 
+        // Moments forts : quelques faits marquants calculés sur la journée (façon récap).
+        $visits = array_values(array_filter($pages, fn ($p) => $p['kind'] === 'visit'));
+        $highlights = [];
+        if ($visits !== []) {
+            usort($visits, fn ($a, $b) => ($b['visit_minutes'] ?? 0) <=> ($a['visit_minutes'] ?? 0));
+            $longest = $visits[0];
+            if (($longest['visit_minutes'] ?? 0) > 0) {
+                $highlights[] = ['icon' => 'hourglass_top', 'label' => __('Le plus long arrêt'), 'value' => $longest['title'], 'detail' => $longest['visit_minutes'] . ' ' . __('min sur place')];
+            }
+            $travel = array_values(array_filter($pages, fn ($p) => ($p['travel_minutes'] ?? 0) > 0));
+            usort($travel, fn ($a, $b) => $b['travel_minutes'] <=> $a['travel_minutes']);
+            if ($travel !== []) {
+                $highlights[] = ['icon' => 'moving', 'label' => __('Le plus grand saut'), 'value' => $travel[0]['title'], 'detail' => $travel[0]['travel_minutes'] . ' ' . __('min de trajet')];
+            }
+            $free = count(array_filter($visits, fn ($p) => $p['is_free']));
+            if ($free > 0) {
+                $highlights[] = ['icon' => 'loyalty', 'label' => __('Sans dépenser'), 'value' => trans_choice(':n lieu gratuit|:n lieux gratuits', $free, ['n' => $free]), 'detail' => __('sur :n', ['n' => count($visits)])];
+            }
+            $cats = array_count_values(array_filter(array_map(fn ($p) => $p['category'], $visits)));
+            arsort($cats);
+            if ($cats !== []) {
+                $top = array_key_first($cats);
+                $highlights[] = ['icon' => 'auto_awesome', 'label' => __('La couleur du jour'), 'value' => $top, 'detail' => trans_choice(':n lieu|:n lieux', $cats[$top], ['n' => $cats[$top]])];
+            }
+            $walk = array_sum(array_map(fn ($p) => ($p['travel_mode'] ?? 'walk') === 'walk' ? (int) ($p['travel_minutes'] ?? 0) : 0, $pages));
+            if ($walk > 0) {
+                $highlights[] = ['icon' => 'directions_walk', 'label' => __('À pied'), 'value' => $walk >= 60 ? intdiv($walk, 60) . ' h ' . str_pad((string) ($walk % 60), 2, '0', STR_PAD_LEFT) : $walk . ' min', 'detail' => __('de marche dans la journée')];
+            }
+        }
+
         return [
             'itinerary' => $itinerary,
             'result' => $result,
             'pages' => $pages,
             'cover' => $cover,
+            'highlights' => array_slice($highlights, 0, 4),
             'date' => $date,
             'stats' => [
                 'places' => count(array_filter($pages, fn ($p) => $p['kind'] === 'visit')),
