@@ -65,7 +65,7 @@ return [
         'enabled' => (bool) env('CAMINO_AI_ENABLED', true),
         'order' => env('CAMINO_AI_ORDER', 'gemini,groq,mistral'),
         'gemini_key' => env('GEMINI_API_KEY', ''),
-        'gemini_model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'gemini_model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
         'groq_key' => env('GROQ_API_KEY', ''),
         'groq_model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
         'mistral_key' => env('MISTRAL_API_KEY', ''),
