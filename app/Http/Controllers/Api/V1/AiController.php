@@ -21,7 +21,12 @@ class AiController extends Controller
 
     public function status(AiService $ai)
     {
-        return response()->json(['enabled' => $ai->enabled(), 'providers' => $ai->status()]);
+        $payload = ['enabled' => $ai->enabled(), 'providers' => $ai->status()];
+        if (request()->boolean('probe')) {
+            $payload['probe'] = $ai->probe();
+        }
+
+        return response()->json($payload);
     }
 
     /** Recherche par envie : « un musée gratuit ouvert maintenant près de moi » → filtres compris par /api/v1/pois. */
@@ -97,7 +102,7 @@ class AiController extends Controller
         $nearby = '';
         if ($lat !== null && $lng !== null) {
             $dlat = 0.012; $dlng = 0.018;
-            $places = Place::query()->where('status', 'published')->with('category')
+            $places = Place::query()->approved()->with('category')
                 ->whereBetween('lat', [$lat - $dlat, $lat + $dlat])->whereBetween('lng', [$lng - $dlng, $lng + $dlng])
                 ->get(['id', 'title', 'lat', 'lng', 'category_id', 'is_free', 'address', 'opening_hours', 'price_level'])
                 ->sortBy(fn (Place $p) => ($p->lat - $lat) ** 2 + (($p->lng - $lng) * cos(deg2rad($lat))) ** 2)
@@ -124,7 +129,7 @@ class AiController extends Controller
     /** Audioguide génératif : récit d'un lieu (≈ 1 min à voix haute) dans la langue de l'interface, en cache 30 jours. */
     public function narration(Place $place, AiService $ai)
     {
-        abort_unless($place->status === 'published', 404);
+        abort_unless($place->status === 'approved', 404);
         $locale = app()->getLocale();
         $fallback = self::trimDescription((string) ($place->translatedDescription($locale) ?? $place->description));
         if (! $ai->enabled()) {

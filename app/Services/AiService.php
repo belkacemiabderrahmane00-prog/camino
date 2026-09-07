@@ -97,6 +97,10 @@ class AiService
         if (! empty($options['json'])) {
             $generation['responseMimeType'] = 'application/json';
         }
+        // Gemini 2.5 : le « raisonnement » consomme le budget de sortie ; on le coupe pour des réponses courtes et rapides.
+        if (str_contains($provider['model'], '2.5')) {
+            $generation['thinkingConfig'] = ['thinkingBudget' => 0];
+        }
         $response = Http::timeout((int) config('camino.ai.timeout', 25))
             ->withHeaders(['x-goog-api-key' => $provider['key']])
             ->post($provider['url'] . $provider['model'] . ':generateContent', [
@@ -129,6 +133,26 @@ class AiService
         }
 
         return $response->json('choices.0.message.content');
+    }
+
+    /**
+     * Diagnostic : un appel minimal par fournisseur, avec le statut HTTP et le début de la réponse en cas d'erreur (jamais la clé).
+     *
+     * @return array<string, array{ok:bool,model:string,error:?string}>
+     */
+    public function probe(): array
+    {
+        $out = [];
+        foreach ($this->providers() as $provider) {
+            try {
+                $text = $provider['name'] === 'gemini' ? $this->gemini($provider, 'Réponds par le mot OK.', [['role' => 'user', 'content' => 'OK ?']], ['max_tokens' => 32]) : $this->openAiCompatible($provider, 'Réponds par le mot OK.', [['role' => 'user', 'content' => 'OK ?']], ['max_tokens' => 32]);
+                $out[$provider['name']] = ['ok' => $text !== null && trim($text) !== '', 'model' => $provider['model'], 'error' => $text === null ? 'empty' : null];
+            } catch (\Throwable $e) {
+                $out[$provider['name']] = ['ok' => false, 'model' => $provider['model'], 'error' => mb_substr(str_replace($provider['key'], '***', $e->getMessage()), 0, 300)];
+            }
+        }
+
+        return $out;
     }
 
     /** Nom de la langue de l'interface, pour les consignes. */

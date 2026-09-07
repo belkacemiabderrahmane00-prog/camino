@@ -35,7 +35,7 @@ class AiTest extends TestCase
     {
         config(['camino.ai.gemini_key' => '', 'camino.ai.groq_key' => '', 'camino.ai.mistral_key' => '']);
         $category = Category::create(['name' => 'Musée', 'slug' => 'musee']);
-        $place = Place::create(['title' => 'Musée test', 'lat' => 48.86, 'lng' => 2.34, 'category_id' => $category->id, 'description' => 'Un musée de test avec une belle collection.', 'status' => 'published']);
+        $place = Place::create(['title' => 'Musée test', 'lat' => 48.86, 'lng' => 2.34, 'category_id' => $category->id, 'description' => 'Un musée de test avec une belle collection.', 'status' => 'approved']);
 
         $this->getJson('/api/v1/ai/status')->assertOk()->assertJson(['enabled' => false, 'providers' => []]);
         $this->getJson('/api/v1/ai/intent?q=musée gratuit ouvert maintenant')->assertOk()->assertJson(['ok' => false]);
@@ -84,8 +84,8 @@ class AiTest extends TestCase
     {
         config(['camino.ai.gemini_key' => 'g-test']);
         $category = Category::create(['name' => 'Restauration', 'slug' => 'restauration']);
-        Place::create(['title' => 'Café des Arts', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'is_free' => false, 'status' => 'published', 'address' => '1 rue des Arts']);
-        Place::create(['title' => 'Bar caché', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'status' => 'draft']);
+        Place::create(['title' => 'Café des Arts', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'is_free' => false, 'status' => 'approved', 'address' => '1 rue des Arts']);
+        Place::create(['title' => 'Bar caché', 'lat' => 48.8605, 'lng' => 2.3405, 'category_id' => $category->id, 'status' => 'pending']);
         Http::fake(['generativelanguage.googleapis.com/*' => $this->gemini('Le Café des Arts est à 60 m, parfait pour une pause.')]);
 
         $this->postJson('/api/v1/ai/compagnon', [
@@ -104,7 +104,7 @@ class AiTest extends TestCase
     {
         config(['camino.ai.gemini_key' => 'g-test']);
         $category = Category::create(['name' => 'Monument', 'slug' => 'monument']);
-        $place = Place::create(['title' => 'Tour test', 'lat' => 48.86, 'lng' => 2.34, 'category_id' => $category->id, 'description' => 'Une tour de test construite pour les visiteurs curieux.', 'status' => 'published']);
+        $place = Place::create(['title' => 'Tour test', 'lat' => 48.86, 'lng' => 2.34, 'category_id' => $category->id, 'description' => 'Une tour de test construite pour les visiteurs curieux.', 'status' => 'approved']);
         $story = str_repeat('Devant toi se dresse la tour de test, un lieu plein de surprises. ', 3);
         // Séquence : le récit, puis une panne (le 2e appel FR est servi par le cache et ne consomme rien).
         Http::fake(['generativelanguage.googleapis.com/*' => Http::sequence()->push(['candidates' => [['content' => ['parts' => [['text' => $story]]]]]])->push(null, 500), '*' => Http::response(null, 503)]);
